@@ -710,6 +710,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                         <th @click="sort('aggregate.mean_clustering_recall')" title="Fraction of ground truth same-cluster pairs correctly predicted">Recall <span x-show="sortKey==='aggregate.mean_clustering_recall'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('aggregate.mean_coverage')" title="Fraction of ground truth fragments appearing in at least one predicted item">Coverage <span x-show="sortKey==='aggregate.mean_coverage'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('aggregate.mean_class_accuracy')" title="Fraction of predicted items whose class label matches ground truth">Class Acc <span x-show="sortKey==='aggregate.mean_class_accuracy'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.execution_time_seconds')" title="Total execution time in seconds">Time <span x-show="sortKey==='config.execution_time_seconds'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -725,6 +726,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                             <td :class="metricClass(run.aggregate.mean_clustering_recall)" x-text="fmt(run.aggregate.mean_clustering_recall)"></td>
                             <td :class="metricClass(run.aggregate.mean_coverage)" x-text="fmt(run.aggregate.mean_coverage)"></td>
                             <td :class="metricClass(run.aggregate.mean_class_accuracy)" x-text="fmt(run.aggregate.mean_class_accuracy)"></td>
+                            <td x-text="run.config.execution_time_seconds ? run.config.execution_time_seconds.toFixed(1) + 's' : '—'"></td>
                         </tr>
                     </template>
                 </tbody>

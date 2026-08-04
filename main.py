@@ -31,6 +31,7 @@ import json
 import os
 import random
 import sys
+import time
 
 from dotenv import load_dotenv
 
@@ -273,6 +274,8 @@ def _run_input_dir(
     eval_results = []
     failed_pages = []
 
+    start_time = time.time()
+
     for page_id in all_page_ids:
         print(f"[{page_id}] Reconstructing...", file=sys.stderr)
         fragments = pages[page_id]
@@ -339,6 +342,7 @@ def _run_input_dir(
             "pages_processed": len(eval_results),
             "pages_failed": len(failed_pages),
             "seed": args.seed,
+            "execution_time_seconds": time.time() - start_time,
         }
         log_path = log_evaluation_run(paged_results, config, args.eval_dir)
         print(f"\nEvaluation log saved to: {log_path}", file=sys.stderr)
@@ -391,6 +395,7 @@ def _reconstruct_and_eval_single(
         model=model,
         timeout=args.timeout,
     )
+    start_time = time.time()
     predicted = reconstruct_articles_cached(
         fragments,
         client,
@@ -432,6 +437,7 @@ def _reconstruct_and_eval_single(
         "prompt_name": prompt_name,
         "sample_size": None,
         "seed": args.seed,
+        "execution_time_seconds": time.time() - start_time,
     }
     log_path = log_evaluation_run(
         [
