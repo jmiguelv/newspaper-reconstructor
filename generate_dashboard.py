@@ -599,10 +599,12 @@ HTML_TEMPLATE = r"""<!doctype html>
 
     <main x-data="dashboard()" x-cloak>
 
-        <!-- ── Models Info ────────────────────────────────────── -->
+        <!-- ── Reference Section ────────────────────────────────────── -->
+        <section style="margin-bottom: var(--space-xl);">
+            <h2>Reference</h2>
 
-        <details class="models-info" style="margin-bottom: var(--space-m);">
-            <summary>Models reference</summary>
+            <details class="models-info" style="margin-bottom: var(--space-s);">
+                <summary>Models reference</summary>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-m); margin-top: var(--space-s);">
 
                 <article class="item-card" style="margin-bottom: 0;">
@@ -635,12 +637,24 @@ HTML_TEMPLATE = r"""<!doctype html>
                     </dl>
                 </article>
             </div>
-        </details>
+            </details>
 
-        <!-- ── Metrics legend ─────────────────────────────────── -->
+            <!-- ── Prompts Info ────────────────────────────────────── -->
+            <details class="prompts-info" style="margin-bottom: var(--space-s);">
+                <summary>Prompts reference</summary>
+                <div style="padding: var(--space-s); background: var(--surface-2); border-radius: 0.5rem; border: 1px solid var(--rule); margin-top: var(--space-s);">
+                    <ul style="margin: 0; padding-left: var(--space-m); color: var(--ink-light); font-size: var(--step--1);">
+                        <li style="margin-bottom: var(--space-2xs);"><strong style="color: var(--ink);">v00</strong>: Baseline prompt</li>
+                        <li style="margin-bottom: var(--space-2xs);"><strong style="color: var(--ink);">v01</strong>: Improved formatting</li>
+                        <li><strong style="color: var(--ink);">v02</strong>: Few-shot examples and additional heuristics</li>
+                    </ul>
+                </div>
+            </details>
 
-        <details class="metrics-legend">
-            <summary>Metrics reference</summary>
+            <!-- ── Metrics legend ─────────────────────────────────── -->
+
+            <details class="metrics-legend">
+                <summary>Metrics reference</summary>
             <dl>
                 <div>
                     <dt>Clustering F1 <code>F1</code></dt>
@@ -685,6 +699,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                 <span class="legend-bad">&lt; 0.60 poor</span>
             </div>
         </details>
+        </section>
 
         <!-- ── Runs table ─────────────────────────────────────── -->
 
@@ -726,7 +741,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                             <td :class="metricClass(run.aggregate.mean_clustering_recall)" x-text="fmt(run.aggregate.mean_clustering_recall)"></td>
                             <td :class="metricClass(run.aggregate.mean_coverage)" x-text="fmt(run.aggregate.mean_coverage)"></td>
                             <td :class="metricClass(run.aggregate.mean_class_accuracy)" x-text="fmt(run.aggregate.mean_class_accuracy)"></td>
-                            <td x-text="run.config.execution_time_seconds ? run.config.execution_time_seconds.toFixed(1) + 's' : '—'"></td>
+                            <td x-text="run.config.execution_time_seconds ? run.config.execution_time_seconds.toFixed(3) + 's' : '—'"></td>
                         </tr>
                     </template>
                 </tbody>
