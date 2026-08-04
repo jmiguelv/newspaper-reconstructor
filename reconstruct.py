@@ -13,7 +13,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-from openai import APIError
+from openai import APIError, APITimeoutError
 
 from llm import LLMClient
 
@@ -162,6 +162,17 @@ def reconstruct_articles(
     for attempt in range(max_retries):
         try:
             raw = client.complete(system_prompt, user_prompt)
+        except APITimeoutError:
+            if attempt < max_retries - 1:
+                wait = 5 * (2**attempt)
+                print(
+                    f"  Timed out (attempt {attempt + 1}/{max_retries}). Retrying in {wait}s...",
+                    file=sys.stderr,
+                )
+                time.sleep(wait)
+                continue
+            print(f"  Timed out after {max_retries} attempts", file=sys.stderr)
+            return None
         except APIError as e:
             if attempt < max_retries - 1:
                 wait = 5 * (2**attempt)
