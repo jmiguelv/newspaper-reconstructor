@@ -591,7 +591,9 @@ HTML_TEMPLATE = r"""<!doctype html>
         <h1>Evaluation Dashboard</h1>
         <p x-data x-text="EVAL_DATA.length + ' evaluation runs — Jawi Newspaper Article Reconstruction'">…</p>
         <p style="margin-top: var(--space-s); max-width: 72ch; font-size: var(--step--1);">
-            This tool parses OCR text fragments from historical Jawi Malay newspapers, uses Large Language Models to reconstruct complete articles, and evaluates the predictions against ground truth annotations using pairwise clustering F1, class accuracy, and coverage metrics.
+            Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM to group fragments into complete items (articles, advertisements, etc.). Includes evaluation against ground truth article XML using pairwise clustering F1, class accuracy, and coverage metrics.
+            <br><br>
+            Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
         </p>
     </header>
 
