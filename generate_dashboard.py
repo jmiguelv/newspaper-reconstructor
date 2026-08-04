@@ -590,6 +590,9 @@ HTML_TEMPLATE = r"""<!doctype html>
     <header role="banner">
         <h1>Evaluation Dashboard</h1>
         <p x-data x-text="EVAL_DATA.length + ' evaluation runs — Jawi Newspaper Article Reconstruction'">…</p>
+        <p style="margin-top: var(--space-s); max-width: 72ch; font-size: var(--step--1);">
+            This tool parses OCR text fragments from historical Jawi Malay newspapers, uses Large Language Models to reconstruct complete articles, and evaluates the predictions against ground truth annotations using pairwise clustering F1, class accuracy, and coverage metrics.
+        </p>
     </header>
 
     <main x-data="dashboard()" x-cloak>
