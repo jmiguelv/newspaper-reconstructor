@@ -20,155 +20,647 @@ HTML_TEMPLATE = r"""<!doctype html>
     <link rel="icon" href="https://fav.farm/📰" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.amber.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <style>
+        /* ── Tokens ───────────────────────────────────────────── */
+
         :root {
-            --pico-font-family: "Inter", system-ui, sans-serif;
+            --font-serif: "Newsreader", "Georgia", "Times New Roman", serif;
+            --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", monospace;
+
+            --step--2: clamp(0.6944rem, 0.6597rem + 0.1736cqi, 0.8rem);
+            --step--1: clamp(0.8333rem, 0.7754rem + 0.2899cqi, 1rem);
+            --step-0:  clamp(1rem, 0.9rem + 0.5cqi, 1.25rem);
+            --step-1:  clamp(1.2rem, 1.0469rem + 0.7653cqi, 1.5625rem);
+            --step-2:  clamp(1.44rem, 1.2037rem + 1.1813cqi, 1.9531rem);
+            --step-3:  clamp(1.728rem, 1.3755rem + 1.7627cqi, 2.4414rem);
+
+            --space-3xs: clamp(0.25rem, 0.2rem + 0.25cqi, 0.375rem);
+            --space-2xs: clamp(0.5rem, 0.45rem + 0.25cqi, 0.625rem);
+            --space-xs:  clamp(0.75rem, 0.65rem + 0.5cqi, 1rem);
+            --space-s:   clamp(1rem, 0.9rem + 0.5cqi, 1.25rem);
+            --space-m:   clamp(1.5rem, 1.35rem + 0.75cqi, 1.875rem);
+            --space-l:   clamp(2rem, 1.8rem + 1cqi, 2.5rem);
+            --space-xl:  clamp(3rem, 2.7rem + 1.5cqi, 3.75rem);
+
+            --measure: 72ch;
+
+            --ink:        #1a1a1a;
+            --ink-light:  #555;
+            --ink-faint:  #999;
+            --surface:    #fff;
+            --surface-2:  #f7f7f5;
+            --surface-3:  #eeeee9;
+            --rule:       #ddd;
+
+            --green:      #2e7d32;
+            --green-bg:   #e8f5e9;
+            --amber:      #e65100;
+            --amber-bg:   #fff3e0;
+            --red:        #c62828;
+            --red-bg:     #fce4ec;
+            --blue:       #1565c0;
+            --blue-bg:    #e3f2fd;
+            --purple:     #6a1b9a;
+            --purple-bg:  #f3e5f5;
+            --neutral:    #616161;
+            --neutral-bg: #f5f5f5;
         }
 
-        main.container { max-width: 100%; }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --ink:        #e8e6e3;
+                --ink-light:  #aaa;
+                --ink-faint:  #777;
+                --surface:    #1a1a1a;
+                --surface-2:  #242422;
+                --surface-3:  #2e2e2b;
+                --rule:       #3a3a37;
 
-        table { width: 100%; font-size: 0.85rem; }
-        table th { cursor: pointer; white-space: nowrap; user-select: none; }
-        table th:hover { color: var(--pico-primary); }
-        table tbody tr { cursor: pointer; }
-        table tbody tr.active { background-color: var(--pico-secondary-background); }
+                --green:      #66bb6a;
+                --green-bg:   #1b2e1b;
+                --amber:      #ffab40;
+                --amber-bg:   #2e2210;
+                --red:        #ef5350;
+                --red-bg:     #2e1515;
+                --blue:       #64b5f6;
+                --blue-bg:    #152535;
+                --purple:     #ce93d8;
+                --purple-bg:  #251530;
+                --neutral:    #bdbdbd;
+                --neutral-bg: #2a2a2a;
+            }
+        }
 
-        .metric-good { color: #2e7d32; font-weight: 600; }
-        .metric-ok { color: #f57f17; font-weight: 600; }
-        .metric-bad { color: #c62828; font-weight: 600; }
-        .metric-na { color: var(--pico-muted-color); }
+        /* ── Reset ────────────────────────────────────────────── */
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+        /* ── Base ─────────────────────────────────────────────── */
+
+        html {
+            font-family: var(--font-serif);
+            font-size: 100%;
+            line-height: 1.6;
+            color: var(--ink);
+            background: var(--surface);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: "liga" 1, "calt" 1, "cv01" 1, "cv02" 1;
+        }
+
+        body {
+            max-width: 100rem;
+            margin: 0 auto;
+            padding: var(--space-m) var(--space-l);
+        }
+
+        /* ── Typography ───────────────────────────────────────── */
+
+        h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; }
+        h2 { font-size: var(--step-2); font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+        h3 { font-size: var(--step-1); font-weight: 600; letter-spacing: -0.015em; line-height: 1.3; }
+        h4 { font-size: var(--step-0); font-weight: 600; line-height: 1.4; }
+
+        p, li, dd, td, th {
+            font-size: var(--step--1);
+        }
+
+        small, figcaption {
+            font-size: var(--step--2);
+            color: var(--ink-light);
+        }
+
+        code, kbd, samp {
+            font-family: var(--font-mono);
+            font-size: 0.875em;
+            background: var(--surface-2);
+            padding: 0.1em 0.35em;
+            border-radius: 0.25rem;
+        }
+
+        a { color: var(--blue); text-decoration-thickness: 1px; text-underline-offset: 0.15em; }
+        a:hover { text-decoration-thickness: 2px; }
+
+        /* ── Layout ───────────────────────────────────────────── */
+
+        header[role="banner"] {
+            border-bottom: 1px solid var(--rule);
+            padding-bottom: var(--space-m);
+            margin-bottom: var(--space-l);
+        }
+
+        header[role="banner"] p {
+            color: var(--ink-light);
+            margin-top: var(--space-3xs);
+        }
+
+        section {
+            margin-bottom: var(--space-xl);
+        }
+
+        section > h2,
+        section > h3 {
+            margin-bottom: var(--space-s);
+        }
+
+        section > h3 {
+            margin-top: var(--space-l);
+        }
+
+        /* ── Table ────────────────────────────────────────────── */
+
+        .table-wrap {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-variant-numeric: tabular-nums;
+        }
+
+        th, td {
+            padding: var(--space-2xs) var(--space-xs);
+            text-align: left;
+            border-bottom: 1px solid var(--rule);
+            white-space: nowrap;
+        }
+
+        th {
+            font-size: var(--step--2);
+            font-weight: 500;
+            color: var(--ink-light);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover { color: var(--ink); }
+
+        tbody tr {
+            cursor: pointer;
+            transition: background-color 0.1s ease;
+        }
+
+        tbody tr:hover { background-color: var(--surface-2); }
+        tbody tr[data-active="true"] {
+            background-color: var(--surface-3);
+            box-shadow: inset 3px 0 0 var(--ink);
+        }
+
+        /* ── Inline page detail row ───────────────────────────── */
+
+        .page-detail-row td {
+            padding: 0;
+            border-bottom: 2px solid var(--rule);
+            cursor: default;
+        }
+
+        .page-detail-row:hover { background: none; }
+
+        .page-detail {
+            padding: var(--space-m) var(--space-l);
+            background: var(--surface-2);
+            border-top: 1px solid var(--rule);
+        }
+
+        .page-detail .page-metrics-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-xs) var(--space-m);
+            margin-bottom: var(--space-m);
+            padding-bottom: var(--space-s);
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .page-detail .page-metrics-summary span {
+            font-size: var(--step--2);
+        }
+
+        .page-detail .page-metrics-summary strong {
+            font-weight: 600;
+        }
+
+        /* ── Metrics ──────────────────────────────────────────── */
+
+        .m-good { color: var(--green); font-weight: 600; }
+        .m-ok   { color: var(--amber); font-weight: 600; }
+        .m-bad  { color: var(--red);   font-weight: 600; }
+        .m-na   { color: var(--ink-faint); }
+
+        /* ── Stat cards (summary bar) ─────────────────────────── */
+
+        .stat-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-xs);
+            padding: var(--space-s) 0;
+            border-top: 1px solid var(--rule);
+            border-bottom: 1px solid var(--rule);
+            margin-bottom: var(--space-m);
+        }
+
+        .stat-bar figure {
+            flex: 1 1 7rem;
+            text-align: center;
+        }
+
+        .stat-bar .stat-value {
+            font-size: var(--step-1);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            display: block;
+            line-height: 1.2;
+        }
+
+        .stat-bar figcaption {
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-size: var(--step--2);
+        }
+
+        /* ── Badges ───────────────────────────────────────────── */
 
         .badge {
-            border-radius: 0.25rem;
             display: inline-block;
-            font-size: 0.7rem;
+            font-size: var(--step--2);
             font-weight: 600;
-            padding: 0.1rem 0.5rem;
+            padding: 0.15em 0.6em;
+            border-radius: 0.25rem;
+            text-transform: capitalize;
         }
-        .badge-article { background: #e3f2fd; color: #1565c0; }
-        .badge-advertisement { background: #fff3e0; color: #e65100; }
-        .badge-obituary { background: #f3e5f5; color: #6a1b9a; }
-        .badge-miscellaneous { background: #f5f5f5; color: #616161; }
+
+        .badge-article       { background: var(--blue-bg);    color: var(--blue); }
+        .badge-advertisement  { background: var(--amber-bg);   color: var(--amber); }
+        .badge-obituary       { background: var(--purple-bg);  color: var(--purple); }
+        .badge-miscellaneous  { background: var(--neutral-bg); color: var(--neutral); }
+
+        /* ── Fragment chips ───────────────────────────────────── */
 
         .chip {
-            border-radius: 0.25rem;
             display: inline-block;
-            font-family: monospace;
-            font-size: 0.7rem;
-            margin: 0.1rem;
-            padding: 0.1rem 0.35rem;
+            font-family: var(--font-mono);
+            font-size: var(--step--2);
+            padding: 0.1em 0.4em;
+            margin: 0.15rem;
+            border-radius: 0.2rem;
         }
-        .chip-0 { background: #e3f2fd; color: #1565c0; }
-        .chip-1 { background: #e8f5e9; color: #2e7d32; }
-        .chip-2 { background: #fff3e0; color: #e65100; }
-        .chip-3 { background: #fce4ec; color: #c62828; }
-        .chip-4 { background: #f3e5f5; color: #6a1b9a; }
-        .chip-5 { background: #e0f7fa; color: #00838f; }
-        .chip-6 { background: #fff8e1; color: #f57f17; }
-        .chip-7 { background: #e8eaf6; color: #283593; }
-        .chip-8 { background: #efebe9; color: #4e342e; }
-        .chip-9 { background: #e0f2f1; color: #00695c; }
+
+        .chip-0  { background: var(--blue-bg);    color: var(--blue); }
+        .chip-1  { background: var(--green-bg);   color: var(--green); }
+        .chip-2  { background: var(--amber-bg);   color: var(--amber); }
+        .chip-3  { background: var(--red-bg);     color: var(--red); }
+        .chip-4  { background: var(--purple-bg);  color: var(--purple); }
+        .chip-5  { background: #e0f7fa; color: #00838f; }
+        .chip-6  { background: #fff8e1; color: #f57f17; }
+        .chip-7  { background: #e8eaf6; color: #283593; }
+        .chip-8  { background: #efebe9; color: #4e342e; }
+        .chip-9  { background: #e0f2f1; color: #00695c; }
         .chip-10 { background: #f1f8e9; color: #558b2f; }
         .chip-11 { background: #fce4ec; color: #880e4f; }
-        .chip-unmatched { background: #f5f5f5; color: #9e9e9e; }
+        .chip-unmatched { background: var(--neutral-bg); color: var(--ink-faint); }
+
+        @media (prefers-color-scheme: dark) {
+            .chip-5  { background: #0d3337; color: #4dd0e1; }
+            .chip-6  { background: #332b0e; color: #ffd54f; }
+            .chip-7  { background: #1a1d3a; color: #9fa8da; }
+            .chip-8  { background: #2c2420; color: #bcaaa4; }
+            .chip-9  { background: #0d2e28; color: #80cbc4; }
+            .chip-10 { background: #1e2e12; color: #aed581; }
+            .chip-11 { background: #2e151e; color: #f48fb1; }
+        }
+
+        .chips { line-height: 2; }
+
+        /* ── Comparison grid ──────────────────────────────────── */
 
         .comparison-grid {
+            display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: var(--pico-spacing);
+            gap: var(--space-l);
         }
 
-        .comparison-grid article {
-            margin-bottom: var(--pico-spacing);
+        @media (max-width: 60rem) {
+            .comparison-grid { grid-template-columns: 1fr; }
         }
-        .comparison-grid article.match { border-left: 3px solid #4caf50; }
-        .comparison-grid article.mismatch { border-left: 3px solid #f44336; }
 
-        .match-icon { color: #4caf50; font-weight: bold; }
-        .mismatch-icon { color: #f44336; font-weight: bold; }
+        .comparison-grid > div > h3 { margin-bottom: var(--space-s); }
+
+        /* ── Item cards ───────────────────────────────────────── */
+
+        .item-card {
+            background: var(--surface-2);
+            border-radius: 0.5rem;
+            padding: var(--space-s) var(--space-m);
+            margin-bottom: var(--space-xs);
+            border-left: 3px solid transparent;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .item-card.match    { border-left-color: var(--green); }
+        .item-card.mismatch { border-left-color: var(--red); }
+
+        .item-card-header {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2xs);
+            margin-bottom: var(--space-3xs);
+        }
+
+        .match-icon   { color: var(--green); font-weight: 700; font-size: var(--step--1); }
+        .mismatch-icon { color: var(--red);  font-weight: 700; font-size: var(--step--1); }
+
+        .item-card h4 {
+            font-size: var(--step--1);
+            font-weight: 500;
+            margin-bottom: var(--space-3xs);
+        }
+
+        .item-card code {
+            font-size: var(--step--2);
+        }
+
+        /* ── Topic tags ───────────────────────────────────────── */
 
         .topic-tag {
-            background: #e0e0e0;
-            border-radius: 1rem;
             display: inline-block;
-            font-size: 0.7rem;
-            margin: 0.1rem;
-            padding: 0.1rem 0.5rem;
+            font-size: var(--step--2);
+            background: var(--surface-3);
+            color: var(--ink-light);
+            padding: 0.1em 0.55em;
+            border-radius: 1rem;
+            margin: 0.15rem;
         }
 
-        .chips { line-height: 1.8; }
+        /* ── Details / summary (config, errors) ───────────────── */
 
-        dl.grid { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
-        dt { color: var(--pico-muted-color); font-size: 0.8rem; font-weight: bold; }
-        dd { margin: 0 0 0.5rem 0; word-break: break-word; }
-
-        .bar-container {
-            background: var(--pico-card-background-color);
-            border-radius: 0.25rem;
-            height: 1.2rem;
-            min-width: 60px;
-            overflow: hidden;
-            position: relative;
-        }
-        .bar-fill {
-            border-radius: 0.25rem;
-            height: 100%;
-            transition: width 0.3s ease;
-        }
-        .bar-fill.good { background: #4caf50; }
-        .bar-fill.ok { background: #ff9800; }
-        .bar-fill.bad { background: #f44336; }
-        .bar-label {
-            color: var(--pico-color);
-            font-size: 0.75rem;
-            font-weight: 600;
-            left: 0.35rem;
-            line-height: 1.2rem;
-            position: absolute;
-            top: 0;
+        details {
+            border: 1px solid var(--rule);
+            border-radius: 0.5rem;
+            margin-bottom: var(--space-m);
         }
 
-        .muted { color: var(--pico-muted-color); }
+        summary {
+            font-size: var(--step--1);
+            font-weight: 500;
+            padding: var(--space-2xs) var(--space-s);
+            cursor: pointer;
+            list-style: none;
+            user-select: none;
+        }
+
+        summary::before {
+            content: "▸ ";
+            display: inline-block;
+            transition: transform 0.15s ease;
+        }
+
+        details[open] > summary::before {
+            content: "▾ ";
+        }
+
+        summary::-webkit-details-marker { display: none; }
+
+        details > :not(summary) {
+            padding: 0 var(--space-s) var(--space-s);
+        }
+
+        /* ── Definition list (config panel) ───────────────────── */
+
+        .config-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+            gap: var(--space-xs) var(--space-m);
+        }
+
+        dt {
+            font-size: var(--step--2);
+            font-weight: 500;
+            color: var(--ink-faint);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.15em;
+        }
+
+        dd {
+            margin: 0;
+            word-break: break-word;
+            font-size: var(--step--1);
+        }
+
+        /* ── Error list ───────────────────────────────────────── */
+
+        .error-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--space-m);
+        }
+
+        @media (max-width: 50rem) {
+            .error-columns { grid-template-columns: 1fr; }
+        }
 
         .error-list {
             max-height: 30vh;
             overflow-y: auto;
         }
-        .error-list ul { margin: 0.5rem 0; }
-        .error-list li { font-size: 0.8rem; margin: 0.2rem 0; }
+
+        .error-list h4 {
+            font-size: var(--step--1);
+            margin-bottom: var(--space-3xs);
+        }
+
+        .error-list p {
+            color: var(--ink-faint);
+            font-size: var(--step--2);
+            margin-bottom: var(--space-2xs);
+        }
+
+        .error-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .error-list li {
+            font-size: var(--step--2);
+            padding: var(--space-3xs) 0;
+            border-bottom: 1px solid var(--rule);
+        }
+
+        .error-list li:last-child { border-bottom: none; }
+
+        /* ── Metrics legend ────────────────────────────────────── */
+
+        .metrics-legend {
+            margin-bottom: var(--space-l);
+        }
+
+        .metrics-legend dl {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+            gap: var(--space-3xs) var(--space-l);
+        }
+
+        .metrics-legend dt {
+            font-size: var(--step--1);
+            font-weight: 600;
+            color: var(--ink);
+            text-transform: none;
+            letter-spacing: normal;
+            margin-top: var(--space-xs);
+        }
+
+        .metrics-legend dt code {
+            font-size: var(--step--2);
+            margin-left: 0.25em;
+        }
+
+        .metrics-legend dd {
+            font-size: var(--step--2);
+            color: var(--ink-light);
+            line-height: 1.5;
+        }
+
+        .metrics-legend .legend-scale {
+            display: flex;
+            gap: var(--space-s);
+            margin-top: var(--space-xs);
+            padding-top: var(--space-xs);
+            border-top: 1px solid var(--rule);
+            font-size: var(--step--2);
+        }
+
+        .metrics-legend .legend-scale span::before {
+            content: "";
+            display: inline-block;
+            width: 0.65em;
+            height: 0.65em;
+            border-radius: 50%;
+            margin-right: 0.35em;
+            vertical-align: middle;
+        }
+
+        .legend-good::before { background: var(--green) !important; }
+        .legend-ok::before   { background: var(--amber) !important; }
+        .legend-bad::before  { background: var(--red) !important; }
+
+        /* ── Misc helpers ─────────────────────────────────────── */
+
+        .muted { color: var(--ink-faint); }
+
+        .run-subtitle {
+            color: var(--ink-light);
+            margin-top: var(--space-3xs);
+            margin-bottom: var(--space-m);
+        }
+
+        [x-cloak] { display: none !important; }
+
+        /* Smooth section reveals */
+        section {
+            animation: fadeUp 0.25s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(0.5rem); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Print ────────────────────────────────────────────── */
+
+        @media print {
+            body { padding: 0.5cm; }
+            .table-wrap { overflow: visible; }
+            details { border: none; }
+            details[open] > summary { display: none; }
+            .item-card { break-inside: avoid; }
+        }
     </style>
 </head>
 <body>
-    <header class="container">
-        <hgroup>
-            <h1>Evaluation Dashboard</h1>
-            <p>Jawi Newspaper Article Reconstruction — <span x-data="{count: 0}" x-text="EVAL_DATA.length" x-init="count = EVAL_DATA.length"></span> runs</p>
-        </hgroup>
+    <header role="banner">
+        <h1>Evaluation Dashboard</h1>
+        <p x-data x-text="EVAL_DATA.length + ' evaluation runs — Jawi Newspaper Article Reconstruction'">…</p>
     </header>
 
-    <main class="container" x-data="dashboard()">
+    <main x-data="dashboard()" x-cloak>
+
+        <!-- ── Metrics legend ─────────────────────────────────── -->
+
+        <details class="metrics-legend">
+            <summary>Metrics reference</summary>
+            <dl>
+                <div>
+                    <dt>Clustering F1 <code>F1</code></dt>
+                    <dd>Harmonic mean of pairwise clustering precision and recall. Measures how well predicted fragment groupings match ground truth by comparing all fragment pairs.</dd>
+                </div>
+                <div>
+                    <dt>B-Cubed F1 <code>B³ F1</code></dt>
+                    <dd>Element-level clustering metric. For each fragment, computes precision and recall based on how its cluster overlaps with the ground truth cluster, then averages across all fragments.</dd>
+                </div>
+                <div>
+                    <dt>Precision</dt>
+                    <dd>Fraction of predicted same-cluster fragment pairs that are correct—i.e., the two fragments truly belong together in ground truth.</dd>
+                </div>
+                <div>
+                    <dt>Recall</dt>
+                    <dd>Fraction of ground truth same-cluster fragment pairs that were correctly predicted as belonging together.</dd>
+                </div>
+                <div>
+                    <dt>Coverage</dt>
+                    <dd>Fraction of ground truth fragments that appear in at least one predicted item. A value below 1.0 means some fragments were missed entirely.</dd>
+                </div>
+                <div>
+                    <dt>Class Accuracy <code>Class Acc</code></dt>
+                    <dd>Fraction of predicted items whose class label (article, advertisement, obituary, miscellaneous) matches the ground truth item they best align with.</dd>
+                </div>
+                <div>
+                    <dt>True Positives <code>TP</code></dt>
+                    <dd>Number of fragment pairs correctly predicted as belonging to the same cluster.</dd>
+                </div>
+                <div>
+                    <dt>False Positives <code>FP</code></dt>
+                    <dd>Fragment pairs predicted as same-cluster but actually belonging to different ground truth clusters.</dd>
+                </div>
+                <div>
+                    <dt>False Negatives <code>FN</code></dt>
+                    <dd>Fragment pairs in the same ground truth cluster that were not predicted together.</dd>
+                </div>
+            </dl>
+            <div class="legend-scale">
+                <span class="legend-good">≥ 0.80 good</span>
+                <span class="legend-ok">≥ 0.60 fair</span>
+                <span class="legend-bad">&lt; 0.60 poor</span>
+            </div>
+        </details>
+
+        <!-- ── Runs table ─────────────────────────────────────── -->
+
         <section>
             <h2>Runs</h2>
-            <div class="overflow-auto">
+            <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
-                        <th @click="sort('config.model')">Model <span x-show="sortKey==='config.model'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('config.prompt_name')">Prompt <span x-show="sortKey==='config.prompt_name'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('config.sample_size')">Sample <span x-show="sortKey==='config.sample_size'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.total_pages')">Pages <span x-show="sortKey==='aggregate.total_pages'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.mean_clustering_f1')">F1 <span x-show="sortKey==='aggregate.mean_clustering_f1'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.mean_bcubed_f1')">BC F1 <span x-show="sortKey==='aggregate.mean_bcubed_f1'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.mean_clustering_precision')">Precision <span x-show="sortKey==='aggregate.mean_clustering_precision'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.mean_clustering_recall')">Recall <span x-show="sortKey==='aggregate.mean_clustering_recall'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.mean_coverage')">Coverage <span x-show="sortKey==='aggregate.mean_coverage'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
-                        <th @click="sort('aggregate.mean_class_accuracy')">Class Acc <span x-show="sortKey==='aggregate.mean_class_accuracy'" x-text="sortDir==='asc'?'\u25B2':'\u25BC'"></span></th>
+                        <th @click="sort('config.model')">Model <span x-show="sortKey==='config.model'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.prompt_name')">Prompt <span x-show="sortKey==='config.prompt_name'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.sample_size')">Sample <span x-show="sortKey==='config.sample_size'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.total_pages')">Pages <span x-show="sortKey==='aggregate.total_pages'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_clustering_f1')" title="Pairwise clustering F1: harmonic mean of precision and recall over all fragment pairs">F1 <span x-show="sortKey==='aggregate.mean_clustering_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_bcubed_f1')" title="B-Cubed F1: element-level clustering metric averaged across all fragments">B³ F1 <span x-show="sortKey==='aggregate.mean_bcubed_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_clustering_precision')" title="Fraction of predicted same-cluster pairs that are correct">Precision <span x-show="sortKey==='aggregate.mean_clustering_precision'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_clustering_recall')" title="Fraction of ground truth same-cluster pairs correctly predicted">Recall <span x-show="sortKey==='aggregate.mean_clustering_recall'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_coverage')" title="Fraction of ground truth fragments appearing in at least one predicted item">Coverage <span x-show="sortKey==='aggregate.mean_coverage'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_class_accuracy')" title="Fraction of predicted items whose class label matches ground truth">Class Acc <span x-show="sortKey==='aggregate.mean_class_accuracy'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                     </tr>
                 </thead>
                 <tbody>
                     <template x-for="run in sortedRuns" :key="run.run_id">
-                        <tr @click="toggleRun(run.run_id)" :class="expandedRun === run.run_id ? 'active' : ''">
+                        <tr @click="toggleRun(run.run_id)" :data-active="expandedRun === run.run_id">
                             <td x-text="run.config.model"></td>
                             <td x-text="run.config.prompt_name"></td>
                             <td x-text="run.config.sample_size || 'all'"></td>
@@ -186,47 +678,84 @@ HTML_TEMPLATE = r"""<!doctype html>
             </div>
         </section>
 
+        <!-- ── Selected run detail ────────────────────────────── -->
+
         <template x-if="activeRun">
             <section>
-                <hgroup>
-                    <h2 x-text="activeRun.config.model + ' / ' + activeRun.config.prompt_name + ' / sample ' + (activeRun.config.sample_size || 'all')"></h2>
-                    <p x-text="activeRun.timestamp"></p>
-                </hgroup>
+                <h2 x-text="activeRun.config.model + ' / ' + activeRun.config.prompt_name"></h2>
+                <p class="run-subtitle">
+                    <time x-text="activeRun.timestamp"></time>
+                    · sample <span x-text="activeRun.config.sample_size || 'all'"></span>
+                </p>
 
+                <!-- Stat bar -->
+                <nav class="stat-bar" aria-label="Aggregate metrics">
+                    <figure>
+                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_f1)" x-text="fmt(activeRun.aggregate.mean_clustering_f1)"></span>
+                        <figcaption>Clustering F1</figcaption>
+                    </figure>
+                    <figure>
+                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_bcubed_f1)" x-text="fmt(activeRun.aggregate.mean_bcubed_f1)"></span>
+                        <figcaption>B³ F1</figcaption>
+                    </figure>
+                    <figure>
+                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_precision)" x-text="fmt(activeRun.aggregate.mean_clustering_precision)"></span>
+                        <figcaption>Precision</figcaption>
+                    </figure>
+                    <figure>
+                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_recall)" x-text="fmt(activeRun.aggregate.mean_clustering_recall)"></span>
+                        <figcaption>Recall</figcaption>
+                    </figure>
+                    <figure>
+                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_coverage)" x-text="fmt(activeRun.aggregate.mean_coverage)"></span>
+                        <figcaption>Coverage</figcaption>
+                    </figure>
+                    <figure>
+                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_class_accuracy)" x-text="fmt(activeRun.aggregate.mean_class_accuracy)"></span>
+                        <figcaption>Class Acc</figcaption>
+                    </figure>
+                    <figure>
+                        <span class="stat-value" x-text="activeRun.aggregate.total_pages"></span>
+                        <figcaption>Pages</figcaption>
+                    </figure>
+                </nav>
+
+                <!-- Config -->
                 <details>
                     <summary>Configuration</summary>
-                    <dl class="grid">
+                    <dl class="config-grid">
                         <div><dt>Provider</dt><dd x-text="activeRun.config.provider"></dd></div>
                         <div><dt>Model</dt><dd x-text="activeRun.config.model"></dd></div>
                         <div><dt>Prompt</dt><dd x-text="activeRun.config.prompt_name"></dd></div>
                         <div><dt>Sample size</dt><dd x-text="activeRun.config.sample_size || 'all'"></dd></div>
-                        <div><dt>Seed</dt><dd x-text="activeRun.config.seed || '-'"></dd></div>
-                        <div><dt>Base URL</dt><dd x-text="activeRun.config.base_url || '-'"></dd></div>
+                        <div><dt>Seed</dt><dd x-text="activeRun.config.seed || '—'"></dd></div>
+                        <div><dt>Base URL</dt><dd x-text="activeRun.config.base_url || '—'"></dd></div>
                         <div><dt>System prompt</dt><dd x-text="truncate(activeRun.config.system_prompt, 500)"></dd></div>
                         <div><dt>User prompt template</dt><dd x-text="truncate(activeRun.config.user_prompt_template, 500)"></dd></div>
                     </dl>
                 </details>
 
+                <!-- Per-page table -->
                 <h3>Per-page metrics</h3>
-                <div class="overflow-auto">
+                <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>Page ID</th>
-                            <th>F1</th>
-                            <th>BC F1</th>
-                            <th>Coverage</th>
-                            <th>Class Acc</th>
-                            <th>Pred</th>
-                            <th>Truth</th>
-                            <th>TP</th>
-                            <th>FP</th>
-                            <th>FN</th>
+                            <th>Page</th>
+                            <th title="Pairwise clustering F1">F1</th>
+                            <th title="B-Cubed F1">B³ F1</th>
+                            <th title="Fraction of ground truth fragments covered">Coverage</th>
+                            <th title="Fraction of predicted items with correct class label">Class Acc</th>
+                            <th title="Number of predicted items">Pred</th>
+                            <th title="Number of ground truth items">Truth</th>
+                            <th title="True positive fragment pairs">TP</th>
+                            <th title="False positive fragment pairs">FP</th>
+                            <th title="False negative fragment pairs">FN</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <template x-for="page in activeRun.pages" :key="page.page_id">
-                            <tr @click="togglePage(page.page_id)" :class="expandedPage === page.page_id ? 'active' : ''">
+                    <template x-for="page in activeRun.pages" :key="page.page_id">
+                        <tbody>
+                            <tr @click="togglePage(page.page_id)" :data-active="expandedPage === page.page_id">
                                 <td x-text="page.page_id"></td>
                                 <td :class="metricClass(page.metrics.clustering_f1)" x-text="fmt(page.metrics.clustering_f1)"></td>
                                 <td :class="metricClass(page.metrics.bcubed_f1)" x-text="fmt(page.metrics.bcubed_f1)"></td>
@@ -238,99 +767,110 @@ HTML_TEMPLATE = r"""<!doctype html>
                                 <td x-text="page.metrics.fp"></td>
                                 <td x-text="page.metrics.fn"></td>
                             </tr>
-                        </template>
-                    </tbody>
-                </table>
-                </div>
-            </section>
-        </template>
+                            <tr x-show="expandedPage === page.page_id" class="page-detail-row">
+                                <td colspan="10">
+                                    <div class="page-detail">
+                                        <div class="page-metrics-summary">
+                                            <span>F1 <strong :class="metricClass(page.metrics.clustering_f1)" x-text="fmt(page.metrics.clustering_f1)"></strong></span>
+                                            <span>B³ F1 <strong :class="metricClass(page.metrics.bcubed_f1)" x-text="fmt(page.metrics.bcubed_f1)"></strong></span>
+                                            <span>Precision <strong :class="metricClass(page.metrics.clustering_precision)" x-text="fmt(page.metrics.clustering_precision)"></strong></span>
+                                            <span>Recall <strong :class="metricClass(page.metrics.clustering_recall)" x-text="fmt(page.metrics.clustering_recall)"></strong></span>
+                                            <span>Coverage <strong :class="metricClass(page.metrics.coverage)" x-text="fmt(page.metrics.coverage)"></strong></span>
+                                            <span>Class Acc <strong :class="metricClass(page.metrics.class_accuracy)" x-text="fmt(page.metrics.class_accuracy)"></strong></span>
+                                            <span>Fragments <strong x-text="page.metrics.num_fragments"></strong></span>
+                                        </div>
 
-        <template x-if="activePage">
-            <section>
-                <hgroup>
-                    <h2 x-text="activePage.page_id"></h2>
-                    <p>
-                        F1: <code x-text="fmt(activePage.metrics.clustering_f1)"></code>
-                        / BC F1: <code x-text="fmt(activePage.metrics.bcubed_f1)"></code>
-                        / Coverage: <code x-text="fmt(activePage.metrics.coverage)"></code>
-                        / Class Acc: <code x-text="fmt(activePage.metrics.class_accuracy)"></code>
-                    </p>
-                </hgroup>
+                                        <div class="comparison-grid">
+                                            <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-l);">
+                                                <h3 style="margin: 0;">Predicted <small x-text="'(' + page.predicted_items.length + ')'"></small></h3>
+                                                <h3 style="margin: 0;">Ground truth <small x-text="'(' + (page.ground_truth_items || []).length + ')'"></small></h3>
+                                            </div>
+                                            <template x-for="(pair, idx) in getAlignedItems(page)" :key="idx">
+                                                <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-l); margin-bottom: var(--space-xs);">
+                                                    <!-- Predicted side -->
+                                                    <template x-if="pair.pred">
+                                                        <article class="item-card" :class="isPredMatch(page, pair.pred) ? 'match' : 'mismatch'" style="margin-bottom: 0;">
+                                                            <div class="item-card-header">
+                                                                <span class="badge" :class="'badge-' + pair.pred.class" x-text="pair.pred.class"></span>
+                                                                <span :class="isPredMatch(page, pair.pred) ? 'match-icon' : 'mismatch-icon'" x-text="isPredMatch(page, pair.pred) ? '✓' : '✗'"></span>
+                                                            </div>
+                                                            <h4 x-text="pair.pred.title"></h4>
+                                                            <div class="chips">
+                                                                <template x-for="fid in pair.pred.fragment_ids" :key="fid">
+                                                                    <span class="chip" :class="getChipClass(page, fid)" x-text="fid"></span>
+                                                                </template>
+                                                            </div>
+                                                        </article>
+                                                    </template>
+                                                    <template x-if="!pair.pred">
+                                                        <div class="item-card" style="border: 1px dashed var(--rule); background: transparent; opacity: 0.5;"></div>
+                                                    </template>
 
-                <div class="grid comparison-grid">
-                    <div>
-                        <h3>Predicted Items (<span x-text="activePage.predicted_items.length"></span>)</h3>
-                        <template x-for="(item, idx) in activePage.predicted_items" :key="idx">
-                            <article :class="isPredMatch(activePage, item) ? 'match' : 'mismatch'">
-                                <header>
-                                    <span class="badge" :class="'badge-' + item.class" x-text="item.class"></span>
-                                    <span :class="isPredMatch(activePage, item) ? 'match-icon' : 'mismatch-icon'" x-text="isPredMatch(activePage, item) ? '\u2713' : '\u2717'"></span>
-                                </header>
-                                <h4 x-text="item.title"></h4>
-                                <div class="chips">
-                                    <template x-for="fid in item.fragment_ids" :key="fid">
-                                        <span class="chip" :class="getChipClass(activePage, fid)" x-text="fid"></span>
-                                    </template>
-                                </div>
-                            </article>
-                        </template>
-                    </div>
+                                                    <!-- Ground Truth side -->
+                                                    <template x-if="pair.truth">
+                                                        <article class="item-card" :class="isTruthMatch(page, pair.truth) ? 'match' : 'mismatch'" style="margin-bottom: 0;">
+                                                            <div class="item-card-header">
+                                                                <span class="badge" :class="'badge-' + pair.truth.class" x-text="pair.truth.class"></span>
+                                                                <small :class="isTruthMatch(page, pair.truth) ? 'match-icon' : 'mismatch-icon'" x-text="isTruthMatch(page, pair.truth) ? 'recovered' : 'missed'"></small>
+                                                            </div>
+                                                            <code x-text="pair.truth.uuid"></code>
+                                                            <div class="chips">
+                                                                <template x-for="fid in pair.truth.fragment_ids" :key="fid">
+                                                                    <span class="chip" :class="getChipClass(page, fid)" x-text="fid"></span>
+                                                                </template>
+                                                            </div>
+                                                            <template x-if="pair.truth.topics && pair.truth.topics.length">
+                                                                <div>
+                                                                    <template x-for="topic in pair.truth.topics" :key="topic">
+                                                                        <span class="topic-tag" x-text="topic"></span>
+                                                                    </template>
+                                                                </div>
+                                                            </template>
+                                                        </article>
+                                                    </template>
+                                                    <template x-if="!pair.truth">
+                                                        <div class="item-card" style="border: 1px dashed var(--rule); background: transparent; opacity: 0.5;"></div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                        </div>
 
-                    <div>
-                        <h3>Ground Truth Items (<span x-text="(activePage.ground_truth_items || []).length"></span>)</h3>
-                        <template x-for="(item, idx) in (activePage.ground_truth_items || [])" :key="idx">
-                            <article :class="isTruthMatch(activePage, item) ? 'match' : 'mismatch'">
-                                <header>
-                                    <span class="badge" :class="'badge-' + item.class" x-text="item.class"></span>
-                                    <span :class="isTruthMatch(activePage, item) ? 'match-icon' : 'mismatch-icon'" x-text="isTruthMatch(activePage, item) ? '\u2713' : '\u2717'"></span>
-                                </header>
-                                <code x-text="item.uuid"></code>
-                                <div class="chips">
-                                    <template x-for="fid in item.fragment_ids" :key="fid">
-                                        <span class="chip" :class="getChipClass(activePage, fid)" x-text="fid"></span>
-                                    </template>
-                                </div>
-                                <template x-if="item.topics && item.topics.length">
-                                    <div>
-                                        <template x-for="topic in item.topics" :key="topic">
-                                            <span class="topic-tag" x-text="topic"></span>
+                                        <template x-if="page.metrics.false_positives.length || page.metrics.false_negatives.length">
+                                            <details>
+                                                <summary>Errors <small x-text="'(' + (page.metrics.false_positives.length + page.metrics.false_negatives.length) + ')'"></small></summary>
+                                                <div class="error-columns">
+                                                    <template x-if="page.metrics.false_positives.length">
+                                                        <div class="error-list">
+                                                            <h4>False positives <small x-text="'(' + page.metrics.false_positives.length + ')'"></small></h4>
+                                                            <p>Fragment pairs incorrectly grouped together</p>
+                                                            <ul>
+                                                                <template x-for="(pair, i) in page.metrics.false_positives" :key="'fp'+i">
+                                                                    <li><code x-text="pair[0]"></code> ↔ <code x-text="pair[1]"></code></li>
+                                                                </template>
+                                                            </ul>
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="page.metrics.false_negatives.length">
+                                                        <div class="error-list">
+                                                            <h4>False negatives <small x-text="'(' + page.metrics.false_negatives.length + ')'"></small></h4>
+                                                            <p>Fragment pairs that should have been grouped together</p>
+                                                            <ul>
+                                                                <template x-for="(pair, i) in page.metrics.false_negatives" :key="'fn'+i">
+                                                                    <li><code x-text="pair[0]"></code> ↔ <code x-text="pair[1]"></code></li>
+                                                                </template>
+                                                            </ul>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </details>
                                         </template>
                                     </div>
-                                </template>
-                            </article>
-                        </template>
-                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </template>
+                </table>
                 </div>
-
-                <template x-if="activePage.metrics.false_positives.length || activePage.metrics.false_negatives.length">
-                    <details>
-                        <summary>Errors (<span x-text="activePage.metrics.false_positives.length + activePage.metrics.false_negatives.length"></span>)</summary>
-                        <div class="grid">
-                            <template x-if="activePage.metrics.false_positives.length">
-                                <div class="error-list">
-                                    <h4>False Positives (<span x-text="activePage.metrics.false_positives.length"></span>)</h4>
-                                    <p class="muted">Fragment pairs incorrectly grouped together</p>
-                                    <ul>
-                                        <template x-for="(pair, i) in activePage.metrics.false_positives" :key="'fp'+i">
-                                            <li><code x-text="pair[0]"></code> &harr; <code x-text="pair[1]"></code></li>
-                                        </template>
-                                    </ul>
-                                </div>
-                            </template>
-                            <template x-if="activePage.metrics.false_negatives.length">
-                                <div class="error-list">
-                                    <h4>False Negatives (<span x-text="activePage.metrics.false_negatives.length"></span>)</h4>
-                                    <p class="muted">Fragment pairs that should have been grouped together</p>
-                                    <ul>
-                                        <template x-for="(pair, i) in activePage.metrics.false_negatives" :key="'fn'+i">
-                                            <li><code x-text="pair[0]"></code> &harr; <code x-text="pair[1]"></code></li>
-                                        </template>
-                                    </ul>
-                                </div>
-                            </template>
-                        </div>
-                    </details>
-                </template>
             </section>
         </template>
 
@@ -394,14 +934,14 @@ HTML_TEMPLATE = r"""<!doctype html>
                 },
 
                 metricClass(val) {
-                    if (val == null) return 'metric-na';
-                    if (val >= 0.8) return 'metric-good';
-                    if (val >= 0.6) return 'metric-ok';
-                    return 'metric-bad';
+                    if (val == null) return 'm-na';
+                    if (val >= 0.8) return 'm-good';
+                    if (val >= 0.6) return 'm-ok';
+                    return 'm-bad';
                 },
 
                 fmt(val, decimals) {
-                    if (val == null) return '-';
+                    if (val == null) return '—';
                     return val.toFixed(decimals || 4);
                 },
 
@@ -426,6 +966,50 @@ HTML_TEMPLATE = r"""<!doctype html>
                     );
                 },
 
+
+                getAlignedItems(page) {
+                    if (!page) return [];
+                    const preds = page.predicted_items || [];
+                    const truths = page.ground_truth_items || [];
+                    
+                    let aligned = [];
+                    let usedTruths = new Set();
+
+                    for (const pred of preds) {
+                        let bestTruth = null;
+                        let bestScore = -1;
+                        let bestTruthIdx = -1;
+
+                        for (let i = 0; i < truths.length; i++) {
+                            const truth = truths[i];
+                            const intersection = pred.fragment_ids.filter(id => truth.fragment_ids.includes(id)).length;
+                            if (intersection > 0) {
+                                const union = new Set([...pred.fragment_ids, ...truth.fragment_ids]).size;
+                                const score = intersection / union;
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    bestTruth = truth;
+                                    bestTruthIdx = i;
+                                }
+                            }
+                        }
+
+                        if (bestTruth) {
+                            aligned.push({ pred: pred, truth: bestTruth });
+                            usedTruths.add(bestTruthIdx);
+                        } else {
+                            aligned.push({ pred: pred, truth: null });
+                        }
+                    }
+
+                    for (let i = 0; i < truths.length; i++) {
+                        if (!usedTruths.has(i)) {
+                            aligned.push({ pred: null, truth: truths[i] });
+                        }
+                    }
+
+                    return aligned;
+                },
                 truncate(str, len) {
                     if (!str) return '';
                     return str.length > len ? str.slice(0, len) + '\u2026' : str;
@@ -435,6 +1019,7 @@ HTML_TEMPLATE = r"""<!doctype html>
     </script>
 </body>
 </html>"""
+
 
 
 def load_evaluations(eval_dir: str = "data/2_evaluations") -> list[dict]:

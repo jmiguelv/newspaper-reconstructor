@@ -9,7 +9,7 @@ Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 
 ```mermaid
 flowchart LR
     ALTO["ALTO XML<br/>data/0_external/alto/"] -->|alto_to_json| RECON["reconstruct.py<br/>parse fragments"]
-    PROMPT["Prompt file<br/>data/0_prompts/v01.json<br/>default from disk"] --> MAIN["main.py<br/>CLI orchestration"]
+    PROMPT["Prompt file<br/>data/0_prompts/v01.json<br/>default: bundled"] --> MAIN["main.py<br/>CLI orchestration"]
     RECON -->|fragments| MAIN["main.py<br/>CLI orchestration"]
     MAIN -->|build prompt| LLM["llm.py<br/>LLMClient"]
     LLM -->|API call| API["OpenAI-compatible<br/>endpoint"]
@@ -28,7 +28,7 @@ article-reconstruction/
 ├── reconstruct.py    # ALTO XML parsing, article reconstruction, default prompts
 ├── llm.py            # LLM client (OpenAI-compatible API wrapper)
 ├── evaluate.py       # Ground truth parsing, clustering F1, evaluation logging
-├── tests/            # Unit tests + end-to-end tests (63 total)
+├── tests/            # Unit tests + end-to-end tests
 └── data/
     ├── 0_external/   # Raw external data (git submodule)
     │   ├── alto/         # 80 ALTO XML files (OCR text fragments)
@@ -105,6 +105,10 @@ uv run python main.py --evaluate \
 
 Add `--output results.json` to any command to write to a file instead of stdout.
 
+### Prompt files
+
+Prompt files can be JSON (with `system_prompt` and optional `user_prompt_template` keys) or Markdown (with `# System Prompt` and `# User Prompt` heading sections). The prompt name used in output filenames comes from the file stem (e.g., `v02.json` → `v02`).
+
 ### CLI options
 
 | Option          | Description                                          |
@@ -119,8 +123,8 @@ Add `--output results.json` to any command to write to a file instead of stdout.
 | `--base-url`    | OpenAI-compatible API base URL (overrides `LLM_BASE_URL`) |
 | `--api-key`     | API key (overrides `LLM_API_KEY`)                  |
 | `--system-prompt` | Custom system prompt (overrides default)           |
-| `--prompt-file` | Read system prompt from file (overrides --system-prompt) |
-| `--user-prompt-template` | Custom user prompt template (overrides default) |
+| `--prompt-file` | Read system prompt (and optionally user prompt template) from file (overrides `--system-prompt` and `--user-prompt-template`) |
+| `--user-prompt-template` | Custom user prompt template with `{fragments}` placeholder (overrides default) |
 | `--output`      | Save results to file instead of stdout              |
 | `--output-dir`  | Write one JSON file per page to this directory (batch modes) |
 | `--eval-dir`    | Directory for evaluation logs (default: `data/2_evaluations/`) |
