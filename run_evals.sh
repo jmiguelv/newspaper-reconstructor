@@ -21,8 +21,7 @@ INPUT_DIR="data/0_external/alto"
 GROUND_TRUTH_DIR="data/0_external/article_xml"
 EVAL_DIR="data/2_evaluations"
 SEED=42
-TIMEOUT_LITE=120
-TIMEOUT_NEXUS=600
+TIMEOUT=60
 
 total=$(( ${#PROMPTS[@]} * ${#MODELS[@]} * ${#SAMPLE_SIZES[@]} ))
 
@@ -77,8 +76,7 @@ for prompt_file in "${PROMPTS[@]}"; do
       fi
 
       echo "[${count}/${total}] prompt=$prompt_name model=$model sample=$sample_size"
-      model_timeout=600
-      [[ "$model" == "arc:lite" ]] && model_timeout=120
+      model_timeout=$TIMEOUT
       uv run python main.py \
         --input-dir "$INPUT_DIR" \
         --ground-truth-dir "$GROUND_TRUTH_DIR" \

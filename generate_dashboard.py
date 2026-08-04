@@ -642,12 +642,121 @@ HTML_TEMPLATE = r"""<!doctype html>
             <!-- ── Prompts Info ────────────────────────────────────── -->
             <details class="prompts-info" style="margin-bottom: var(--space-s);">
                 <summary>Prompts reference</summary>
-                <div style="padding: var(--space-s); background: var(--surface-2); border-radius: 0.5rem; border: 1px solid var(--rule); margin-top: var(--space-s);">
-                    <ul style="margin: 0; padding-left: var(--space-m); color: var(--ink-light); font-size: var(--step--1);">
-                        <li style="margin-bottom: var(--space-2xs);"><strong style="color: var(--ink);">v00</strong>: Baseline prompt</li>
-                        <li style="margin-bottom: var(--space-2xs);"><strong style="color: var(--ink);">v01</strong>: Improved formatting</li>
-                        <li><strong style="color: var(--ink);">v02</strong>: Few-shot examples and additional heuristics</li>
-                    </ul>
+                <div style="padding: var(--space-s); background: var(--surface-2); border-radius: 0.5rem; border: 1px solid var(--rule); margin-top: var(--space-s); display: flex; flex-direction: column; gap: var(--space-s);">
+                    
+                    <details>
+                        <summary><strong style="color: var(--ink);">v00</strong>: Baseline prompt</summary>
+                        <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;"># System Prompt
+
+You are an expert in historical Malay.
+
+For each item, return a JSON object with:
+- fragment_ids: list of constitutive fragment IDs
+- title: short title or topic description
+- class: one of "article", "advertisement", "obituary", "miscellaneous"
+
+Return ONLY a JSON array. No other text, no explanation. Example:
+[
+  {"fragment_ids": ["r_1", "r_2"], "title": "Language congress report", "class": "article"},
+  {"fragment_ids": ["r_3"], "title": "Eye drops advertisement", "class": "advertisement"}
+]
+
+# User Prompt Template
+
+Consider these text fragments in Malay.
+
+{fragments}
+
+Reconstruct them into full items. Return ONLY a JSON array.</pre>
+                    </details>
+
+                    <details>
+                        <summary><strong style="color: var(--ink);">v01</strong>: Improved formatting</summary>
+                        <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;"># System Prompt
+
+You are given text fragments extracted by OCR from a Malay newspaper page written in Jawi (Arabic script).
+
+Each fragment is a JSON object with the following fields:
+
+- id: fragment identifier
+- text: OCR text content
+- type: block type (e.g., "text", "header")
+- hpos: horizontal position (pixels from left)
+- vpos: vertical position (pixels from top)
+- width: block width in pixels
+- height: block height in pixels
+
+Your task: reconstruct these fragments into complete items (articles, advertisements, etc.).
+Some items may consist of a single fragment. Group fragments that belong to the same item together.
+
+For each reconstructed item, provide:
+
+1. fragment_ids: list of constitutive fragment IDs (in reading order)
+2. title: a short title or topic description
+3. class: one of "article", "advertisement", "obituary", "miscellaneous"
+
+Return ONLY a JSON array. No other text, no explanation. Example:
+[
+{"fragment_ids": ["r_1", "r_2"], "title": "Union meeting report", "class": "article"},
+{"fragment_ids": ["r_3"], "title": "Eye drops advertisement", "class": "advertisement"}
+]
+
+# User Prompt Template
+
+Fragments from a Malay newspaper page (Jawi / Arabic script):
+
+{fragments}
+
+Reconstruct these fragments into complete items. Return ONLY a JSON array.</pre>
+                    </details>
+
+                    <details>
+                        <summary><strong style="color: var(--ink);">v02</strong>: Few-shot examples and additional heuristics</summary>
+                        <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;"># System Prompt
+
+You are given text fragments extracted by OCR from a Malay newspaper page written in Jawi (Arabic script).
+
+Each fragment is a JSON object with the following fields:
+
+- id: fragment identifier
+- text: OCR text content
+- type: block type (e.g., "text", "header")
+- hpos: horizontal position (pixels from left)
+- vpos: vertical position (pixels from top)
+- width: block width in pixels
+- height: block height in pixels
+
+Your task: reconstruct these fragments into complete items (articles, advertisements, etc.).
+Some items may consist of a single fragment. Group fragments that belong to the same item together.
+
+Use spatial reasoning to help group fragments:
+
+- Fragments that are physically close and vertically aligned likely belong to the same article.
+- Articles typically flow downward first, then to the next column to the left.
+- Fragments with similar horizontal positions (hpos) and overlapping vertical ranges (vpos + height) are likely in the same column.
+- Large blocks may span multiple columns; check if adjacent fragments share a vertical boundary.
+- Headers, titles, and standalone blocks may be single-fragment items.
+
+For each reconstructed item, provide:
+
+1. fragment_ids: list of constitutive fragment IDs (in reading order)
+2. title: a short title or topic description
+3. class: one of "article", "advertisement", "obituary", "miscellaneous"
+
+Return ONLY a JSON array. No other text, no explanation. Example:
+[
+{"fragment_ids": ["r_1", "r_2"], "title": "Union meeting report", "class": "article"},
+{"fragment_ids": ["r_3"], "title": "Eye drops advertisement", "class": "advertisement"}
+]
+
+# User Prompt Template
+
+Fragments from a Malay newspaper page (Jawi / Arabic script):
+
+{fragments}
+
+Use the position and size fields (hpos, vpos, width, height) to determine which fragments belong together. Reconstruct these fragments into complete items. Return ONLY a JSON array.</pre>
+                    </details>
                 </div>
             </details>
 

@@ -166,6 +166,9 @@ def reconstruct_articles(
             print(f"  Timed out on attempt {attempt + 1}, giving up immediately", file=sys.stderr)
             return None
         except APIError as e:
+            if "504" in str(e) or "Gateway Timeout" in str(e):
+                print(f"  Gateway Timeout on attempt {attempt + 1}, giving up immediately", file=sys.stderr)
+                return None
             if attempt < max_retries - 1:
                 wait = 5 * (2**attempt)
                 print(f"  API error: {e}. Retrying in {wait}s...", file=sys.stderr)
