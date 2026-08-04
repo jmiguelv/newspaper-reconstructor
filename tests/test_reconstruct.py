@@ -435,6 +435,49 @@ class TestReconstructArticles:
         assert result is None
         assert client.complete.call_count == 2
 
+    def test_retries_on_timeout_error(self):
+        from openai import APITimeoutError
+
+        client = MagicMock()
+        mock_req = MagicMock()
+        client.complete.side_effect = [
+            APITimeoutError(request=mock_req),
+            VALID_RESPONSE,
+        ]
+        fragments = [
+            {"id": "r_text1", "text": "Hello World"},
+            {"id": "r_text2", "text": "Ad text"},
+        ]
+        result = reconstruct_articles(
+            fragments,
+            client,
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=3,
+        )
+        assert len(result) == 2
+        assert client.complete.call_count == 2
+
+    def test_returns_none_after_all_timeouts(self):
+        from openai import APITimeoutError
+
+        client = MagicMock()
+        mock_req = MagicMock()
+        client.complete.side_effect = [
+            APITimeoutError(request=mock_req),
+            APITimeoutError(request=mock_req),
+        ]
+        fragments = [{"id": "r_text1", "text": "Hello World"}]
+        result = reconstruct_articles(
+            fragments,
+            client,
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=2,
+        )
+        assert result is None
+        assert client.complete.call_count == 2
+
 
 # ─── reconstruct_articles_cached ──────────────────────────────────────────────
 

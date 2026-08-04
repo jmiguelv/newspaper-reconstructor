@@ -630,9 +630,64 @@ class TestE2EEvaluateInputDir:
             )
         assert rc == 0
 
-        out = json.loads(capsys.readouterr().out)
+        captured = capsys.readouterr()
+        out = json.loads(captured.out)
         assert "page1" in out
         assert "page2" not in out
+
+        assert "[page2] SKIPPED (reconstruction failed)" in captured.err
+
+    def test_eval_config_includes_pages_processed(self, tmp_path, capsys):
+        from openai import APIError
+
+        alto_dir = tmp_path / "alto"
+        alto_dir.mkdir()
+        (alto_dir / "page1.xml").write_text(ALTO_XML, encoding="utf-8")
+        (alto_dir / "page2.xml").write_text(ALTO_XML, encoding="utf-8")
+        article_dir = tmp_path / "articles"
+        article_dir.mkdir()
+        ground_truth_xml = ARTICLE_XML.replace("page1", "page1")
+        (article_dir / "page1.xml").write_text(ground_truth_xml, encoding="utf-8")
+        eval_dir = str(tmp_path / "evaluations")
+        prompt_file = _make_prompt_file(tmp_path)
+
+        client = MagicMock()
+        client.complete.side_effect = [
+            MOCK_LLM_RESPONSE,
+            APIError(message="504", request=None, body=None),
+            APIError(message="504", request=None, body=None),
+            APIError(message="504", request=None, body=None),
+        ]
+
+        with patch("main.make_client", return_value=client):
+            rc = main(
+                [
+                    "--input-dir",
+                    str(alto_dir),
+                    "--evaluate",
+                    "--eval-dir",
+                    eval_dir,
+                    "--prompt-file",
+                    prompt_file,
+                    "--interim-dir",
+                    str(tmp_path / "interim"),
+                    "--model",
+                    "test-model",
+                    "--ground-truth-dir",
+                    str(article_dir),
+                ]
+            )
+        assert rc == 0
+
+        captured = capsys.readouterr()
+        eval_files = [f for f in os.listdir(eval_dir) if f.endswith(".json")]
+        assert len(eval_files) == 1
+        with open(os.path.join(eval_dir, eval_files[0])) as f:
+            log = json.load(f)
+        assert log["config"]["pages_processed"] == 1
+        assert log["config"]["pages_failed"] == 1
+        assert log["aggregate"]["total_pages"] == 1
+        assert "SKIPPED" in captured.err
 
 
 # ─── Real data smoke tests ───────────────────────────────────────────────────
