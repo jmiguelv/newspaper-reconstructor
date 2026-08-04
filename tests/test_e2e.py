@@ -12,18 +12,24 @@ import pytest
 
 from main import main
 
-DEFAULT_PROMPT_JSON = json.dumps(
-    {
-        "system_prompt": "You are given text fragments from a newspaper.",
-        "user_prompt_template": "Fragments:\n\n{fragments}\n\nReturn ONLY a JSON array.",
-    }
-)
+DEFAULT_PROMPT_MD = """# System Prompt
+
+You are given text fragments from a newspaper.
+
+# User Prompt Template
+
+Fragments:
+
+{fragments}
+
+Return ONLY a JSON array.
+"""
 
 
 def _make_prompt_file(tmp_path) -> str:
     """Create a minimal prompt file in tmp_path and return its path."""
-    p = tmp_path / "prompt.json"
-    p.write_text(DEFAULT_PROMPT_JSON, encoding="utf-8")
+    p = tmp_path / "prompt.md"
+    p.write_text(DEFAULT_PROMPT_MD, encoding="utf-8")
     return str(p)
 
 
