@@ -746,19 +746,19 @@ HTML_TEMPLATE = r"""<!doctype html>
                 <table>
                     <thead>
                         <tr>
-                            <th>Page</th>
-                            <th title="Pairwise clustering F1">F1</th>
-                            <th title="B-Cubed F1">B³ F1</th>
-                            <th title="Fraction of ground truth fragments covered">Coverage</th>
-                            <th title="Fraction of predicted items with correct class label">Class Acc</th>
-                            <th title="Number of predicted items">Pred</th>
-                            <th title="Number of ground truth items">Truth</th>
-                            <th title="True positive fragment pairs">TP</th>
-                            <th title="False positive fragment pairs">FP</th>
-                            <th title="False negative fragment pairs">FN</th>
+                            <th @click="sortPage('page_id')">Page <span x-show="pageSortKey === 'page_id'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="Pairwise clustering F1" @click="sortPage('metrics.clustering_f1')">F1 <span x-show="pageSortKey === 'metrics.clustering_f1'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="B-Cubed F1" @click="sortPage('metrics.bcubed_f1')">B³ F1 <span x-show="pageSortKey === 'metrics.bcubed_f1'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="Fraction of ground truth fragments covered" @click="sortPage('metrics.coverage')">Coverage <span x-show="pageSortKey === 'metrics.coverage'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="Fraction of predicted items with correct class label" @click="sortPage('metrics.class_accuracy')">Class Acc <span x-show="pageSortKey === 'metrics.class_accuracy'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="Number of predicted items" @click="sortPage('metrics.num_predicted_items')">Pred <span x-show="pageSortKey === 'metrics.num_predicted_items'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="Number of ground truth items" @click="sortPage('metrics.num_ground_truth_items')">Truth <span x-show="pageSortKey === 'metrics.num_ground_truth_items'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="True positive fragment pairs" @click="sortPage('metrics.tp')">TP <span x-show="pageSortKey === 'metrics.tp'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="False positive fragment pairs" @click="sortPage('metrics.fp')">FP <span x-show="pageSortKey === 'metrics.fp'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th title="False negative fragment pairs" @click="sortPage('metrics.fn')">FN <span x-show="pageSortKey === 'metrics.fn'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                         </tr>
                     </thead>
-                    <template x-for="page in activeRun.pages" :key="page.page_id">
+                    <template x-for="page in sortedPages" :key="page.page_id">
                         <tbody>
                             <tr @click="togglePage(page.page_id)" :data-active="expandedPage === page.page_id">
                                 <td x-text="page.page_id"></td>
@@ -891,6 +891,8 @@ HTML_TEMPLATE = r"""<!doctype html>
                 runs: EVAL_DATA,
                 sortKey: 'aggregate.mean_clustering_f1',
                 sortDir: 'desc',
+                pageSortKey: 'page_id',
+                pageSortDir: 'asc',
                 expandedRun: null,
                 expandedPage: null,
 
@@ -904,6 +906,20 @@ HTML_TEMPLATE = r"""<!doctype html>
                         const aNum = aVal ?? 0;
                         const bNum = bVal ?? 0;
                         return this.sortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                    });
+                },
+
+                get sortedPages() {
+                    if (!this.activeRun) return [];
+                    return [...this.activeRun.pages].sort((a, b) => {
+                        const aVal = this.getNested(a, this.pageSortKey);
+                        const bVal = this.getNested(b, this.pageSortKey);
+                        if (typeof aVal === 'string') {
+                            return this.pageSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                        }
+                        const aNum = aVal ?? 0;
+                        const bNum = bVal ?? 0;
+                        return this.pageSortDir === 'asc' ? aNum - bNum : bNum - aNum;
                     });
                 },
 
@@ -926,6 +942,15 @@ HTML_TEMPLATE = r"""<!doctype html>
                     } else {
                         this.sortKey = key;
                         this.sortDir = 'desc';
+                    }
+                },
+
+                sortPage(key) {
+                    if (this.pageSortKey === key) {
+                        this.pageSortDir = this.pageSortDir === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.pageSortKey = key;
+                        this.pageSortDir = 'desc';
                     }
                 },
 
