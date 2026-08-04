@@ -290,6 +290,7 @@ def _run_input_dir(
 
         if predicted is None:
             failed_pages.append(page_id)
+            print(f"[{page_id}] SKIPPED (reconstruction failed)", file=sys.stderr)
             continue
 
         if page_id in ground_truth:
@@ -335,6 +336,8 @@ def _run_input_dir(
             "user_prompt_template": user_prompt_template,
             "prompt_name": prompt_name,
             "sample_size": args.sample_size,
+            "pages_processed": len(eval_results),
+            "pages_failed": len(failed_pages),
             "seed": args.seed,
         }
         log_path = log_evaluation_run(paged_results, config, args.eval_dir)
@@ -349,7 +352,11 @@ def _run_input_dir(
                 for r in paged_results
                 if r["metrics"]["class_accuracy"] is not None
             ]
-            print(f"\n=== Summary ({len(paged_results)} pages) ===", file=sys.stderr)
+            requested = args.sample_size or len(all_page_ids)
+            print(
+                f"\n=== Summary ({len(paged_results)}/{requested} pages, {len(failed_pages)} skipped) ===",
+                file=sys.stderr,
+            )
             print(
                 f"  Mean clustering F1:    {sum(f1s) / len(f1s):.4f}", file=sys.stderr
             )
