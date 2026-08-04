@@ -20,7 +20,8 @@ ALTO XML → reconstruct.py (parse fragments)
          → llm.py (send to LLM, get JSON response)
          → reconstruct.py (parse JSON into items)
          → evaluate.py (compare against ground truth article XML)
-         → main.py (CLI orchestration)
+         → main.py (CLI orchestration) / run_evals.sh (batch orchestration)
+         → generate_dashboard.py (visualize eval logs as HTML)
 ```
 
 ### Module roles
@@ -28,9 +29,11 @@ ALTO XML → reconstruct.py (parse fragments)
 | Module          | Responsibility                                          |
 |-----------------|---------------------------------------------------------|
 | `main.py`        | CLI entry point, argument parsing, mode dispatch        |
+| `run_evals.sh`   | Bash script to orchestrate batched grid-search evaluations |
 | `reconstruct.py`| ALTO XML parsing, fragment loading, article reconstruction, default prompts |
 | `llm.py`        | LLM client wrapper (OpenAI-compatible API), client factory |
 | `evaluate.py`   | Ground truth parsing, clustering F1, class accuracy, coverage, run logging |
+| `generate_dashboard.py`| Generates interactive Alpine.js HTML dashboard from JSON eval logs |
 
 ## Code Conventions
 

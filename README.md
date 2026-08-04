@@ -28,6 +28,8 @@ article-reconstruction/
 ├── reconstruct.py    # ALTO XML parsing, article reconstruction, default prompts
 ├── llm.py            # LLM client (OpenAI-compatible API wrapper)
 ├── evaluate.py       # Ground truth parsing, clustering F1, evaluation logging
+├── generate_dashboard.py # Alpine.js HTML dashboard generator for evaluation logs
+├── run_evals.sh      # Batch evaluation orchestrator script
 ├── tests/            # Unit tests + end-to-end tests
 └── data/
     ├── 0_external/   # Raw external data (git submodule)
@@ -37,7 +39,7 @@ article-reconstruction/
     ├── 1_interim/      # Interim processed data
     │   ├── fragments/          # Cached ALTO→JSON fragments
     │   └── reconstructions/    # LLM output caches (by prompt/model)
-    └── 2_evaluations/      # Evaluation logs
+    └── 2_evaluations/      # Evaluation logs (JSON) and dashboard.html
 ```
 
 ## Installation
@@ -139,7 +141,9 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 - **Class accuracy** — On items where the predicted fragment set exactly matches a ground truth item, checks whether the class label matches. Reported as a fraction (or `null` if no matches).
 - **Coverage** — Fraction of ground truth fragments that appear in any predicted item.
 
-Evaluation logs are saved as JSON files in the `--eval-dir` directory, named `{timestamp}_{provider}_{model}_{prompt_name}.json`. They contain per-page metrics, aggregate summaries, and run configuration. The prompt name is derived from the `--prompt-file` filename stem, defaulting to `"default"`.
+Evaluation logs are saved as JSON files in the `--eval-dir` directory, named `{timestamp}_{provider}_{model}_{prompt_name}.json`. They contain per-page metrics, aggregate summaries (including execution time), and run configuration. The prompt name is derived from the `--prompt-file` filename stem, defaulting to `"default"`.
+
+Run `uv run python generate_dashboard.py` to generate an interactive HTML dashboard (`dashboard.html`) in the evaluation directory to visualize these metrics.
 
 ## Testing
 
