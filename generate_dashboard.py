@@ -334,7 +334,12 @@ HTML_TEMPLATE = r"""<!doctype html>
             .chip-11 { background: #2e151e; color: #f48fb1; }
         }
 
-        .chips { line-height: 2; }
+        .chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+            line-height: 2;
+        }
 
         /* ── Comparison grid ──────────────────────────────────── */
 
