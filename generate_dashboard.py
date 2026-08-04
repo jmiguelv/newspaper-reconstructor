@@ -604,7 +604,7 @@ HTML_TEMPLATE = r"""<!doctype html>
         <details class="models-info" style="margin-bottom: var(--space-m);">
             <summary>Models reference</summary>
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-m); margin-top: var(--space-s);">
-                
+
                 <article class="item-card" style="margin-bottom: 0;">
                     <div class="item-card-header">
                         <span style="font-size: var(--step--2); padding: 0.1em 0.55em; border-radius: 1rem; background: var(--blue-bg); color: var(--blue); font-weight: 500;">Standard</span>
@@ -690,6 +690,12 @@ HTML_TEMPLATE = r"""<!doctype html>
 
         <section>
             <h2>Runs</h2>
+
+            <div x-show="bestF1Run" style="margin-bottom: var(--space-m); font-size: var(--step--1); color: var(--ink-light); max-width: 80ch;">
+                The highest Clustering F1 score (<strong x-text="fmt(bestF1Run.aggregate.mean_clustering_f1)"></strong>) was achieved by <strong x-text="bestF1Run.config.model" style="color: var(--ink);"></strong> using prompt <code x-text="bestF1Run.config.prompt_name"></code>.
+                For Class Accuracy, the top performer is <strong x-text="bestAccRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestAccRun.aggregate.mean_class_accuracy)"></strong>),
+                while the best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
+            </div>
             <div class="table-wrap">
             <table>
                 <thead>
@@ -952,6 +958,31 @@ HTML_TEMPLATE = r"""<!doctype html>
                     });
                 },
 
+                get bestF1Run() {
+                    if (!this.runs || this.runs.length === 0) return null;
+                    return [...this.runs].sort((a, b) => {
+                        const aVal = a.aggregate?.mean_clustering_f1 || 0;
+                        const bVal = b.aggregate?.mean_clustering_f1 || 0;
+                        return bVal - aVal;
+                    })[0];
+                },
+                get bestAccRun() {
+                    if (!this.runs || this.runs.length === 0) return null;
+                    return [...this.runs].sort((a, b) => {
+                        const aVal = a.aggregate?.mean_class_accuracy || 0;
+                        const bVal = b.aggregate?.mean_class_accuracy || 0;
+                        return bVal - aVal;
+                    })[0];
+                },
+                get bestCovRun() {
+                    if (!this.runs || this.runs.length === 0) return null;
+                    return [...this.runs].sort((a, b) => {
+                        const aVal = a.aggregate?.mean_coverage || 0;
+                        const bVal = b.aggregate?.mean_coverage || 0;
+                        return bVal - aVal;
+                    })[0];
+                },
+
                 get sortedPages() {
                     if (!this.activeRun) return [];
                     return [...this.activeRun.pages].sort((a, b) => {
@@ -1044,7 +1075,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                     if (!page) return [];
                     const preds = page.predicted_items || [];
                     const truths = page.ground_truth_items || [];
-                    
+
                     let aligned = [];
                     let usedTruths = new Set();
 
@@ -1092,7 +1123,6 @@ HTML_TEMPLATE = r"""<!doctype html>
     </script>
 </body>
 </html>"""
-
 
 
 def load_evaluations(eval_dir: str = "data/2_evaluations") -> list[dict]:
