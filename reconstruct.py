@@ -163,15 +163,7 @@ def reconstruct_articles(
         try:
             raw = client.complete(system_prompt, user_prompt)
         except APITimeoutError:
-            if attempt < max_retries - 1:
-                wait = 5 * (2**attempt)
-                print(
-                    f"  Timed out (attempt {attempt + 1}/{max_retries}). Retrying in {wait}s...",
-                    file=sys.stderr,
-                )
-                time.sleep(wait)
-                continue
-            print(f"  Timed out after {max_retries} attempts", file=sys.stderr)
+            print(f"  Timed out on attempt {attempt + 1}, giving up immediately", file=sys.stderr)
             return None
         except APIError as e:
             if attempt < max_retries - 1:
