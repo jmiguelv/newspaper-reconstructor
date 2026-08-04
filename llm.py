@@ -12,8 +12,14 @@ from openai import OpenAI
 class LLMClient:
     """Thin wrapper around any OpenAI-compatible API."""
 
-    def __init__(self, api_key: str, model: str, base_url: str | None = None):
-        kwargs = {"api_key": api_key}
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        base_url: str | None = None,
+        timeout: float = 300.0,
+    ):
+        kwargs = {"api_key": api_key, "max_retries": 0, "timeout": timeout}
         if base_url:
             kwargs["base_url"] = base_url
         self.client = OpenAI(**kwargs)
@@ -36,6 +42,7 @@ def make_client(
     base_url: str | None = None,
     api_key: str | None = None,
     model: str | None = None,
+    timeout: float = 300.0,
 ) -> LLMClient:
     """Create an LLM client. Reads from env if args not provided.
 
@@ -47,4 +54,4 @@ def make_client(
     model = model or os.environ.get("LLM_MODEL")
     if not model:
         raise ValueError("Model not set. Provide --model or set LLM_MODEL env var.")
-    return LLMClient(api_key=api_key, model=model, base_url=base_url)
+    return LLMClient(api_key=api_key, model=model, base_url=base_url, timeout=timeout)

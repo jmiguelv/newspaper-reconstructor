@@ -94,6 +94,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--api-key", default=None, help="API key")
     parser.add_argument(
+        "--timeout",
+        type=float,
+        default=300.0,
+        help="LLM API request timeout in seconds (default: 300)",
+    )
+    parser.add_argument(
         "--system-prompt", default=None, help="Custom system prompt (overrides default)"
     )
     parser.add_argument(
@@ -215,7 +221,12 @@ def _run_single_page(
             prompt_name,
         )
 
-    client = make_client(base_url=args.base_url, api_key=args.api_key, model=model)
+    client = make_client(
+        base_url=args.base_url,
+        api_key=args.api_key,
+        model=model,
+        timeout=args.timeout,
+    )
     result = reconstruct_articles_cached(
         fragments,
         client,
@@ -248,7 +259,12 @@ def _run_input_dir(
         all_page_ids = rng.sample(all_page_ids, args.sample_size)
         print(f"Sampled {len(all_page_ids)} of {len(pages)} pages", file=sys.stderr)
 
-    client = make_client(base_url=args.base_url, api_key=args.api_key, model=model)
+    client = make_client(
+        base_url=args.base_url,
+        api_key=args.api_key,
+        model=model,
+        timeout=args.timeout,
+    )
 
     ground_truth = {}
     if args.evaluate and args.ground_truth_dir:
@@ -362,7 +378,12 @@ def _run_input_dir(
 def _reconstruct_and_eval_single(
     args, model, fragments, page_id, system_prompt, user_prompt_template, prompt_name
 ):
-    client = make_client(base_url=args.base_url, api_key=args.api_key, model=model)
+    client = make_client(
+        base_url=args.base_url,
+        api_key=args.api_key,
+        model=model,
+        timeout=args.timeout,
+    )
     predicted = reconstruct_articles_cached(
         fragments,
         client,
