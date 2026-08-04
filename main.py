@@ -48,6 +48,24 @@ from reconstruct import (
     reconstruct_articles_cached,
 )
 
+_MD_SYSTEM_HEADING = "# System Prompt"
+_MD_USER_HEADING = "# User Prompt Template"
+
+
+def _parse_md_prompt(content: str) -> tuple[str, str]:
+    lines = content.splitlines()
+    sections: dict[str, list[str]] = {}
+    current: str | None = None
+    for line in lines:
+        if line.strip() in (_MD_SYSTEM_HEADING, _MD_USER_HEADING):
+            current = line.strip()
+            sections[current] = []
+        elif current is not None:
+            sections[current].append(line)
+    system_prompt = "\n".join(sections.get(_MD_SYSTEM_HEADING, [])).strip()
+    user_prompt_template = "\n".join(sections.get(_MD_USER_HEADING, [])).strip()
+    return system_prompt, user_prompt_template
+
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
@@ -130,7 +148,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    prompt_file = args.prompt_file or "data/0_prompts/v00.json"
+    prompt_file = args.prompt_file or "data/0_prompts/v00.md"
     prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
 
     with open(prompt_file, encoding="utf-8") as f:
@@ -139,6 +157,8 @@ def main(argv: list[str] | None = None) -> int:
         data = json.loads(content)
         system_prompt = data["system_prompt"]
         user_prompt_template = data.get("user_prompt_template", "")
+    elif prompt_file.endswith(".md"):
+        system_prompt, user_prompt_template = _parse_md_prompt(content)
     else:
         system_prompt = content
         user_prompt_template = ""
