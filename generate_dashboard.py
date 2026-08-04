@@ -1172,7 +1172,8 @@ Use the position and size fields (hpos, vpos, width, height) to determine which 
 
                 fmt(val, decimals) {
                     if (val == null) return '—';
-                    return val.toFixed(decimals || 4);
+                    let d = decimals !== undefined ? decimals : 3;
+                    return val.toLocaleString(undefined, { minimumFractionDigits: d, maximumFractionDigits: d });
                 },
 
                 getChipClass(page, fragmentId) {
