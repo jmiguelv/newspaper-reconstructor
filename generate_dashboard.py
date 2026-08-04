@@ -594,6 +594,44 @@ HTML_TEMPLATE = r"""<!doctype html>
 
     <main x-data="dashboard()" x-cloak>
 
+        <!-- ── Models Info ────────────────────────────────────── -->
+
+        <details class="models-info" style="margin-bottom: var(--space-m);">
+            <summary>Models reference</summary>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: var(--space-m); margin-top: var(--space-s);">
+                
+                <article class="item-card" style="margin-bottom: 0;">
+                    <div class="item-card-header">
+                        <span style="font-size: var(--step--2); padding: 0.1em 0.55em; border-radius: 1rem; background: var(--blue-bg); color: var(--blue); font-weight: 500;">Standard</span>
+                        <h4 style="margin: 0; font-family: var(--font-mono);">arc:nexus</h4>
+                    </div>
+                    <p style="font-size: var(--step--2); color: var(--ink-light); margin-bottom: var(--space-s);">Designed for every day tasks and general use.</p>
+                    <dl class="config-grid" style="gap: var(--space-2xs) var(--space-s);">
+                        <div><dt>Context</dt><dd>262,144</dd></div>
+                        <div><dt>Model</dt><dd>Qwen/Qwen3.6-35B-A3B</dd></div>
+                        <div><dt>Size</dt><dd>35B-A3B</dd></div>
+                        <div><dt>Quantization</dt><dd>NVFP4</dd></div>
+                        <div><dt>Type</dt><dd>MOE</dd></div>
+                    </dl>
+                </article>
+
+                <article class="item-card" style="margin-bottom: 0;">
+                    <div class="item-card-header">
+                        <span style="font-size: var(--step--2); padding: 0.1em 0.55em; border-radius: 1rem; background: var(--green-bg); color: var(--green); font-weight: 500;">Fast</span>
+                        <h4 style="margin: 0; font-family: var(--font-mono);">arc:lite</h4>
+                    </div>
+                    <p style="font-size: var(--step--2); color: var(--ink-light); margin-bottom: var(--space-s);">A versatile model, suitable for a wide range of tasks.</p>
+                    <dl class="config-grid" style="gap: var(--space-2xs) var(--space-s);">
+                        <div><dt>Context</dt><dd>131,072</dd></div>
+                        <div><dt>Model</dt><dd>Google/Gemma4:26B-A4B</dd></div>
+                        <div><dt>Size</dt><dd>26B-A4B</dd></div>
+                        <div><dt>Quantization</dt><dd>NVFP4</dd></div>
+                        <div><dt>Type</dt><dd>MOE</dd></div>
+                    </dl>
+                </article>
+            </div>
+        </details>
+
         <!-- ── Metrics legend ─────────────────────────────────── -->
 
         <details class="metrics-legend">
