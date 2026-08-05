@@ -643,120 +643,7 @@ HTML_TEMPLATE = r"""<!doctype html>
             <details class="prompts-info" style="margin-bottom: var(--space-s);">
                 <summary>Prompts reference</summary>
                 <div style="padding: var(--space-s); background: var(--surface-2); border-radius: 0.5rem; border: 1px solid var(--rule); margin-top: var(--space-s); display: flex; flex-direction: column; gap: var(--space-s);">
-                    
-                    <details>
-                        <summary><strong style="color: var(--ink);">v00</strong>: Baseline prompt</summary>
-                        <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;"># System Prompt
-
-You are an expert in historical Malay.
-
-For each item, return a JSON object with:
-- fragment_ids: list of constitutive fragment IDs
-- title: short title or topic description
-- class: one of "article", "advertisement", "obituary", "miscellaneous"
-
-Return ONLY a JSON array. No other text, no explanation. Example:
-[
-  {"fragment_ids": ["r_1", "r_2"], "title": "Language congress report", "class": "article"},
-  {"fragment_ids": ["r_3"], "title": "Eye drops advertisement", "class": "advertisement"}
-]
-
-# User Prompt Template
-
-Consider these text fragments in Malay.
-
-{fragments}
-
-Reconstruct them into full items. Return ONLY a JSON array.</pre>
-                    </details>
-
-                    <details>
-                        <summary><strong style="color: var(--ink);">v01</strong>: Improved formatting</summary>
-                        <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;"># System Prompt
-
-You are given text fragments extracted by OCR from a Malay newspaper page written in Jawi (Arabic script).
-
-Each fragment is a JSON object with the following fields:
-
-- id: fragment identifier
-- text: OCR text content
-- type: block type (e.g., "text", "header")
-- hpos: horizontal position (pixels from left)
-- vpos: vertical position (pixels from top)
-- width: block width in pixels
-- height: block height in pixels
-
-Your task: reconstruct these fragments into complete items (articles, advertisements, etc.).
-Some items may consist of a single fragment. Group fragments that belong to the same item together.
-
-For each reconstructed item, provide:
-
-1. fragment_ids: list of constitutive fragment IDs (in reading order)
-2. title: a short title or topic description
-3. class: one of "article", "advertisement", "obituary", "miscellaneous"
-
-Return ONLY a JSON array. No other text, no explanation. Example:
-[
-{"fragment_ids": ["r_1", "r_2"], "title": "Union meeting report", "class": "article"},
-{"fragment_ids": ["r_3"], "title": "Eye drops advertisement", "class": "advertisement"}
-]
-
-# User Prompt Template
-
-Fragments from a Malay newspaper page (Jawi / Arabic script):
-
-{fragments}
-
-Reconstruct these fragments into complete items. Return ONLY a JSON array.</pre>
-                    </details>
-
-                    <details>
-                        <summary><strong style="color: var(--ink);">v02</strong>: Few-shot examples and additional heuristics</summary>
-                        <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;"># System Prompt
-
-You are given text fragments extracted by OCR from a Malay newspaper page written in Jawi (Arabic script).
-
-Each fragment is a JSON object with the following fields:
-
-- id: fragment identifier
-- text: OCR text content
-- type: block type (e.g., "text", "header")
-- hpos: horizontal position (pixels from left)
-- vpos: vertical position (pixels from top)
-- width: block width in pixels
-- height: block height in pixels
-
-Your task: reconstruct these fragments into complete items (articles, advertisements, etc.).
-Some items may consist of a single fragment. Group fragments that belong to the same item together.
-
-Use spatial reasoning to help group fragments:
-
-- Fragments that are physically close and vertically aligned likely belong to the same article.
-- Articles typically flow downward first, then to the next column to the left.
-- Fragments with similar horizontal positions (hpos) and overlapping vertical ranges (vpos + height) are likely in the same column.
-- Large blocks may span multiple columns; check if adjacent fragments share a vertical boundary.
-- Headers, titles, and standalone blocks may be single-fragment items.
-
-For each reconstructed item, provide:
-
-1. fragment_ids: list of constitutive fragment IDs (in reading order)
-2. title: a short title or topic description
-3. class: one of "article", "advertisement", "obituary", "miscellaneous"
-
-Return ONLY a JSON array. No other text, no explanation. Example:
-[
-{"fragment_ids": ["r_1", "r_2"], "title": "Union meeting report", "class": "article"},
-{"fragment_ids": ["r_3"], "title": "Eye drops advertisement", "class": "advertisement"}
-]
-
-# User Prompt Template
-
-Fragments from a Malay newspaper page (Jawi / Arabic script):
-
-{fragments}
-
-Use the position and size fields (hpos, vpos, width, height) to determine which fragments belong together. Reconstruct these fragments into complete items. Return ONLY a JSON array.</pre>
-                    </details>
+                    __PROMPTS_PLACEHOLDER__
                 </div>
             </details>
 
@@ -1276,10 +1163,44 @@ def load_evaluations(eval_dir: str = "data/2_evaluations") -> list[dict]:
     return runs
 
 
-def generate_html(runs: list[dict]) -> str:
+def load_prompts(prompts_dir: str = "data/0_prompts") -> list[dict]:
+    """Load all prompt .md files from the given directory, sorted by name."""
+    prompts = []
+    for path in sorted(glob.glob(os.path.join(prompts_dir, "*.md"))):
+        name = os.path.splitext(os.path.basename(path))[0]
+        with open(path, encoding="utf-8") as f:
+            content = f.read()
+        prompts.append({"name": name, "content": content})
+    return prompts
+
+
+def _render_prompts_html(prompts: list[dict]) -> str:
+    """Render prompt files as a series of expandable <details> blocks."""
+    if not prompts:
+        return "<p>No prompt files found.</p>"
+    parts = []
+    for p in prompts:
+        escaped = p["content"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        parts.append(
+            f'<details>\n'
+            f'    <summary><strong style="color: var(--ink);">{p["name"]}</strong></summary>\n'
+            f'    <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); '
+            f'border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); '
+            f'overflow-x: auto; white-space: pre-wrap;">{escaped}</pre>\n'
+            f'</details>'
+        )
+    return "\n".join(parts)
+
+
+def generate_html(runs: list[dict], prompts: list[dict]) -> str:
     """Generate a self-contained HTML dashboard with embedded eval data."""
     embedded = json.dumps(runs, ensure_ascii=False)
-    return HTML_TEMPLATE.replace("__DATA_PLACEHOLDER__", embedded)
+    prompts_html = _render_prompts_html(prompts)
+    return (
+        HTML_TEMPLATE
+        .replace("__DATA_PLACEHOLDER__", embedded)
+        .replace("__PROMPTS_PLACEHOLDER__", prompts_html)
+    )
 
 
 def main() -> int:
@@ -1302,7 +1223,8 @@ def main() -> int:
     if not runs:
         print(f"No evaluation files found in {args.eval_dir}")
 
-    html = generate_html(runs)
+    prompts = load_prompts()
+    html = generate_html(runs, prompts)
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     with open(args.output, "w", encoding="utf-8") as f:
         f.write(html)
