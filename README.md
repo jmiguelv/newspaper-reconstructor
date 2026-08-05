@@ -18,28 +18,32 @@ flowchart LR
     RECON2 -->|predicted items| EVAL["evaluate.py"]
     ARTXML["Article XML<br/>data/0_external/article_xml/"] -->|ground truth| EVAL
     EVAL -->|clustering F1<br/>class accuracy<br/>coverage| LOG["eval log JSON<br/>data/2_evaluations/"]
+    LOG -->|generate_network| NET["generate_network.py<br/>export nodes/edges"]
+    NET -->|nodes + edges| VIZ["article-network-visualizer<br/>data/3_networks/"]
 ```
 
 ## Project Structure
 
 ```
 article-reconstruction/
-├── main.py            # CLI entry point
-├── reconstruct.py    # ALTO XML parsing, article reconstruction, default prompts
-├── llm.py            # LLM client (OpenAI-compatible API wrapper)
-├── evaluate.py       # Ground truth parsing, clustering F1, evaluation logging
-├── generate_dashboard.py # Alpine.js HTML dashboard generator for evaluation logs
-├── run_evals.sh      # Batch evaluation orchestrator script
-├── tests/            # Unit tests + end-to-end tests
+├── main.py                 # CLI entry point
+├── reconstruct.py          # ALTO XML parsing, article reconstruction, default prompts
+├── llm.py                  # LLM client (OpenAI-compatible API wrapper)
+├── evaluate.py             # Ground truth parsing, clustering F1, evaluation logging
+├── generate_dashboard.py   # Alpine.js HTML dashboard generator for evaluation logs
+├── generate_network.py     # Export eval logs to nodes/edges CSV for the network visualizer
+├── run_evals.sh            # Batch evaluation orchestrator script
+├── tests/                  # Unit tests + end-to-end tests
 └── data/
-    ├── 0_external/   # Raw external data (git submodule)
+    ├── 0_external/         # Raw external data (git submodule)
     │   ├── alto/         # 80 ALTO XML files (OCR text fragments)
     │   └── article_xml/  # 80 ground truth article XML files
-    ├── 0_prompts/      # Prompt files (v01=baseline, v02+=improved variants)
-    ├── 1_interim/      # Interim processed data
+    ├── 0_prompts/          # Prompt files (v01=baseline, v02+=improved variants)
+    ├── 1_interim/          # Interim processed data
     │   ├── fragments/          # Cached ALTO→JSON fragments
     │   └── reconstructions/    # LLM output caches (by prompt/model)
-    └── 2_evaluations/      # Evaluation logs (JSON) and dashboard.html
+    ├── 2_evaluations/      # Evaluation logs (JSON) and dashboard.html
+    └── 3_networks/         # Exported nodes/edges CSV for the network visualizer
 ```
 
 ## Installation
@@ -59,6 +63,7 @@ Set environment variables for the LLM API, or pass them as CLI flags. Works with
 | `LLM_API_KEY`  | API key for the LLM provider         | `"none"` |
 | `LLM_MODEL`    | Model name                           | Required |
 | `LLM_BASE_URL` | Custom OpenAI-compatible endpoint    | None     |
+| `IMAGE_BASE_URL` | Base URL for page scan images      | `https://jawi.sgp1.digitaloceanspaces.com/page_scans` |
 
 ### Non-OpenAI example (local server)
 
@@ -145,10 +150,28 @@ Evaluation logs are saved as JSON files in the `--eval-dir` directory, named `{t
 
 Run `uv run python generate_dashboard.py` to generate an interactive HTML dashboard (`dashboard.html`) in the evaluation directory to visualize these metrics.
 
+### Export for Network Visualization
+
+Export an evaluation log to nodes and edges CSV files for the [article-network-visualizer](https://github.com/nus/Jawi-Newspapers/article-network-visualizer):
+
+```bash
+uv run python generate_network.py --eval-log data/2_evaluations/<file>.json
+```
+
+This creates one CSV per page in `data/3_networks/{eval_name}/nodes/` and `data/3_networks/{eval_name}/edges/`. Nodes carry per-fragment coordinates, OCR text, and segment assignments (`{model}_segment`, `ground_truth_segment`). Edges connect fragments within the same LLM-predicted item and include an `edge_weight` column (`1.0` when the grouping agrees with ground truth, `-1.0` when it does not). Page-level evaluation metrics (`clustering_f1`, `bcubed_f1`, `coverage`, `class_accuracy`, `tp`, `fp`, `fn`) are appended as constant columns on every edge row.
+
+| Option          | Description                                          |
+|-----------------|------------------------------------------------------|
+| `--eval-log`    | Path to evaluation log JSON (required)               |
+| `--output-dir`  | Base output directory (default: `data/3_networks`)  |
+| `--image-base-url` | Base URL for page scan images (env: `IMAGE_BASE_URL`) |
+| `--interim-dir` | Directory for cached fragments (default: `data/1_interim`) |
+| `--eval-name`   | Override the evaluation subdirectory name            |
+
 ## Testing
 
 ```bash
-uv run pytest          # run all 63 tests
+uv run pytest          # run all tests
 uv run ruff check .    # lint
 uv run ruff format .   # format
 ```
