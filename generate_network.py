@@ -40,6 +40,16 @@ NODE_BASE_COLUMNS = [
     "y2",
 ]
 
+EDGE_METRIC_COLUMNS = [
+    "clustering_f1",
+    "bcubed_f1",
+    "coverage",
+    "class_accuracy",
+    "tp",
+    "fp",
+    "fn",
+]
+
 EDGE_COLUMNS = [
     "Image_URL",
     "Page_ID",
@@ -47,6 +57,7 @@ EDGE_COLUMNS = [
     "Target_Region_ID",
     "Hop_Distance",
     "edge_weight",
+    *EDGE_METRIC_COLUMNS,
 ]
 
 
@@ -139,6 +150,12 @@ def export_page(
     with open(edges_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(EDGE_COLUMNS)
+        metrics = page.get("metrics")
+        metric_vals = (
+            [metrics.get(c, "") for c in EDGE_METRIC_COLUMNS]
+            if metrics
+            else [""] * len(EDGE_METRIC_COLUMNS)
+        )
         if predicted_items:
             for item in predicted_items:
                 fids = item.get("fragment_ids", [])
@@ -148,7 +165,7 @@ def export_page(
                     src_gt = gt_map.get(src)
                     tgt_gt = gt_map.get(tgt)
                     weight = 1.0 if (src_gt and tgt_gt and src_gt == tgt_gt) else -1.0
-                    writer.writerow([image_url, page_id, src, tgt, 1, weight])
+                    writer.writerow([image_url, page_id, src, tgt, 1, weight, *metric_vals])
 
 
 def export_eval_log(

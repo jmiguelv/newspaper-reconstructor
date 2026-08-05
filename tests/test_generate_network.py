@@ -258,7 +258,7 @@ class TestExportPage:
 
         edge_rows = _read_csv(edges_dir / "test_page.csv")
         edge_cols = list(edge_rows[0].keys())
-        assert edge_cols == ["Image_URL", "Page_ID", "Source_Region_ID", "Target_Region_ID", "Hop_Distance", "edge_weight"]
+        assert edge_cols == ["Image_URL", "Page_ID", "Source_Region_ID", "Target_Region_ID", "Hop_Distance", "edge_weight", "clustering_f1", "bcubed_f1", "coverage", "class_accuracy", "tp", "fp", "fn"]
 
         pairs = {(r["Source_Region_ID"], r["Target_Region_ID"]) for r in edge_rows}
         assert ("r_1", "r_2") in pairs
@@ -330,6 +330,72 @@ class TestExportPage:
 
         edge_rows = _read_csv(edges_dir / "test_page.csv")
         assert all(r["edge_weight"] == "-1.0" for r in edge_rows)
+
+    def test_edges_metrics_present(self, tmp_path):
+        fragments = _make_fragments()
+        page = {
+            "page_id": "test_page",
+            "metrics": {
+                "clustering_f1": 0.55,
+                "bcubed_f1": 0.78,
+                "coverage": 0.82,
+                "class_accuracy": 1.0,
+                "tp": 13,
+                "fp": 15,
+                "fn": 6,
+            },
+            "predicted_items": [
+                {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
+            ],
+            "ground_truth_items": [
+                {"uuid": "uuid-aaa", "class": "article", "fragment_ids": ["r_1", "r_2"], "topics": []},
+            ],
+        }
+        nodes_dir = tmp_path / "nodes"
+        edges_dir = tmp_path / "edges"
+        nodes_dir.mkdir()
+        edges_dir.mkdir()
+
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
+
+        edge_rows = _read_csv(edges_dir / "test_page.csv")
+        assert len(edge_rows) == 2
+        for r in edge_rows:
+            assert r["clustering_f1"] == "0.55"
+            assert r["bcubed_f1"] == "0.78"
+            assert r["coverage"] == "0.82"
+            assert r["class_accuracy"] == "1.0"
+            assert r["tp"] == "13"
+            assert r["fp"] == "15"
+            assert r["fn"] == "6"
+
+    def test_edges_metrics_none(self, tmp_path):
+        fragments = _make_fragments()
+        page = {
+            "page_id": "test_page",
+            "metrics": None,
+            "predicted_items": [
+                {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
+            ],
+            "ground_truth_items": [],
+        }
+        nodes_dir = tmp_path / "nodes"
+        edges_dir = tmp_path / "edges"
+        nodes_dir.mkdir()
+        edges_dir.mkdir()
+
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
+
+        edge_rows = _read_csv(edges_dir / "test_page.csv")
+        assert len(edge_rows) == 2
+        for r in edge_rows:
+            assert r["clustering_f1"] == ""
+            assert r["bcubed_f1"] == ""
+            assert r["coverage"] == ""
+            assert r["class_accuracy"] == ""
+            assert r["tp"] == ""
+            assert r["fp"] == ""
+            assert r["fn"] == ""
 
     def test_edges_empty_for_single_fragment_items(self, tmp_path):
         fragments = _make_fragments()
