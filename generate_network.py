@@ -46,6 +46,7 @@ EDGE_COLUMNS = [
     "Source_Region_ID",
     "Target_Region_ID",
     "Hop_Distance",
+    "edge_weight",
 ]
 
 
@@ -144,7 +145,10 @@ def export_page(
                 if len(fids) < 2:
                     continue
                 for src, tgt in itertools.permutations(fids, 2):
-                    writer.writerow([image_url, page_id, src, tgt, 1])
+                    src_gt = gt_map.get(src)
+                    tgt_gt = gt_map.get(tgt)
+                    weight = 1.0 if (src_gt and tgt_gt and src_gt == tgt_gt) else -1.0
+                    writer.writerow([image_url, page_id, src, tgt, 1, weight])
 
 
 def export_eval_log(

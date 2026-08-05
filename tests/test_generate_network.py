@@ -258,13 +258,78 @@ class TestExportPage:
 
         edge_rows = _read_csv(edges_dir / "test_page.csv")
         edge_cols = list(edge_rows[0].keys())
-        assert edge_cols == ["Image_URL", "Page_ID", "Source_Region_ID", "Target_Region_ID", "Hop_Distance"]
+        assert edge_cols == ["Image_URL", "Page_ID", "Source_Region_ID", "Target_Region_ID", "Hop_Distance", "edge_weight"]
 
         pairs = {(r["Source_Region_ID"], r["Target_Region_ID"]) for r in edge_rows}
         assert ("r_1", "r_2") in pairs
         assert ("r_2", "r_1") in pairs
         assert len(edge_rows) == 2
         assert all(r["Hop_Distance"] == "1" for r in edge_rows)
+
+    def test_edges_weight_true_positive(self, tmp_path):
+        fragments = _make_fragments()
+        page = {
+            "page_id": "test_page",
+            "metrics": None,
+            "predicted_items": [
+                {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
+            ],
+            "ground_truth_items": [
+                {"uuid": "uuid-aaa", "class": "article", "fragment_ids": ["r_1", "r_2"], "topics": []},
+            ],
+        }
+        nodes_dir = tmp_path / "nodes"
+        edges_dir = tmp_path / "edges"
+        nodes_dir.mkdir()
+        edges_dir.mkdir()
+
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
+
+        edge_rows = _read_csv(edges_dir / "test_page.csv")
+        assert all(r["edge_weight"] == "1.0" for r in edge_rows)
+
+    def test_edges_weight_false_positive(self, tmp_path):
+        fragments = _make_fragments()
+        page = {
+            "page_id": "test_page",
+            "metrics": None,
+            "predicted_items": [
+                {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
+            ],
+            "ground_truth_items": [
+                {"uuid": "uuid-aaa", "class": "article", "fragment_ids": ["r_1"], "topics": []},
+                {"uuid": "uuid-bbb", "class": "ad", "fragment_ids": ["r_2"], "topics": []},
+            ],
+        }
+        nodes_dir = tmp_path / "nodes"
+        edges_dir = tmp_path / "edges"
+        nodes_dir.mkdir()
+        edges_dir.mkdir()
+
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
+
+        edge_rows = _read_csv(edges_dir / "test_page.csv")
+        assert all(r["edge_weight"] == "-1.0" for r in edge_rows)
+
+    def test_edges_weight_false_positive_no_gt(self, tmp_path):
+        fragments = _make_fragments()
+        page = {
+            "page_id": "test_page",
+            "metrics": None,
+            "predicted_items": [
+                {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
+            ],
+            "ground_truth_items": [],
+        }
+        nodes_dir = tmp_path / "nodes"
+        edges_dir = tmp_path / "edges"
+        nodes_dir.mkdir()
+        edges_dir.mkdir()
+
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
+
+        edge_rows = _read_csv(edges_dir / "test_page.csv")
+        assert all(r["edge_weight"] == "-1.0" for r in edge_rows)
 
     def test_edges_empty_for_single_fragment_items(self, tmp_path):
         fragments = _make_fragments()
