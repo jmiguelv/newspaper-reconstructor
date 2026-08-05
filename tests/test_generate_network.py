@@ -151,14 +151,14 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         rows = _read_csv(nodes_dir / "UM-1956-01-09-6.csv")
         assert len(rows) == 3
         header = list(rows[0].keys())
         assert header == [
             "Image_URL", "Page_ID", "Region_ID", "Region_Text",
-            "x1", "y1", "x2", "y2", "llm_segment", "ground_truth_segment",
+            "x1", "y1", "x2", "y2", "arc:lite_segment", "ground_truth_segment",
         ]
 
     def test_nodes_coords_and_segments(self, tmp_path):
@@ -179,7 +179,7 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         rows = _read_csv(nodes_dir / "test_page.csv")
         assert rows[0]["Region_ID"] == "r_1"
@@ -187,15 +187,15 @@ class TestExportPage:
         assert rows[0]["y1"] == "20"
         assert rows[0]["x2"] == "110"
         assert rows[0]["y2"] == "220"
-        assert rows[0]["llm_segment"] == "0"
+        assert rows[0]["arc:lite_segment"] == "0"
         assert rows[0]["ground_truth_segment"] == "uuid-aaa"
 
         assert rows[1]["Region_ID"] == "r_2"
-        assert rows[1]["llm_segment"] == "0"
+        assert rows[1]["arc:lite_segment"] == "0"
         assert rows[1]["ground_truth_segment"] == ""
 
         assert rows[2]["Region_ID"] == "r_3"
-        assert rows[2]["llm_segment"] == "1"
+        assert rows[2]["arc:lite_segment"] == "1"
         assert rows[2]["ground_truth_segment"] == ""
 
     def test_image_url(self, tmp_path):
@@ -211,7 +211,7 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans/", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans/", nodes_dir, edges_dir, "arc:lite")
 
         rows = _read_csv(nodes_dir / "test_page.csv")
         assert rows[0]["Image_URL"] == "https://example.com/scans/test_page.jpg"
@@ -229,13 +229,13 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         rows = _read_csv(nodes_dir / "test_page.csv")
         assert len(rows) == 3
-        assert rows[1]["llm_segment"] == ""
+        assert rows[1]["arc:lite_segment"] == ""
         assert rows[1]["ground_truth_segment"] == ""
-        assert rows[2]["llm_segment"] == ""
+        assert rows[2]["arc:lite_segment"] == ""
         assert rows[2]["ground_truth_segment"] == ""
 
     def test_edges_csv_same_item_only(self, tmp_path):
@@ -254,7 +254,7 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         edge_rows = _read_csv(edges_dir / "test_page.csv")
         edge_cols = list(edge_rows[0].keys())
@@ -282,7 +282,7 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         rows = _read_csv(edges_dir / "test_page.csv")
         assert len(rows) == 0
@@ -300,7 +300,7 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         edge_rows = _read_csv(edges_dir / "test_page.csv")
         assert len(edge_rows) == 0
@@ -320,7 +320,7 @@ class TestExportPage:
         nodes_dir.mkdir()
         edges_dir.mkdir()
 
-        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir)
+        export_page(page, fragments, "https://example.com/scans", nodes_dir, edges_dir, "arc:lite")
 
         with open(nodes_dir / "test_page.csv", encoding="utf-8") as f:
             content = f.read()
@@ -457,7 +457,7 @@ class TestExportEvalLog:
         eval_dir = tmp_path / "output" / "v03_arc:lite_sample16_seed42"
         node_rows = _read_csv(eval_dir / "nodes" / "failed_page.csv")
         assert len(node_rows) == 3
-        assert all(r["llm_segment"] == "" for r in node_rows)
+        assert all(r["arc:lite_segment"] == "" for r in node_rows)
         assert all(r["ground_truth_segment"] == "" for r in node_rows)
 
         edge_rows = _read_csv(eval_dir / "edges" / "failed_page.csv")

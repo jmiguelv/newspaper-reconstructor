@@ -29,7 +29,7 @@ DEFAULT_IMAGE_BASE_URL = "https://jawi.sgp1.digitaloceanspaces.com/page_scans"
 DEFAULT_OUTPUT_DIR = "data/3_networks"
 DEFAULT_INTERIM_DIR = "data/1_interim"
 
-NODE_COLUMNS = [
+NODE_BASE_COLUMNS = [
     "Image_URL",
     "Page_ID",
     "Region_ID",
@@ -38,8 +38,6 @@ NODE_COLUMNS = [
     "y1",
     "x2",
     "y2",
-    "llm_segment",
-    "ground_truth_segment",
 ]
 
 EDGE_COLUMNS = [
@@ -100,6 +98,7 @@ def export_page(
     image_base_url: str,
     nodes_dir: Path,
     edges_dir: Path,
+    model: str,
 ) -> None:
     page_id = page["page_id"]
     image_url = f"{image_base_url.rstrip('/')}/{page_id}.jpg"
@@ -108,12 +107,15 @@ def export_page(
     ground_truth_items = page.get("ground_truth_items")
     llm_map, gt_map = build_segment_maps(predicted_items, ground_truth_items)
 
+    model_segment_col = f"{model}_segment"
+    node_columns = [*NODE_BASE_COLUMNS, model_segment_col, "ground_truth_segment"]
+
     nodes_path = nodes_dir / f"{page_id}.csv"
     edges_path = edges_dir / f"{page_id}.csv"
 
     with open(nodes_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(NODE_COLUMNS)
+        writer.writerow(node_columns)
         for frag in fragments:
             fid = frag["id"]
             hpos = frag.get("hpos", 0)
@@ -156,6 +158,7 @@ def export_eval_log(
         log = json.load(f)
 
     config = log.get("config", {})
+    model = config.get("model", "unknown")
     name = derive_eval_name(config, eval_name)
     eval_dir = Path(output_dir) / name
     nodes_dir = eval_dir / "nodes"
@@ -171,7 +174,7 @@ def export_eval_log(
         if fragments is None:
             print(f"[{page_id}] WARN: fragment cache missing, skipping", file=sys.stderr)
             continue
-        export_page(page, fragments, image_base_url, nodes_dir, edges_dir)
+        export_page(page, fragments, image_base_url, nodes_dir, edges_dir, model)
         exported += 1
 
     print(f"Exported {exported} page(s) to {eval_dir}", file=sys.stderr)
