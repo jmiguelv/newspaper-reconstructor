@@ -402,20 +402,21 @@ class TestReconstructArticles:
 
         client = MagicMock()
         client.complete.side_effect = [
-            APIError(message="504", request=None, body=None),
+            APIError(message="500", request=None, body=None),
             VALID_RESPONSE,
         ]
         fragments = [
             {"id": "r_text1", "text": "Hello World"},
             {"id": "r_text2", "text": "Ad text"},
         ]
-        result = reconstruct_articles(
-            fragments,
-            client,
-            TEST_SYSTEM_PROMPT,
-            TEST_USER_PROMPT_TEMPLATE,
-            max_retries=3,
-        )
+        with patch("reconstruct.time.sleep"):
+            result = reconstruct_articles(
+                fragments,
+                client,
+                TEST_SYSTEM_PROMPT,
+                TEST_USER_PROMPT_TEMPLATE,
+                max_retries=3,
+            )
         assert len(result) == 2
         assert client.complete.call_count == 2
 
@@ -423,15 +424,16 @@ class TestReconstructArticles:
         from openai import APIError
 
         client = MagicMock()
-        client.complete.side_effect = APIError(message="504", request=None, body=None)
+        client.complete.side_effect = APIError(message="500", request=None, body=None)
         fragments = [{"id": "r_text1", "text": "Hello World"}]
-        result = reconstruct_articles(
-            fragments,
-            client,
-            TEST_SYSTEM_PROMPT,
-            TEST_USER_PROMPT_TEMPLATE,
-            max_retries=2,
-        )
+        with patch("reconstruct.time.sleep"):
+            result = reconstruct_articles(
+                fragments,
+                client,
+                TEST_SYSTEM_PROMPT,
+                TEST_USER_PROMPT_TEMPLATE,
+                max_retries=2,
+            )
         assert result is None
         assert client.complete.call_count == 2
 
@@ -440,10 +442,7 @@ class TestReconstructArticles:
 
         client = MagicMock()
         mock_req = MagicMock()
-        client.complete.side_effect = [
-            APITimeoutError(request=mock_req),
-            VALID_RESPONSE,
-        ]
+        client.complete.side_effect = APITimeoutError(request=mock_req)
         fragments = [
             {"id": "r_text1", "text": "Hello World"},
             {"id": "r_text2", "text": "Ad text"},
@@ -455,18 +454,15 @@ class TestReconstructArticles:
             TEST_USER_PROMPT_TEMPLATE,
             max_retries=3,
         )
-        assert len(result) == 2
-        assert client.complete.call_count == 2
+        assert result is None
+        assert client.complete.call_count == 1
 
     def test_returns_none_after_all_timeouts(self):
         from openai import APITimeoutError
 
         client = MagicMock()
         mock_req = MagicMock()
-        client.complete.side_effect = [
-            APITimeoutError(request=mock_req),
-            APITimeoutError(request=mock_req),
-        ]
+        client.complete.side_effect = APITimeoutError(request=mock_req)
         fragments = [{"id": "r_text1", "text": "Hello World"}]
         result = reconstruct_articles(
             fragments,
@@ -476,7 +472,7 @@ class TestReconstructArticles:
             max_retries=2,
         )
         assert result is None
-        assert client.complete.call_count == 2
+        assert client.complete.call_count == 1
 
 
 # ─── reconstruct_articles_cached ──────────────────────────────────────────────
