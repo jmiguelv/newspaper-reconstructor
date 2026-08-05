@@ -820,6 +820,12 @@ Use the position and size fields (hpos, vpos, width, height) to determine which 
                 For Class Accuracy, the top performer is <strong x-text="bestAccRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestAccRun.aggregate.mean_class_accuracy)"></strong>),
                 while the best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
             </div>
+            <div style="display: flex; align-items: center; gap: var(--space-s); margin-bottom: var(--space-m); font-size: var(--step--1); color: var(--ink-light);">
+                <label for="completion-filter" style="white-space: nowrap;">Min. completion</label>
+                <input id="completion-filter" type="range" min="0" max="1" step="0.05" x-model.number="minCompletionRatio" style="flex: 1; max-width: 12rem; accent-color: var(--ink);">
+                <span x-text="Math.round(minCompletionRatio * 100) + '%'" style="min-width: 3rem;"></span>
+                <span style="color: var(--ink-muted);">(<span x-text="filteredRuns.length"></span> of <span x-text="runs.length"></span> runs)</span>
+            </div>
             <div class="table-wrap">
             <table>
                 <thead>
@@ -1070,9 +1076,18 @@ Use the position and size fields (hpos, vpos, width, height) to determine which 
                 pageSortDir: 'asc',
                 expandedRun: null,
                 expandedPage: null,
+                minCompletionRatio: 0.5,
 
+                get filteredRuns() {
+                    return this.runs.filter(run => {
+                        const sampleSize = run.config?.sample_size;
+                        const totalPages = run.aggregate?.total_pages ?? 0;
+                        if (!sampleSize) return true;
+                        return totalPages >= sampleSize * this.minCompletionRatio;
+                    });
+                },
                 get sortedRuns() {
-                    return [...this.runs].sort((a, b) => {
+                    return [...this.filteredRuns].sort((a, b) => {
                         const aVal = this.getNested(a, this.sortKey);
                         const bVal = this.getNested(b, this.sortKey);
                         if (typeof aVal === 'string') {
@@ -1085,24 +1100,24 @@ Use the position and size fields (hpos, vpos, width, height) to determine which 
                 },
 
                 get bestF1Run() {
-                    if (!this.runs || this.runs.length === 0) return null;
-                    return [...this.runs].sort((a, b) => {
+                    if (!this.filteredRuns || this.filteredRuns.length === 0) return null;
+                    return [...this.filteredRuns].sort((a, b) => {
                         const aVal = a.aggregate?.mean_clustering_f1 || 0;
                         const bVal = b.aggregate?.mean_clustering_f1 || 0;
                         return bVal - aVal;
                     })[0];
                 },
                 get bestAccRun() {
-                    if (!this.runs || this.runs.length === 0) return null;
-                    return [...this.runs].sort((a, b) => {
+                    if (!this.filteredRuns || this.filteredRuns.length === 0) return null;
+                    return [...this.filteredRuns].sort((a, b) => {
                         const aVal = a.aggregate?.mean_class_accuracy || 0;
                         const bVal = b.aggregate?.mean_class_accuracy || 0;
                         return bVal - aVal;
                     })[0];
                 },
                 get bestCovRun() {
-                    if (!this.runs || this.runs.length === 0) return null;
-                    return [...this.runs].sort((a, b) => {
+                    if (!this.filteredRuns || this.filteredRuns.length === 0) return null;
+                    return [...this.filteredRuns].sort((a, b) => {
                         const aVal = a.aggregate?.mean_coverage || 0;
                         const bVal = b.aggregate?.mean_coverage || 0;
                         return bVal - aVal;

@@ -5,6 +5,8 @@ PROMPTS=(
   "data/0_prompts/v00.md"
   "data/0_prompts/v01.md"
   "data/0_prompts/v02.md"
+  "data/0_prompts/v03.md"
+  "data/0_prompts/v04.md"
 )
 
 MODELS=(
