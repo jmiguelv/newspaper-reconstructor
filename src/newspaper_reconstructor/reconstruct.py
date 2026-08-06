@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 
 from openai import APIError, APITimeoutError
 
-from llm import LLMClient
+from .llm import LLMClient
 
 ALTO_NS = "http://www.loc.gov/standards/alto/ns-v4#"
 

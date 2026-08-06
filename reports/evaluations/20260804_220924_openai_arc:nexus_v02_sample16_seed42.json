@@ -1,0 +1,27 @@
+{
+  "run_id": "20260804_220924_openai_arc:nexus_v02_sample16_seed42",
+  "timestamp": "2026-08-04T22:09:24.481394+08:00",
+  "config": {
+    "provider": "openai",
+    "model": "arc:nexus",
+    "base_url": "https://ai.create.kcl.ac.uk/api/",
+    "system_prompt": "You are given text fragments extracted by OCR from a Malay newspaper page written in Jawi (Arabic script).\n\nEach fragment is a JSON object with the following fields:\n\n- id: fragment identifier\n- text: OCR text content\n- type: block type (e.g., \"text\", \"header\")\n- hpos: horizontal position (pixels from left)\n- vpos: vertical position (pixels from top)\n- width: block width in pixels\n- height: block height in pixels\n\nYour task: reconstruct these fragments into complete items (articles, advertisements, etc.).\nSome items may consist of a single fragment. Group fragments that belong to the same item together.\n\nUse spatial reasoning to help group fragments:\n\n- Fragments that are physically close and vertically aligned likely belong to the same article.\n- Articles typically flow downward first, then to the next column to the left.\n- Fragments with similar horizontal positions (hpos) and overlapping vertical ranges (vpos + height) are likely in the same column.\n- Large blocks may span multiple columns; check if adjacent fragments share a vertical boundary.\n- Headers, titles, and standalone blocks may be single-fragment items.\n\nFor each reconstructed item, provide:\n\n1. fragment_ids: list of constitutive fragment IDs (in reading order)\n2. title: a short title or topic description\n3. class: one of \"article\", \"advertisement\", \"obituary\", \"miscellaneous\"\n\nReturn ONLY a JSON array. No other text, no explanation. Example:\n[\n{\"fragment_ids\": [\"r_1\", \"r_2\"], \"title\": \"Union meeting report\", \"class\": \"article\"},\n{\"fragment_ids\": [\"r_3\"], \"title\": \"Eye drops advertisement\", \"class\": \"advertisement\"}\n]",
+    "user_prompt_template": "Fragments from a Malay newspaper page (Jawi / Arabic script):\n\n{fragments}\n\nUse the position and size fields (hpos, vpos, width, height) to determine which fragments belong together. Reconstruct these fragments into complete items. Return ONLY a JSON array.",
+    "prompt_name": "v02",
+    "sample_size": 16,
+    "pages_processed": 0,
+    "pages_failed": 16,
+    "seed": 42,
+    "execution_time_seconds": 343.2376470565796
+  },
+  "pages": [],
+  "aggregate": {
+    "mean_clustering_f1": 0.0,
+    "mean_bcubed_f1": 0.0,
+    "mean_clustering_precision": 0.0,
+    "mean_clustering_recall": 0.0,
+    "mean_class_accuracy": 0.0,
+    "mean_coverage": 0.0,
+    "total_pages": 0
+  }
+}

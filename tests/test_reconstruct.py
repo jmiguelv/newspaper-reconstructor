@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from llm import make_client
-from reconstruct import (
+from src.newspaper_reconstructor.llm import make_client
+from src.newspaper_reconstructor.reconstruct import (
     alto_to_json,
     load_fragments,
     load_fragments_cached,
@@ -409,7 +409,7 @@ class TestReconstructArticles:
             {"id": "r_text1", "text": "Hello World"},
             {"id": "r_text2", "text": "Ad text"},
         ]
-        with patch("reconstruct.time.sleep"):
+        with patch("src.newspaper_reconstructor.reconstruct.time.sleep"):
             result = reconstruct_articles(
                 fragments,
                 client,
@@ -426,7 +426,7 @@ class TestReconstructArticles:
         client = MagicMock()
         client.complete.side_effect = APIError(message="500", request=None, body=None)
         fragments = [{"id": "r_text1", "text": "Hello World"}]
-        with patch("reconstruct.time.sleep"):
+        with patch("src.newspaper_reconstructor.reconstruct.time.sleep"):
             result = reconstruct_articles(
                 fragments,
                 client,

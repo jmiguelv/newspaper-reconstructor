@@ -2,7 +2,7 @@ import json
 import os
 import pytest
 
-from suggest import identify_worst_pages, build_judge_prompt
+from src.newspaper_reconstructor.suggest import identify_worst_pages, build_judge_prompt
 
 def test_identify_worst_pages():
     run_data = {

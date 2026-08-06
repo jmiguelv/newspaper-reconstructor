@@ -22,7 +22,7 @@ Options:
     --api-key            API key (or LLM_API_KEY env var)
     --output             Save results to file instead of stdout
     --output-dir         Write one JSON file per page to this directory
-    --eval-dir           Directory for evaluation logs (default: data/2_evaluations/)
+    --eval-dir           Directory for evaluation logs (default: reports/evaluations/)
     --prompt-file        Read system prompt (and optionally user_prompt_template) from file
 """
 
@@ -37,14 +37,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from evaluate import (
+from src.newspaper_reconstructor.evaluate import (
     evaluate_page,
     load_ground_truth_dir,
     log_evaluation_run,
     parse_article_xml,
 )
-from llm import make_client
-from reconstruct import (
+from src.newspaper_reconstructor.llm import make_client
+from src.newspaper_reconstructor.reconstruct import (
     load_fragments_cached,
     reconstruct_articles_cached,
 )
@@ -126,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         help="Write one JSON file per page to this directory (for batch modes)",
     )
     parser.add_argument(
-        "--eval-dir", default="data/2_evaluations", help="Directory for evaluation logs"
+        "--eval-dir", default="reports/evaluations", help="Directory for evaluation logs"
     )
     parser.add_argument(
         "--interim-dir",
@@ -161,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
-    prompt_file = args.prompt_file or "data/0_prompts/v00.md"
+    prompt_file = args.prompt_file or "prompts/v00.md"
     prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
 
     with open(prompt_file, encoding="utf-8") as f:
@@ -203,7 +203,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
             
         # We import here to avoid circular dependencies or loading LLM judge if not needed
-        from suggest import generate_suggestions
+        from src.newspaper_reconstructor.suggest import generate_suggestions
         client = make_client(
             base_url=args.base_url,
             api_key=args.api_key,

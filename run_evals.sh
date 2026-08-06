@@ -2,11 +2,11 @@
 set -euo pipefail
 
 PROMPTS=(
-  "data/0_prompts/v00.md"
-  "data/0_prompts/v01.md"
-  # "data/0_prompts/v02.md"
-  # "data/0_prompts/v03.md"
-  "data/0_prompts/v04.md"
+  "prompts/v00.md"
+  "prompts/v01.md"
+  # "prompts/v02.md"
+  # "prompts/v03.md"
+  "prompts/v04.md"
 )
 
 MODELS=(
@@ -21,7 +21,7 @@ SAMPLE_SIZES=(
 
 INPUT_DIR="data/0_external/alto"
 GROUND_TRUTH_DIR="data/0_external/article_xml"
-EVAL_DIR="data/2_evaluations"
+EVAL_DIR="reports/evaluations"
 SEED=42
 TIMEOUT=60
 

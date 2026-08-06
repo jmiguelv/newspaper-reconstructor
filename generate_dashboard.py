@@ -2,7 +2,7 @@
 
 Usage:
     uv run python generate_dashboard.py
-    uv run python generate_dashboard.py --eval-dir data/2_evaluations --output dashboard.html
+    uv run python generate_dashboard.py --eval-dir reports/evaluations --output dashboard.html
 """
 
 import argparse
@@ -1196,7 +1196,7 @@ HTML_TEMPLATE = r"""<!doctype html>
 </html>"""
 
 
-def load_evaluations(eval_dir: str = "data/2_evaluations") -> list[dict]:
+def load_evaluations(eval_dir: str = "reports/evaluations") -> list[dict]:
     """Load all evaluation JSON files from the given directory."""
     runs = []
     for path in sorted(glob.glob(os.path.join(eval_dir, "*.json"))):
@@ -1205,7 +1205,7 @@ def load_evaluations(eval_dir: str = "data/2_evaluations") -> list[dict]:
     return runs
 
 
-def load_prompts(prompts_dir: str = "data/0_prompts") -> list[dict]:
+def load_prompts(prompts_dir: str = "prompts") -> list[dict]:
     """Load all prompt .md files from the given directory, sorted by name."""
     prompts = []
     for path in sorted(glob.glob(os.path.join(prompts_dir, "*.md"))):
@@ -1251,13 +1251,13 @@ def main() -> int:
     )
     parser.add_argument(
         "--eval-dir",
-        default="data/2_evaluations",
-        help="Directory containing evaluation JSON files (default: data/2_evaluations)",
+        default="reports/evaluations",
+        help="Directory containing evaluation JSON files (default: reports/evaluations)",
     )
     parser.add_argument(
         "--output",
-        default="data/2_evaluations/dashboard.html",
-        help="Output HTML file path (default: data/2_evaluations/dashboard.html)",
+        default="reports/evaluations/dashboard.html",
+        help="Output HTML file path (default: reports/evaluations/dashboard.html)",
     )
     args = parser.parse_args()
 

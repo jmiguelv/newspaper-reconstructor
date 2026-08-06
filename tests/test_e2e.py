@@ -725,7 +725,7 @@ class TestE2ERealData:
         assert all("id" in f and "text" in f for f in out)
 
     def test_evaluate_real_page_mocked_llm(self, tmp_path, capsys):
-        from evaluate import parse_article_xml
+        from src.newspaper_reconstructor.evaluate import parse_article_xml
 
         alto = os.path.join(REAL_DATA, "alto", "UM-1956-01-09-6.xml")
         article = os.path.join(REAL_DATA, "article_xml", "UM-1956-01-09-6.xml")

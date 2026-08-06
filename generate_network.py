@@ -1,13 +1,13 @@
 """Export evaluation logs to nodes/edges CSV for the article-network-visualizer.
 
 Usage:
-    uv run python generate_network.py --eval-log data/2_evaluations/<file>.json
-    uv run python generate_network.py --eval-log <file>.json --output-dir data/3_networks
+    uv run python generate_network.py --eval-log reports/evaluations/<file>.json
+    uv run python generate_network.py --eval-log <file>.json --output-dir reports/networks
     uv run python generate_network.py --eval-log <file>.json --image-base-url https://example.com/images
 
 Options:
     --eval-log        Path to evaluation log JSON (required)
-    --output-dir      Base output directory (default: data/3_networks, env: OUTPUT_DIR)
+    --output-dir      Base output directory (default: reports/networks, env: OUTPUT_DIR)
     --image-base-url  Base URL for page scan images (default: https://jawi.sgp1.digitaloceanspaces.com/page_scans, env: IMAGE_BASE_URL)
     --interim-dir     Directory for cached fragments (default: data/1_interim)
     --eval-name       Override the evaluation subdirectory name
@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_IMAGE_BASE_URL = "https://jawi.sgp1.digitaloceanspaces.com/page_scans"
-DEFAULT_OUTPUT_DIR = "data/3_networks"
+DEFAULT_OUTPUT_DIR = "reports/networks"
 DEFAULT_INTERIM_DIR = "data/1_interim"
 
 NODE_BASE_COLUMNS = [

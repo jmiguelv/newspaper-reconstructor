@@ -1,0 +1,667 @@
+{
+  "run_id": "20260805_100905_openai_arc:nexus_v03_sample16_seed42",
+  "timestamp": "2026-08-05T10:09:05.628754+08:00",
+  "config": {
+    "provider": "openai",
+    "model": "arc:nexus",
+    "base_url": "https://ai.create.kcl.ac.uk/api/",
+    "system_prompt": "You are given text fragments extracted by OCR from a Malay newspaper page written in Jawi (Arabic script).\n\nEach fragment is a JSON object with the following fields:\n\n- id: fragment identifier\n- text: OCR text content\n- type: block type (e.g., \"text\", \"header\")\n- hpos: horizontal position (pixels from left)\n- vpos: vertical position (pixels from top)\n- width: block width in pixels\n- height: block height in pixels\n\nYour task: reconstruct these fragments into complete items, but ONLY for articles and miscellaneous items.\n\nFollow this process for each group of fragments:\n\n1. Group fragments that belong to the same item together. Some items may consist of a single fragment.\n2. Determine the type of each item:\n   - \"article\": news stories, reports, editorials, and similar journalistic content\n   - \"advertisement\": commercial ads, product listings, promotional content\n   - \"obituary\": death notices, memorial announcements\n   - \"miscellaneous\": letters, captions, short notices, and other content that is not an article, advertisement, or obituary\n3. OMIT any items classified as \"obituary\" or \"advertisement\" -- do not include them in the output.\n4. Only include items classified as \"article\" or \"miscellaneous\".\n\nFor each item you include, provide:\n\n1. fragment_ids: list of constituent fragment IDs (in reading order)\n2. title: a short title or topic description\n3. class: one of \"article\", \"miscellaneous\"\n\nReturn ONLY a JSON array of articles and miscellaneous items. Do not include obituaries or advertisements. No other text, no explanation. Example:\n[\n{\"fragment_ids\": [\"r_1\", \"r_2\"], \"title\": \"Union meeting report\", \"class\": \"article\"},\n{\"fragment_ids\": [\"r_5\"], \"title\": \"Editor's note\", \"class\": \"miscellaneous\"}\n]",
+    "user_prompt_template": "Fragments from a Malay newspaper page (Jawi / Arabic script):\n\n{fragments}\n\nFirst identify what type of item each group of fragments represents. Omit obituaries and advertisements. Reconstruct only articles and miscellaneous items. Return ONLY a JSON array.",
+    "prompt_name": "v03",
+    "sample_size": 16,
+    "pages_processed": 3,
+    "pages_failed": 13,
+    "seed": 42,
+    "execution_time_seconds": 907.4779379367828
+  },
+  "pages": [
+    {
+      "page_id": "UM-1956-11-19-2",
+      "metrics": {
+        "num_fragments": 17,
+        "num_predicted_items": 4,
+        "num_ground_truth_items": 7,
+        "clustering_precision": 0.4642857142857143,
+        "clustering_recall": 0.6842105263157895,
+        "clustering_f1": 0.5531914893617021,
+        "bcubed_precision": 0.7478991596638656,
+        "bcubed_recall": 0.8235294117647058,
+        "bcubed_f1": 0.7838943063856559,
+        "tp": 13,
+        "fp": 15,
+        "fn": 6,
+        "false_positives": [
+          [
+            "r_1779727082445",
+            "r_1779727093749"
+          ],
+          [
+            "r_1779727082445",
+            "r_1779727105254"
+          ],
+          [
+            "r_1779727082445",
+            "r_1779727108484"
+          ],
+          [
+            "r_1779727082445",
+            "r_1779727115792"
+          ],
+          [
+            "r_1779727085551",
+            "r_1779727093749"
+          ],
+          [
+            "r_1779727085551",
+            "r_1779727105254"
+          ],
+          [
+            "r_1779727085551",
+            "r_1779727108484"
+          ],
+          [
+            "r_1779727085551",
+            "r_1779727115792"
+          ],
+          [
+            "r_1779727087906",
+            "r_1779727093749"
+          ],
+          [
+            "r_1779727087906",
+            "r_1779727105254"
+          ],
+          [
+            "r_1779727087906",
+            "r_1779727108484"
+          ],
+          [
+            "r_1779727087906",
+            "r_1779727115792"
+          ],
+          [
+            "r_1779727093749",
+            "r_1779727105254"
+          ],
+          [
+            "r_1779727093749",
+            "r_1779727108484"
+          ],
+          [
+            "r_1779727093749",
+            "r_1779727115792"
+          ]
+        ],
+        "false_negatives": [
+          [
+            "r_1779727026305",
+            "r_1779727105254"
+          ],
+          [
+            "r_1779727026305",
+            "r_1779727108484"
+          ],
+          [
+            "r_1779727026305",
+            "r_1779727115792"
+          ],
+          [
+            "r_1779727040890",
+            "r_1779727082445"
+          ],
+          [
+            "r_1779727040890",
+            "r_1779727085551"
+          ],
+          [
+            "r_1779727040890",
+            "r_1779727087906"
+          ]
+        ],
+        "class_accuracy": 1.0,
+        "coverage": 0.8235294117647058
+      },
+      "predicted_items": [
+        {
+          "fragment_ids": [
+            "r_1779727022207",
+            "r_1779727050514",
+            "r_1779727058564",
+            "r_1779727061271"
+          ],
+          "title": "Indonesian Armed Forces Crisis",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779727067775"
+          ],
+          "title": "Form 7 Student Re-enrollment Notice",
+          "class": "miscellaneous"
+        },
+        {
+          "fragment_ids": [
+            "r_1779727082445",
+            "r_1779727085551",
+            "r_1779727087906",
+            "r_1779727093749",
+            "r_1779727105254",
+            "r_1779727108484",
+            "r_1779727115792"
+          ],
+          "title": "Soviet Union Arms Control and Military Developments",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779935638949",
+            "r_1779935642459"
+          ],
+          "title": "Thank You Note for Medical Treatment",
+          "class": "miscellaneous"
+        }
+      ],
+      "ground_truth_items": [
+        {
+          "uuid": "f2b0ae42-6acd-4ee8-8b99-3916b4dd630f",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779727093749"
+          ],
+          "topics": [
+            "politics"
+          ]
+        },
+        {
+          "uuid": "89f0dbfe-25f7-452a-aee3-9ba9fb4b5641",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779727040890",
+            "r_1779727087906",
+            "r_1779727085551",
+            "r_1779727082445"
+          ],
+          "topics": [
+            "SEA",
+            "politics"
+          ]
+        },
+        {
+          "uuid": "d4456c00-972c-4fd6-8c0a-7ab313bb0041",
+          "class": "miscellaneous",
+          "fragment_ids": [
+            "r_1779727067775"
+          ],
+          "topics": [
+            "culture",
+            "SEA"
+          ]
+        },
+        {
+          "uuid": "ce697879-4d90-4b62-9c07-0de481eedfaa",
+          "class": "miscellaneous",
+          "fragment_ids": [
+            "r_1779935638949",
+            "r_1779935642459"
+          ],
+          "topics": [
+            "culture",
+            "religion",
+            "SEA"
+          ]
+        },
+        {
+          "uuid": "d507672f-57d5-416c-a9e9-7dca69a5db1c",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779727026305",
+            "r_1779727115792",
+            "r_1779727108484",
+            "r_1779727105254"
+          ],
+          "topics": [
+            "politics"
+          ]
+        },
+        {
+          "uuid": "7557386a-52cd-46d3-aa64-1dff285f1fae",
+          "class": "advertisement",
+          "fragment_ids": [
+            "r_1779727017528"
+          ],
+          "topics": [
+            "culture"
+          ]
+        },
+        {
+          "uuid": "47356bbb-cf0d-4a03-a865-49df5621067d",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779727022207",
+            "r_1779727061271",
+            "r_1779727058564",
+            "r_1779727050514"
+          ],
+          "topics": []
+        }
+      ]
+    },
+    {
+      "page_id": "UM-1956-09-01-5",
+      "metrics": {
+        "num_fragments": 16,
+        "num_predicted_items": 6,
+        "num_ground_truth_items": 9,
+        "clustering_precision": 0.75,
+        "clustering_recall": 0.75,
+        "clustering_f1": 0.75,
+        "bcubed_precision": 0.90625,
+        "bcubed_recall": 0.90625,
+        "bcubed_f1": 0.90625,
+        "tp": 9,
+        "fp": 3,
+        "fn": 3,
+        "false_positives": [
+          [
+            "r_1779679501687",
+            "r_1779679508423"
+          ],
+          [
+            "r_1779679501687",
+            "r_1779679514619"
+          ],
+          [
+            "r_1779679501687",
+            "r_1779679518578"
+          ]
+        ],
+        "false_negatives": [
+          [
+            "r_1779679466572",
+            "r_1779679476405"
+          ],
+          [
+            "r_1779679466572",
+            "r_1779679480448"
+          ],
+          [
+            "r_1779679466572",
+            "r_1779679483371"
+          ]
+        ],
+        "class_accuracy": 1.0,
+        "coverage": 0.8125
+      },
+      "predicted_items": [
+        {
+          "fragment_ids": [
+            "r_1779679144979",
+            "r_1779679150604",
+            "r_1779679153995"
+          ],
+          "title": "Minister denies recreation park opening claims",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779679157931"
+          ],
+          "title": "Kuala Lumpur Municipal Council meeting notice",
+          "class": "miscellaneous"
+        },
+        {
+          "fragment_ids": [
+            "r_1779679476405",
+            "r_1779679480448",
+            "r_1779679483371"
+          ],
+          "title": "Government to look after Malay representatives",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779679501687",
+            "r_1779679508423",
+            "r_1779679514619",
+            "r_1779679518578"
+          ],
+          "title": "Singapore City Council firemen strike threat",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779679542976"
+          ],
+          "title": "List of donations",
+          "class": "miscellaneous"
+        },
+        {
+          "fragment_ids": [
+            "r_1779679553386"
+          ],
+          "title": "Government aid for Malay Language and Literature Congress",
+          "class": "article"
+        }
+      ],
+      "ground_truth_items": [
+        {
+          "uuid": "215a47fe-2a76-48a3-bb7b-19a2ed81a195",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679144979",
+            "r_1779679153995",
+            "r_1779679150604"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "2fd1067e-b017-4421-a2a8-879d811b75d1",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679466572",
+            "r_1779679476405",
+            "r_1779679483371",
+            "r_1779679480448"
+          ],
+          "topics": [
+            "SEA",
+            "politics"
+          ]
+        },
+        {
+          "uuid": "b8931bb2-3437-48fd-b1cb-eb9223c63b33",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679553386"
+          ],
+          "topics": [
+            "culture"
+          ]
+        },
+        {
+          "uuid": "0306d500-5f7b-4074-871a-d7cc98266ce5",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679508423",
+            "r_1779679518578",
+            "r_1779679514619"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "4bf4c80c-f200-4d8e-9fc5-da7bbd5f933a",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679501687"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "a4a5a9b2-0975-498e-919d-43ce9ccae09b",
+          "class": "miscellaneous",
+          "fragment_ids": [
+            "r_1779679157931"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "cfe4a241-0af4-4b8e-ad66-cbfc41dc3e4e",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679439038"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "7d0573cc-d63d-459e-b73a-91c94a517917",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779679571334"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "855a1e93-c3e5-4c77-908d-65e77667370c",
+          "class": "miscellaneous",
+          "fragment_ids": [
+            "r_1779679542976"
+          ],
+          "topics": []
+        }
+      ]
+    },
+    {
+      "page_id": "UM-1956-05-15-3",
+      "metrics": {
+        "num_fragments": 18,
+        "num_predicted_items": 10,
+        "num_ground_truth_items": 12,
+        "clustering_precision": 0.9090909090909091,
+        "clustering_recall": 1.0,
+        "clustering_f1": 0.9523809523809523,
+        "bcubed_precision": 0.9444444444444444,
+        "bcubed_recall": 1.0,
+        "bcubed_f1": 0.9714285714285714,
+        "tp": 10,
+        "fp": 1,
+        "fn": 0,
+        "false_positives": [
+          [
+            "r_1779700620249",
+            "r_1779700622496"
+          ]
+        ],
+        "false_negatives": [],
+        "class_accuracy": 0.7777777777777778,
+        "coverage": 0.9444444444444444
+      },
+      "predicted_items": [
+        {
+          "fragment_ids": [
+            "r_1779700620249",
+            "r_1779700622496"
+          ],
+          "title": "Health advice on stopping smoking and drinking",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700630195",
+            "r_1779700637068"
+          ],
+          "title": "Reactions to the new education act",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700751076"
+          ],
+          "title": "Formation of Malacca State Executive Committee",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700754098"
+          ],
+          "title": "Selection of Malay soldiers as officers",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700763580",
+            "r_1779700768080",
+            "r_1779700774468",
+            "r_1779700777124"
+          ],
+          "title": "Complaints from tenants regarding housing conditions",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700796947",
+            "r_1779700804710",
+            "r_1779700820882"
+          ],
+          "title": "Hajj committee selection process in Kota Bharu",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700808940"
+          ],
+          "title": "Ferry and transport schedules",
+          "class": "miscellaneous"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700811663"
+          ],
+          "title": "Photo caption of officials in Edinburgh",
+          "class": "miscellaneous"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700824901"
+          ],
+          "title": "Eid al-Fitr celebrations in Kuala Lumpur",
+          "class": "article"
+        },
+        {
+          "fragment_ids": [
+            "r_1779700836834"
+          ],
+          "title": "Sale of Islamic items in Kuala Lumpur department stores",
+          "class": "article"
+        }
+      ],
+      "ground_truth_items": [
+        {
+          "uuid": "4d4e4d12-2d6b-4be0-862f-09955fa1ed20",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700630195",
+            "r_1779700637068"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "f1311b05-47f1-4584-97c0-9226659bcc15",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700796947",
+            "r_1779700820882",
+            "r_1779700804710"
+          ],
+          "topics": [
+            "SEA",
+            "politics"
+          ]
+        },
+        {
+          "uuid": "0f54e7cc-3b03-459e-8494-a6df97f629f3",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700836834"
+          ],
+          "topics": [
+            "politics",
+            "culture"
+          ]
+        },
+        {
+          "uuid": "ac2ad57d-6fa1-4e86-9e86-5908c32777ea",
+          "class": "miscellaneous",
+          "fragment_ids": [
+            "r_1779700824901"
+          ],
+          "topics": [
+            "culture",
+            "religion"
+          ]
+        },
+        {
+          "uuid": "40b5ce3a-33e5-4c3a-8608-eb3c620e38d6",
+          "class": "miscellaneous",
+          "fragment_ids": [
+            "r_1779700808940"
+          ],
+          "topics": [
+            "SEA"
+          ]
+        },
+        {
+          "uuid": "967a0fdc-3824-442f-9500-376467b0e2e4",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700811663"
+          ],
+          "topics": [
+            "culture"
+          ]
+        },
+        {
+          "uuid": "bb0c0f7e-c5b4-49a1-9078-254d4e92bce2",
+          "class": "advertisement",
+          "fragment_ids": [
+            "r_1779700620249"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "119d99b7-039f-44f2-80e0-77263005c894",
+          "class": "advertisement",
+          "fragment_ids": [
+            "r_1779700622496"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "d503a48d-988e-4fc1-b483-aa5e564863e3",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700751076"
+          ],
+          "topics": [
+            "politics"
+          ]
+        },
+        {
+          "uuid": "6d999487-7890-496f-a457-6252aa365e76",
+          "class": "advertisement",
+          "fragment_ids": [
+            "r_1779700626123"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "9794b34a-be69-41ed-ad1b-56ca63d95123",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700754098"
+          ],
+          "topics": []
+        },
+        {
+          "uuid": "d2f282c2-41c6-4c84-b92e-833abc632b16",
+          "class": "article",
+          "fragment_ids": [
+            "r_1779700763580",
+            "r_1779700777124",
+            "r_1779700774468",
+            "r_1779700768080"
+          ],
+          "topics": []
+        }
+      ]
+    }
+  ],
+  "aggregate": {
+    "mean_clustering_f1": 0.7518574805808848,
+    "mean_bcubed_f1": 0.887190959271409,
+    "mean_clustering_precision": 0.7077922077922079,
+    "mean_clustering_recall": 0.8114035087719298,
+    "mean_class_accuracy": 0.9259259259259259,
+    "mean_coverage": 0.8601579520697168,
+    "total_pages": 3
+  }
+}

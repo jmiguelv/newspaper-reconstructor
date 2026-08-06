@@ -141,7 +141,7 @@ def generate_suggestions(run_id: str, eval_dir: str, client, model: str) -> int:
         print(f"Error calling LLM: {e}", file=sys.stderr)
         return 1
         
-    out_dir = os.path.join("data", "3_reports")
+    out_dir = os.path.join("reports", "suggestions")
     os.makedirs(out_dir, exist_ok=True)
     
     prompt_path = os.path.join(out_dir, f"{run_id}_prompt.md")
