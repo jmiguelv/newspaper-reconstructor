@@ -54,8 +54,44 @@ _MD_USER_HEADING = "# User Prompt Template"
 
 
 def _sort_fragments(fragments: list[dict]) -> list[dict]:
-    """Sort fragments top to bottom (vpos asc) and then right to left (hpos desc)."""
-    return sorted(fragments, key=lambda f: (f.get("vpos", 0), -f.get("hpos", 0)))
+    """Sort fragments column-by-column (right-to-left), then top-to-bottom.
+    
+    Groups fragments into columns based on their right edge (hpos + width).
+    """
+    if not fragments:
+        return []
+    
+    # 1. Compute right edge (rpos) and sort from rightmost to leftmost
+    frags_with_rpos = []
+    for f in fragments:
+        rpos = f.get("hpos", 0) + f.get("width", 0)
+        frags_with_rpos.append((rpos, f))
+        
+    frags_with_rpos.sort(key=lambda x: x[0], reverse=True)
+    
+    # 2. Group into columns using a 200px tolerance for the right edge
+    columns = []
+    current_col = []
+    current_rpos = frags_with_rpos[0][0]
+    rpos_threshold = 200 
+    
+    for rpos, f in frags_with_rpos:
+        if abs(rpos - current_rpos) <= rpos_threshold:
+            current_col.append(f)
+        else:
+            columns.append(current_col)
+            current_col = [f]
+            current_rpos = rpos
+    if current_col:
+        columns.append(current_col)
+        
+    # 3. Sort each column top-to-bottom (vpos asc) and flatten
+    sorted_fragments = []
+    for col in columns:
+        col.sort(key=lambda f: f.get("vpos", 0))
+        sorted_fragments.extend(col)
+        
+    return sorted_fragments
 
 
 def _parse_md_prompt(content: str) -> tuple[str, str]:
