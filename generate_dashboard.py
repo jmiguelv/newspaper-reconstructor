@@ -741,6 +741,7 @@ HTML_TEMPLATE = r"""<!doctype html>
             <table>
                 <thead>
                     <tr>
+                        <th @click="sort('timestamp')" title="Date and time of the run">Date <span x-show="sortKey==='timestamp'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('config.model')">Model <span x-show="sortKey==='config.model'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('config.prompt_name')">Prompt <span x-show="sortKey==='config.prompt_name'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('config.sample_size')">Sample <span x-show="sortKey==='config.sample_size'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
@@ -757,6 +758,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                 <tbody>
                     <template x-for="run in sortedRuns" :key="run.run_id">
                         <tr @click="toggleRun(run.run_id)" :data-active="expandedRun === run.run_id">
+                            <td style="white-space: nowrap; font-size: var(--step--2); color: var(--ink-light);" x-text="run.timestamp ? new Date(run.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"></td>
                             <td x-text="run.config.model"></td>
                             <td x-text="run.config.prompt_name"></td>
                             <td x-text="run.config.sample_size || 'all'"></td>
