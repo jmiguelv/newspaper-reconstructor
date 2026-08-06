@@ -48,50 +48,10 @@ from src.newspaper_reconstructor.reconstruct import (
     load_fragments_cached,
     reconstruct_articles_cached,
 )
+from src.newspaper_reconstructor.sort import sort_fragments
 
 _MD_SYSTEM_HEADING = "# System Prompt"
 _MD_USER_HEADING = "# User Prompt Template"
-
-
-def _sort_fragments(fragments: list[dict]) -> list[dict]:
-    """Sort fragments column-by-column (right-to-left), then top-to-bottom.
-
-    Groups fragments into columns based on their right edge (hpos + width).
-    """
-    if not fragments:
-        return []
-
-    # 1. Compute right edge (rpos) and sort from rightmost to leftmost
-    frags_with_rpos = []
-    for f in fragments:
-        rpos = f.get("hpos", 0) + f.get("width", 0)
-        frags_with_rpos.append((rpos, f))
-
-    frags_with_rpos.sort(key=lambda x: x[0], reverse=True)
-
-    # 2. Group into columns using a 200px tolerance for the right edge
-    columns = []
-    current_col = []
-    current_rpos = frags_with_rpos[0][0]
-    rpos_threshold = 200
-
-    for rpos, f in frags_with_rpos:
-        if abs(rpos - current_rpos) <= rpos_threshold:
-            current_col.append(f)
-        else:
-            columns.append(current_col)
-            current_col = [f]
-            current_rpos = rpos
-    if current_col:
-        columns.append(current_col)
-
-    # 3. Sort each column top-to-bottom (vpos asc) and flatten
-    sorted_fragments = []
-    for col in columns:
-        col.sort(key=lambda f: f.get("vpos", 0))
-        sorted_fragments.extend(col)
-
-    return sorted_fragments
 
 
 def _parse_md_prompt(content: str) -> tuple[str, str]:
@@ -133,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--sort-fragments",
         action="store_true",
-        help="Sort fragments top-to-bottom, right-to-left before reconstruction",
+        help="Sort fragments before reconstruction (using spatial proximity)",
     )
     parser.add_argument(
         "--suggest",
@@ -277,7 +237,7 @@ def _run_single_page(
 ) -> int:
     fragments = load_fragments_cached(args.alto, args.interim_dir, args.force)
     if args.sort_fragments:
-        fragments = _sort_fragments(fragments)
+        fragments = sort_fragments(fragments)
     page_id = os.path.splitext(os.path.basename(args.alto))[0]
 
     if args.evaluate and args.article_xml:
@@ -349,7 +309,7 @@ def _run_input_dir(
         print(f"[{page_id}] Reconstructing...", file=sys.stderr)
         fragments = pages[page_id]
         if args.sort_fragments:
-            fragments = _sort_fragments(fragments)
+            fragments = sort_fragments(fragments)
         predicted = reconstruct_articles_cached(
             fragments,
             client,
