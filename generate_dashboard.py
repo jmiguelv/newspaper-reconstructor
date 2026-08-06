@@ -1224,14 +1224,16 @@ def _render_prompts_html(prompts: list[dict]) -> str:
         return "<p>No prompt files found.</p>"
     parts = []
     for p in prompts:
-        escaped = p["content"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        escaped = (
+            p["content"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        )
         parts.append(
-            f'<details>\n'
+            f"<details>\n"
             f'    <summary><strong style="color: var(--ink);">{p["name"]}</strong></summary>\n'
             f'    <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); '
-            f'border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); '
+            f"border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); "
             f'overflow-x: auto; white-space: pre-wrap;">{escaped}</pre>\n'
-            f'</details>'
+            f"</details>"
         )
     return "\n".join(parts)
 
@@ -1240,10 +1242,8 @@ def generate_html(runs: list[dict], prompts: list[dict]) -> str:
     """Generate a self-contained HTML dashboard with embedded eval data."""
     embedded = json.dumps(runs, ensure_ascii=False)
     prompts_html = _render_prompts_html(prompts)
-    return (
-        HTML_TEMPLATE
-        .replace("__DATA_PLACEHOLDER__", embedded)
-        .replace("__PROMPTS_PLACEHOLDER__", prompts_html)
+    return HTML_TEMPLATE.replace("__DATA_PLACEHOLDER__", embedded).replace(
+        "__PROMPTS_PLACEHOLDER__", prompts_html
     )
 
 

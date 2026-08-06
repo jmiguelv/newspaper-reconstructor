@@ -134,18 +134,20 @@ def export_page(
             vpos = frag.get("vpos", 0)
             width = frag.get("width", 0)
             height = frag.get("height", 0)
-            writer.writerow([
-                image_url,
-                page_id,
-                fid,
-                frag.get("text", ""),
-                hpos,
-                vpos,
-                hpos + width,
-                vpos + height,
-                llm_map.get(fid, ""),
-                gt_map.get(fid, ""),
-            ])
+            writer.writerow(
+                [
+                    image_url,
+                    page_id,
+                    fid,
+                    frag.get("text", ""),
+                    hpos,
+                    vpos,
+                    hpos + width,
+                    vpos + height,
+                    llm_map.get(fid, ""),
+                    gt_map.get(fid, ""),
+                ]
+            )
 
     with open(edges_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
@@ -165,7 +167,9 @@ def export_page(
                     src_gt = gt_map.get(src)
                     tgt_gt = gt_map.get(tgt)
                     weight = 1.0 if (src_gt and tgt_gt and src_gt == tgt_gt) else -1.0
-                    writer.writerow([image_url, page_id, src, tgt, 1, weight, *metric_vals])
+                    writer.writerow(
+                        [image_url, page_id, src, tgt, 1, weight, *metric_vals]
+                    )
 
 
 def export_eval_log(
@@ -193,7 +197,9 @@ def export_eval_log(
         page_id = page["page_id"]
         fragments = load_fragments(page_id, interim_dir)
         if fragments is None:
-            print(f"[{page_id}] WARN: fragment cache missing, skipping", file=sys.stderr)
+            print(
+                f"[{page_id}] WARN: fragment cache missing, skipping", file=sys.stderr
+            )
             continue
         export_page(page, fragments, image_base_url, nodes_dir, edges_dir, model)
         exported += 1

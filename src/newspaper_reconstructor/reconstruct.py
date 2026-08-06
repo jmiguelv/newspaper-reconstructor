@@ -163,11 +163,17 @@ def reconstruct_articles(
         try:
             raw = client.complete(system_prompt, user_prompt)
         except APITimeoutError:
-            print(f"  Timed out on attempt {attempt + 1}, giving up immediately", file=sys.stderr)
+            print(
+                f"  Timed out on attempt {attempt + 1}, giving up immediately",
+                file=sys.stderr,
+            )
             return None
         except APIError as e:
             if "504" in str(e) or "Gateway Timeout" in str(e):
-                print(f"  Gateway Timeout on attempt {attempt + 1}, giving up immediately", file=sys.stderr)
+                print(
+                    f"  Gateway Timeout on attempt {attempt + 1}, giving up immediately",
+                    file=sys.stderr,
+                )
                 return None
             if attempt < max_retries - 1:
                 wait = 5 * (2**attempt)
