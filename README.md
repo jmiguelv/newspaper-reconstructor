@@ -8,18 +8,18 @@ Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 
 
 ```mermaid
 flowchart LR
-    ALTO["ALTO XML<br/>data/0_external/alto/"] -->|alto_to_json| RECON["reconstruct.py<br/>parse fragments"]
-    PROMPT["Prompt file<br/>data/0_prompts/v01.json<br/>default: bundled"] --> MAIN["main.py<br/>CLI orchestration"]
+    ALTO["ALTO XML<br/>data/0_external/alto/"] -->|alto_to_json| RECON["src/.../reconstruct.py<br/>parse fragments"]
+    PROMPT["Prompt file<br/>prompts/v01.json<br/>default: bundled"] --> MAIN["main.py<br/>CLI orchestration"]
     RECON -->|fragments| MAIN["main.py<br/>CLI orchestration"]
-    MAIN -->|build prompt| LLM["llm.py<br/>LLMClient"]
+    MAIN -->|build prompt| LLM["src/.../llm.py<br/>LLMClient"]
     LLM -->|API call| API["OpenAI-compatible<br/>endpoint"]
     API -->|JSON response| LLM
-    LLM -->|raw text| RECON2["reconstruct.py<br/>parse JSON into items"]
-    RECON2 -->|predicted items| EVAL["evaluate.py"]
+    LLM -->|raw text| RECON2["src/.../reconstruct.py<br/>parse JSON into items"]
+    RECON2 -->|predicted items| EVAL["src/.../evaluate.py"]
     ARTXML["Article XML<br/>data/0_external/article_xml/"] -->|ground truth| EVAL
-    EVAL -->|clustering F1<br/>class accuracy<br/>coverage| LOG["eval log JSON<br/>data/2_evaluations/"]
+    EVAL -->|clustering F1<br/>class accuracy<br/>coverage| LOG["eval log JSON<br/>reports/evaluations/"]
     LOG -->|generate_network| NET["generate_network.py<br/>export nodes/edges"]
-    NET -->|nodes + edges| VIZ["article-network-visualizer<br/>data/3_networks/"]
+    NET -->|nodes + edges| VIZ["article-network-visualizer<br/>reports/networks/"]
 ```
 
 ## Project Structure
@@ -27,23 +27,28 @@ flowchart LR
 ```
 article-reconstruction/
 ├── main.py                 # CLI entry point
-├── reconstruct.py          # ALTO XML parsing, article reconstruction, default prompts
-├── llm.py                  # LLM client (OpenAI-compatible API wrapper)
-├── evaluate.py             # Ground truth parsing, clustering F1, evaluation logging
 ├── generate_dashboard.py   # Alpine.js HTML dashboard generator for evaluation logs
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for the network visualizer
 ├── run_evals.sh            # Batch evaluation orchestrator script
+├── src/
+│   └── newspaper_reconstructor/
+│       ├── reconstruct.py  # ALTO XML parsing, article reconstruction
+│       ├── llm.py          # LLM client wrapper
+│       ├── evaluate.py     # Ground truth parsing, evaluation metrics
+│       └── suggest.py      # LLM judge offline analysis tool
 ├── tests/                  # Unit tests + end-to-end tests
+├── prompts/                # Prompt files (v01=baseline, v02+=improved variants)
+├── reports/
+│   ├── evaluations/        # Evaluation logs (JSON) and dashboard.html
+│   ├── networks/           # Exported nodes/edges CSV for the network visualizer
+│   └── suggestions/        # Output from the LLM judge
 └── data/
     ├── 0_external/         # Raw external data (git submodule)
     │   ├── alto/         # 80 ALTO XML files (OCR text fragments)
     │   └── article_xml/  # 80 ground truth article XML files
-    ├── 0_prompts/          # Prompt files (v01=baseline, v02+=improved variants)
-    ├── 1_interim/          # Interim processed data
-    │   ├── fragments/          # Cached ALTO→JSON fragments
-    │   └── reconstructions/    # LLM output caches (by prompt/model)
-    ├── 2_evaluations/      # Evaluation logs (JSON) and dashboard.html
-    └── 3_networks/         # Exported nodes/edges CSV for the network visualizer
+    └── 1_interim/          # Interim processed data
+        ├── fragments/          # Cached ALTO→JSON fragments
+        └── reconstructions/    # LLM output caches (by prompt/model)
 ```
 
 ## Installation
@@ -134,7 +139,7 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 | `--user-prompt-template` | Custom user prompt template with `{fragments}` placeholder (overrides default) |
 | `--output`      | Save results to file instead of stdout              |
 | `--output-dir`  | Write one JSON file per page to this directory (batch modes) |
-| `--eval-dir`    | Directory for evaluation logs (default: `data/2_evaluations/`) |
+| `--eval-dir`    | Directory for evaluation logs (default: `reports/evaluations/`) |
 | `--interim-dir` | Directory for cached JSON fragments (default: `data/1_interim`) |
 | `--force`       | Re-parse ALTO XML even if cached JSON exists |
 | `--sample-size` | Randomly sample N pages from the input directory |
@@ -155,15 +160,15 @@ Run `uv run python generate_dashboard.py` to generate an interactive HTML dashbo
 Export an evaluation log to nodes and edges CSV files for the [article-network-visualizer](https://github.com/nus/Jawi-Newspapers/article-network-visualizer):
 
 ```bash
-uv run python generate_network.py --eval-log data/2_evaluations/<file>.json
+uv run python generate_network.py --eval-log reports/evaluations/<file>.json
 ```
 
-This creates one CSV per page in `data/3_networks/{eval_name}/nodes/` and `data/3_networks/{eval_name}/edges/`. Nodes carry per-fragment coordinates, OCR text, and segment assignments (`{model}_segment`, `ground_truth_segment`). Edges connect fragments within the same LLM-predicted item and include an `edge_weight` column (`1.0` when the grouping agrees with ground truth, `-1.0` when it does not). Page-level evaluation metrics (`clustering_f1`, `bcubed_f1`, `coverage`, `class_accuracy`, `tp`, `fp`, `fn`) are appended as constant columns on every edge row.
+This creates one CSV per page in `reports/networks/{eval_name}/nodes/` and `reports/networks/{eval_name}/edges/`. Nodes carry per-fragment coordinates, OCR text, and segment assignments (`{model}_segment`, `ground_truth_segment`). Edges connect fragments within the same LLM-predicted item and include an `edge_weight` column (`1.0` when the grouping agrees with ground truth, `-1.0` when it does not). Page-level evaluation metrics (`clustering_f1`, `bcubed_f1`, `coverage`, `class_accuracy`, `tp`, `fp`, `fn`) are appended as constant columns on every edge row.
 
 | Option          | Description                                          |
 |-----------------|------------------------------------------------------|
 | `--eval-log`    | Path to evaluation log JSON (required)               |
-| `--output-dir`  | Base output directory (default: `data/3_networks`)  |
+| `--output-dir`  | Base output directory (default: `reports/networks`)  |
 | `--image-base-url` | Base URL for page scan images (env: `IMAGE_BASE_URL`) |
 | `--interim-dir` | Directory for cached fragments (default: `data/1_interim`) |
 | `--eval-name`   | Override the evaluation subdirectory name            |
