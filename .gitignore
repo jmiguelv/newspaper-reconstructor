@@ -25,9 +25,9 @@ Thumbs.db
 
 # Generated data
 data/1_interim/
-data/2_evaluations/
 data/3_networks/
+reports/evaluations/*
+!reports/evaluations/.gitkeep
 
 # Git submodule content
 data/0_external/
-data/3_reports/
