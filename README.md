@@ -43,12 +43,12 @@ article-reconstruction/
 │   ├── networks/           # Exported nodes/edges CSV for the network visualizer
 │   └── suggestions/        # Output from the LLM judge
 └── data/
-    ├── 0_external/         # Raw external data (git submodule)
-    │   ├── alto/         # 80 ALTO XML files (OCR text fragments)
-    │   └── article_xml/  # 80 ground truth article XML files
-    └── 1_interim/          # Interim processed data
-        ├── fragments/          # Cached ALTO→JSON fragments
-        └── reconstructions/    # LLM output caches (by prompt/model)
+    ├── 0_external/           # Raw external data (git submodule)
+    │   ├── alto/             # 80 ALTO XML files (OCR text fragments)
+    │   └── article_xml/      # 80 ground truth article XML files
+    └── 1_interim/            # Interim processed data
+        ├── fragments/        # Cached ALTO→JSON fragments
+        └── reconstructions/  # LLM output caches (by prompt/model)
 ```
 
 ## Installation
@@ -63,12 +63,12 @@ uv sync
 
 Set environment variables for the LLM API, or pass them as CLI flags. Works with any OpenAI-compatible endpoint (OpenAI, Ollama, vLLM, LM Studio, etc.).
 
-| Variable       | Description                          | Default  |
-|----------------|--------------------------------------|----------|
-| `LLM_API_KEY`  | API key for the LLM provider         | `"none"` |
-| `LLM_MODEL`    | Model name                           | Required |
-| `LLM_BASE_URL` | Custom OpenAI-compatible endpoint    | None     |
-| `IMAGE_BASE_URL` | Base URL for page scan images      | `https://jawi.sgp1.digitaloceanspaces.com/page_scans` |
+| Variable         | Description                       | Default                                               |
+| ---------------- | --------------------------------- | ----------------------------------------------------- |
+| `LLM_API_KEY`    | API key for the LLM provider      | `"none"`                                              |
+| `LLM_MODEL`      | Model name                        | Required                                              |
+| `LLM_BASE_URL`   | Custom OpenAI-compatible endpoint | None                                                  |
+| `IMAGE_BASE_URL` | Base URL for page scan images     | `https://jawi.sgp1.digitaloceanspaces.com/page_scans` |
 
 ### Non-OpenAI example (local server)
 
@@ -123,27 +123,25 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 
 ### CLI options
 
-| Option          | Description                                          |
-|-----------------|------------------------------------------------------|
-| `--alto`        | Path to a single ALTO XML file                       |
-| `--input-dir`   | Directory of ALTO or JSON fragment files             |
-| `--article-xml` | Path to ground truth article XML (single-page eval) |
-| `--ground-truth-dir` | Directory of ground truth article XML files (batch eval) |
-| `--json-only`   | Convert ALTO to JSON and exit (no LLM call)          |
-| `--evaluate`    | Evaluate against ground truth                         |
-| `--model`       | LLM model name (overrides `LLM_MODEL`)              |
-| `--base-url`    | OpenAI-compatible API base URL (overrides `LLM_BASE_URL`) |
-| `--api-key`     | API key (overrides `LLM_API_KEY`)                  |
-| `--system-prompt` | Custom system prompt (overrides default)           |
-| `--prompt-file` | Read system prompt (and optionally user prompt template) from file (overrides `--system-prompt` and `--user-prompt-template`) |
-| `--user-prompt-template` | Custom user prompt template with `{fragments}` placeholder (overrides default) |
-| `--output`      | Save results to file instead of stdout              |
-| `--output-dir`  | Write one JSON file per page to this directory (batch modes) |
-| `--eval-dir`    | Directory for evaluation logs (default: `reports/evaluations/`) |
-| `--interim-dir` | Directory for cached JSON fragments (default: `data/1_interim`) |
-| `--force`       | Re-parse ALTO XML even if cached JSON exists |
-| `--sample-size` | Randomly sample N pages from the input directory |
-| `--seed`        | Random seed for reproducible sampling (use with `--sample-size`) |
+| Option                   | Description                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `--alto`                 | Path to a single ALTO XML file                                                                                                |
+| `--input-dir`            | Directory of ALTO or JSON fragment files                                                                                      |
+| `--article-xml`          | Path to ground truth article XML (single-page eval)                                                                           |
+| `--ground-truth-dir`     | Directory of ground truth article XML files (batch eval)                                                                      |
+| `--json-only`            | Convert ALTO to JSON and exit (no LLM call)                                                                                   |
+| `--evaluate`             | Evaluate against ground truth                                                                                                 |
+| `--model`                | LLM model name (overrides `LLM_MODEL`)                                                                                        |
+| `--base-url`             | OpenAI-compatible API base URL (overrides `LLM_BASE_URL`)                                                                     |
+| `--api-key`              | API key (overrides `LLM_API_KEY`)                                                                                             |
+| `--prompt-file`          | Read system prompt (and optionally user prompt template) from file                                                            |
+| `--output`               | Save results to file instead of stdout                                                                                        |
+| `--output-dir`           | Write one JSON file per page to this directory (batch modes)                                                                  |
+| `--eval-dir`             | Directory for evaluation logs (default: `reports/evaluations/`)                                                               |
+| `--interim-dir`          | Directory for cached JSON fragments (default: `data/1_interim`)                                                               |
+| `--force`                | Re-parse ALTO XML even if cached JSON exists                                                                                  |
+| `--sample-size`          | Randomly sample N pages from the input directory                                                                              |
+| `--seed`                 | Random seed for reproducible sampling (use with `--sample-size`)                                                              |
 
 ## Evaluation Metrics
 
@@ -165,13 +163,13 @@ uv run python generate_network.py --eval-log reports/evaluations/<file>.json
 
 This creates one CSV per page in `reports/networks/{eval_name}/nodes/` and `reports/networks/{eval_name}/edges/`. Nodes carry per-fragment coordinates, OCR text, and segment assignments (`{model}_segment`, `ground_truth_segment`). Edges connect fragments within the same LLM-predicted item and include an `edge_weight` column (`1.0` when the grouping agrees with ground truth, `-1.0` when it does not). Page-level evaluation metrics (`clustering_f1`, `bcubed_f1`, `coverage`, `class_accuracy`, `tp`, `fp`, `fn`) are appended as constant columns on every edge row.
 
-| Option          | Description                                          |
-|-----------------|------------------------------------------------------|
-| `--eval-log`    | Path to evaluation log JSON (required)               |
-| `--output-dir`  | Base output directory (default: `reports/networks`)  |
-| `--image-base-url` | Base URL for page scan images (env: `IMAGE_BASE_URL`) |
-| `--interim-dir` | Directory for cached fragments (default: `data/1_interim`) |
-| `--eval-name`   | Override the evaluation subdirectory name            |
+| Option             | Description                                                |
+| ------------------ | ---------------------------------------------------------- |
+| `--eval-log`       | Path to evaluation log JSON (required)                     |
+| `--output-dir`     | Base output directory (default: `reports/networks`)        |
+| `--image-base-url` | Base URL for page scan images (env: `IMAGE_BASE_URL`)      |
+| `--interim-dir`    | Directory for cached fragments (default: `data/1_interim`) |
+| `--eval-name`      | Override the evaluation subdirectory name                  |
 
 ## Testing
 

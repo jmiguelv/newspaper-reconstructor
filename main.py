@@ -107,17 +107,9 @@ def main(argv: list[str] | None = None) -> int:
         help="LLM API request timeout in seconds (default: 300)",
     )
     parser.add_argument(
-        "--system-prompt", default=None, help="Custom system prompt (overrides default)"
-    )
-    parser.add_argument(
         "--prompt-file",
         default=None,
-        help="Read system prompt from file (overrides --system-prompt and default)",
-    )
-    parser.add_argument(
-        "--user-prompt-template",
-        default=None,
-        help="Custom user prompt template (overrides default)",
+        help="Read system prompt (and optionally user_prompt_template) from file",
     )
     parser.add_argument("--output", default=None, help="Save results to file")
     parser.add_argument(
@@ -175,11 +167,6 @@ def main(argv: list[str] | None = None) -> int:
     else:
         system_prompt = content
         user_prompt_template = ""
-
-    if args.system_prompt:
-        system_prompt = args.system_prompt
-    if args.user_prompt_template:
-        user_prompt_template = args.user_prompt_template
 
     # --json-only: convert and exit
     if args.json_only:
