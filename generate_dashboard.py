@@ -707,7 +707,31 @@ HTML_TEMPLATE = r"""<!doctype html>
                 For Class Accuracy, the top performer is <strong x-text="bestAccRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestAccRun.aggregate.mean_class_accuracy)"></strong>),
                 while the best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
             </div>
-            <div style="display: flex; align-items: center; gap: var(--space-s); margin-bottom: var(--space-m); font-size: var(--step--1); color: var(--ink-light);">
+            <div style="display: flex; align-items: center; gap: var(--space-s); margin-bottom: var(--space-m); flex-wrap: wrap; font-size: var(--step--1); color: var(--ink-light);">
+                <label for="model-filter" style="white-space: nowrap;">Model</label>
+                <select id="model-filter" x-model="filterModel" style="font-size: var(--step--1); padding: 0.2em 0.5em; border: 1px solid var(--rule); border-radius: 0.25rem; background: var(--surface); color: var(--ink); cursor: pointer;">
+                    <option value="">All models</option>
+                    <template x-for="m in modelOptions" :key="m">
+                        <option :value="m" x-text="m"></option>
+                    </template>
+                </select>
+
+                <label for="prompt-filter" style="white-space: nowrap;">Prompt</label>
+                <select id="prompt-filter" x-model="filterPrompt" style="font-size: var(--step--1); padding: 0.2em 0.5em; border: 1px solid var(--rule); border-radius: 0.25rem; background: var(--surface); color: var(--ink); cursor: pointer;">
+                    <option value="">All prompts</option>
+                    <template x-for="p in promptOptions" :key="p">
+                        <option :value="p" x-text="p"></option>
+                    </template>
+                </select>
+
+                <label for="sample-filter" style="white-space: nowrap;">Sample size</label>
+                <select id="sample-filter" x-model="filterSampleSize" style="font-size: var(--step--1); padding: 0.2em 0.5em; border: 1px solid var(--rule); border-radius: 0.25rem; background: var(--surface); color: var(--ink); cursor: pointer;">
+                    <option value="">All sizes</option>
+                    <template x-for="s in sampleSizeOptions" :key="s">
+                        <option :value="s" x-text="s"></option>
+                    </template>
+                </select>
+
                 <label for="completion-filter" style="white-space: nowrap;">Min. completion</label>
                 <input id="completion-filter" type="range" min="0" max="1" step="0.05" x-model.number="minCompletionRatio" style="flex: 1; max-width: 12rem; accent-color: var(--ink);">
                 <span x-text="Math.round(minCompletionRatio * 100) + '%'" style="min-width: 3rem;"></span>
@@ -964,13 +988,29 @@ HTML_TEMPLATE = r"""<!doctype html>
                 expandedRun: null,
                 expandedPage: null,
                 minCompletionRatio: 0.5,
+                filterModel: '',
+                filterPrompt: '',
+                filterSampleSize: '',
+
+                get modelOptions() {
+                    return [...new Set(this.runs.map(r => r.config?.model).filter(Boolean))].sort();
+                },
+                get promptOptions() {
+                    return [...new Set(this.runs.map(r => r.config?.prompt_name).filter(Boolean))].sort();
+                },
+                get sampleSizeOptions() {
+                    return [...new Set(this.runs.map(r => r.config?.sample_size).filter(v => v != null))].sort((a, b) => a - b);
+                },
 
                 get filteredRuns() {
                     return this.runs.filter(run => {
                         const sampleSize = run.config?.sample_size;
                         const totalPages = run.aggregate?.total_pages ?? 0;
-                        if (!sampleSize) return true;
-                        return totalPages >= sampleSize * this.minCompletionRatio;
+                        if (sampleSize && totalPages < sampleSize * this.minCompletionRatio) return false;
+                        if (this.filterModel && run.config?.model !== this.filterModel) return false;
+                        if (this.filterPrompt && run.config?.prompt_name !== this.filterPrompt) return false;
+                        if (this.filterSampleSize !== '' && String(run.config?.sample_size ?? '') !== String(this.filterSampleSize)) return false;
+                        return true;
                     });
                 },
                 get sortedRuns() {
