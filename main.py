@@ -53,6 +53,11 @@ _MD_SYSTEM_HEADING = "# System Prompt"
 _MD_USER_HEADING = "# User Prompt Template"
 
 
+def _sort_fragments(fragments: list[dict]) -> list[dict]:
+    """Sort fragments top to bottom (vpos asc) and then right to left (hpos desc)."""
+    return sorted(fragments, key=lambda f: (f.get("vpos", 0), -f.get("hpos", 0)))
+
+
 def _parse_md_prompt(content: str) -> tuple[str, str]:
     lines = content.splitlines()
     sections: dict[str, list[str]] = {}
@@ -88,6 +93,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--evaluate", action="store_true", help="Evaluate against ground truth"
+    )
+    parser.add_argument(
+        "--sort-fragments", action="store_true", help="Sort fragments top-to-bottom, right-to-left before reconstruction"
     )
     parser.add_argument(
         "--suggest", action="store_true", help="Generate improvement suggestions using LLM judge"
@@ -168,6 +176,9 @@ def main(argv: list[str] | None = None) -> int:
         system_prompt = content
         user_prompt_template = ""
 
+    if args.sort_fragments:
+        prompt_name = f"{prompt_name}_sorted"
+
     # --json-only: convert and exit
     if args.json_only:
         if args.alto:
@@ -217,6 +228,8 @@ def _run_single_page(
     args, model: str, system_prompt: str, user_prompt_template: str, prompt_name: str
 ) -> int:
     fragments = load_fragments_cached(args.alto, args.interim_dir, args.force)
+    if args.sort_fragments:
+        fragments = _sort_fragments(fragments)
     page_id = os.path.splitext(os.path.basename(args.alto))[0]
 
     if args.evaluate and args.article_xml:
@@ -287,6 +300,8 @@ def _run_input_dir(
     for page_id in all_page_ids:
         print(f"[{page_id}] Reconstructing...", file=sys.stderr)
         fragments = pages[page_id]
+        if args.sort_fragments:
+            fragments = _sort_fragments(fragments)
         predicted = reconstruct_articles_cached(
             fragments,
             client,

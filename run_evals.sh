@@ -4,13 +4,13 @@ set -euo pipefail
 PROMPTS=(
   "prompts/v00.md"
   "prompts/v01.md"
-  # "prompts/v02.md"
-  # "prompts/v03.md"
+  "prompts/v02.md"
+  "prompts/v03.md"
   "prompts/v04.md"
 )
 
 MODELS=(
-  # "arc:lite"
+  "arc:lite"
   "arc:nexus"
 )
 
