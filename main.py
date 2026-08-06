@@ -89,6 +89,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--evaluate", action="store_true", help="Evaluate against ground truth"
     )
+    parser.add_argument(
+        "--suggest", action="store_true", help="Generate improvement suggestions using LLM judge"
+    )
+    parser.add_argument(
+        "--run-id", default=None, help="Specific evaluation run ID to analyze (used with --suggest)"
+    )
     parser.add_argument("--model", default=None, help="LLM model name")
     parser.add_argument(
         "--base-url", default=None, help="OpenAI-compatible API base URL"
@@ -190,6 +196,21 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         print("Error: --json-only requires --alto or --input-dir", file=sys.stderr)
         return 1
+
+    if args.suggest:
+        if not args.run_id:
+            print("Error: --suggest requires --run-id to specify which evaluation log to analyze.", file=sys.stderr)
+            return 1
+            
+        # We import here to avoid circular dependencies or loading LLM judge if not needed
+        from suggest import generate_suggestions
+        client = make_client(
+            base_url=args.base_url,
+            api_key=args.api_key,
+            model=model,
+            timeout=args.timeout,
+        )
+        return generate_suggestions(args.run_id, args.eval_dir, client, model)
 
     # Determine mode: single page or directory
     if args.input_dir:
