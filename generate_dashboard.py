@@ -783,7 +783,8 @@ HTML_TEMPLATE = r"""<!doctype html>
             <section>
                 <h2 x-text="activeRun.config.model + ' / ' + activeRun.config.prompt_name"></h2>
                 <p class="run-subtitle">
-                    <time x-text="activeRun.timestamp"></time>
+                    Run ID: <code x-text="activeRun.run_id" style="user-select: all;" title="Click to select for --run-id"></code> ·
+                    <time x-text="activeRun.timestamp ? new Date(activeRun.timestamp).toLocaleString(undefined, {dateStyle:'long', timeStyle:'short'}) : '—'"></time>
                     · sample <span x-text="activeRun.config.sample_size || 'all'"></span>
                 </p>
 
@@ -823,6 +824,7 @@ HTML_TEMPLATE = r"""<!doctype html>
                 <details>
                     <summary>Configuration</summary>
                     <dl class="config-grid">
+                        <div><dt>Run ID</dt><dd x-text="activeRun.run_id" style="font-family: var(--font-mono);"></dd></div>
                         <div><dt>Provider</dt><dd x-text="activeRun.config.provider"></dd></div>
                         <div><dt>Model</dt><dd x-text="activeRun.config.model"></dd></div>
                         <div><dt>Prompt</dt><dd x-text="activeRun.config.prompt_name"></dd></div>
