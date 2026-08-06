@@ -117,6 +117,16 @@ uv run python main.py --evaluate \
 
 Add `--output results.json` to any command to write to a file instead of stdout.
 
+### Analyze evaluation results with LLM Judge (Suggestions)
+
+Generate systemic prompt and heuristic improvement suggestions based on the worst-performing pages of a specific evaluation run:
+
+```bash
+uv run python main.py --suggest --run-id <timestamp>_<provider>_<model>_<prompt>
+```
+
+This will read the evaluation log from `reports/evaluations/`, construct a prompt with the ground truth and predicted fragment clusters for the LLM Judge, and save the result to `reports/suggestions/`.
+
 ### Prompt files
 
 Prompt files can be JSON (with `system_prompt` and optional `user_prompt_template` keys) or Markdown (with `# System Prompt` and `# User Prompt` heading sections). The prompt name used in output filenames comes from the file stem (e.g., `v02.json` → `v02`).
@@ -131,6 +141,8 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 | `--ground-truth-dir`     | Directory of ground truth article XML files (batch eval)                                                                      |
 | `--json-only`            | Convert ALTO to JSON and exit (no LLM call)                                                                                   |
 | `--evaluate`             | Evaluate against ground truth                                                                                                 |
+| `--suggest`              | Generate improvement suggestions using LLM judge                                                                              |
+| `--run-id`               | Specific evaluation run ID to analyze (used with `--suggest`)                                                                 |
 | `--model`                | LLM model name (overrides `LLM_MODEL`)                                                                                        |
 | `--base-url`             | OpenAI-compatible API base URL (overrides `LLM_BASE_URL`)                                                                     |
 | `--api-key`              | API key (overrides `LLM_API_KEY`)                                                                                             |
