@@ -55,26 +55,26 @@ _MD_USER_HEADING = "# User Prompt Template"
 
 def _sort_fragments(fragments: list[dict]) -> list[dict]:
     """Sort fragments column-by-column (right-to-left), then top-to-bottom.
-    
+
     Groups fragments into columns based on their right edge (hpos + width).
     """
     if not fragments:
         return []
-    
+
     # 1. Compute right edge (rpos) and sort from rightmost to leftmost
     frags_with_rpos = []
     for f in fragments:
         rpos = f.get("hpos", 0) + f.get("width", 0)
         frags_with_rpos.append((rpos, f))
-        
+
     frags_with_rpos.sort(key=lambda x: x[0], reverse=True)
-    
+
     # 2. Group into columns using a 200px tolerance for the right edge
     columns = []
     current_col = []
     current_rpos = frags_with_rpos[0][0]
-    rpos_threshold = 200 
-    
+    rpos_threshold = 200
+
     for rpos, f in frags_with_rpos:
         if abs(rpos - current_rpos) <= rpos_threshold:
             current_col.append(f)
@@ -84,13 +84,13 @@ def _sort_fragments(fragments: list[dict]) -> list[dict]:
             current_rpos = rpos
     if current_col:
         columns.append(current_col)
-        
+
     # 3. Sort each column top-to-bottom (vpos asc) and flatten
     sorted_fragments = []
     for col in columns:
         col.sort(key=lambda f: f.get("vpos", 0))
         sorted_fragments.extend(col)
-        
+
     return sorted_fragments
 
 
@@ -131,13 +131,19 @@ def main(argv: list[str] | None = None) -> int:
         "--evaluate", action="store_true", help="Evaluate against ground truth"
     )
     parser.add_argument(
-        "--sort-fragments", action="store_true", help="Sort fragments top-to-bottom, right-to-left before reconstruction"
+        "--sort-fragments",
+        action="store_true",
+        help="Sort fragments top-to-bottom, right-to-left before reconstruction",
     )
     parser.add_argument(
-        "--suggest", action="store_true", help="Generate improvement suggestions using LLM judge"
+        "--suggest",
+        action="store_true",
+        help="Generate improvement suggestions using LLM judge",
     )
     parser.add_argument(
-        "--run-id", default=None, help="Specific evaluation run ID to analyze (used with --suggest)"
+        "--run-id",
+        default=None,
+        help="Specific evaluation run ID to analyze (used with --suggest)",
     )
     parser.add_argument("--model", default=None, help="LLM model name")
     parser.add_argument(
@@ -162,7 +168,9 @@ def main(argv: list[str] | None = None) -> int:
         help="Write one JSON file per page to this directory (for batch modes)",
     )
     parser.add_argument(
-        "--eval-dir", default="reports/evaluations", help="Directory for evaluation logs"
+        "--eval-dir",
+        default="reports/evaluations",
+        help="Directory for evaluation logs",
     )
     parser.add_argument(
         "--interim-dir",
@@ -233,11 +241,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.suggest:
         if not args.run_id:
-            print("Error: --suggest requires --run-id to specify which evaluation log to analyze.", file=sys.stderr)
+            print(
+                "Error: --suggest requires --run-id to specify which evaluation log to analyze.",
+                file=sys.stderr,
+            )
             return 1
-            
+
         # We import here to avoid circular dependencies or loading LLM judge if not needed
         from src.newspaper_reconstructor.suggest import generate_suggestions
+
         client = make_client(
             base_url=args.base_url,
             api_key=args.api_key,

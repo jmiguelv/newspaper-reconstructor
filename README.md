@@ -140,6 +140,7 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 | `--article-xml`          | Path to ground truth article XML (single-page eval)                                                                           |
 | `--ground-truth-dir`     | Directory of ground truth article XML files (batch eval)                                                                      |
 | `--json-only`            | Convert ALTO to JSON and exit (no LLM call)                                                                                   |
+| `--sort-fragments`       | Sort fragments column-by-column (right-to-left) then top-to-bottom before reconstruction                                      |
 | `--evaluate`             | Evaluate against ground truth                                                                                                 |
 | `--suggest`              | Generate improvement suggestions using LLM judge                                                                              |
 | `--run-id`               | Specific evaluation run ID to analyze (used with `--suggest`)                                                                 |
