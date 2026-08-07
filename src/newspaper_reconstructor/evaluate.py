@@ -254,11 +254,12 @@ def log_evaluation_run(
     """
     os.makedirs(output_dir, exist_ok=True)
 
+    timestamp = datetime.now().astimezone()
+
     if not run_id:
         run_id = config.get("run_id")
 
     if not run_id:
-        timestamp = datetime.now().astimezone()
         timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
         provider = config.get("provider", "unknown")
         model = config.get("model", "unknown")
