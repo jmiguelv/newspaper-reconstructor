@@ -41,9 +41,9 @@ TIMEOUT=60
 prompt_name=$(basename "$PROMPT_FILE" .md)
 
 if [ -n "$PAGE_ID" ]; then
-    run_id="openai_${MODEL}_${prompt_name}_page_${PAGE_ID}"
+    run_id="create_${MODEL}_${prompt_name}_page_${PAGE_ID}"
 else
-    run_id="openai_${MODEL}_${prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    run_id="create_${MODEL}_${prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
 safe_run_id=$(echo "$run_id" | tr ':' '_')
 reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_run_id"
