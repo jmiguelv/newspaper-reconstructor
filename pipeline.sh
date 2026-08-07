@@ -66,13 +66,22 @@ if [ ! -d "$FRAGMENTS_DIR" ]; then
     uv run python main.py parse -i "$ALTO_DIR" -o "$FRAGMENTS_DIR"
 fi
 
-# Step 2: Classify (placeholder)
-# uv run python main.py classify -i "$FRAGMENTS_DIR" -p "prompts/classify.md" -o "data/1_interim/${DATASET}/classified/$safe_run_id" $PAGE_ARG $SAMPLE_ARG --seed "$SEED"
+# Step 2: Classify
+echo "Classifying..."
+uv run python main.py classify \
+    -i "$FRAGMENTS_DIR" \
+    -p "prompts/classify_v00.md" \
+    -o "data/1_interim/${DATASET}/classified/$safe_run_id" \
+    --model "$MODEL" \
+    --seed "$SEED" \
+    --timeout "$TIMEOUT" \
+    ${SAMPLE_ARG:+$SAMPLE_ARG} \
+    ${PAGE_ARG:+$PAGE_ARG}
 
 # Step 3: Cluster
 echo "Clustering..."
 uv run python main.py cluster \
-    -i "$FRAGMENTS_DIR" \
+    -i "data/1_interim/${DATASET}/classified/$safe_run_id" \
     -o "$reconstructions_dir" \
     -p "$PROMPT_FILE" \
     --model "$MODEL" \
