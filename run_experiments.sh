@@ -17,7 +17,11 @@ if [ -z "$DATASET" ]; then
     exit 1
 fi
 
-PROMPTS=(
+CLASSIFY_PROMPTS=(
+  "prompts/classify_v00.md"
+)
+
+CLUSTER_PROMPTS=(
   "prompts/v00.md"
   "prompts/v01.md"
   "prompts/v02.md"
@@ -37,17 +41,25 @@ SAMPLE_SIZES=(
 
 SEED=42
 
-total=$(( ${#PROMPTS[@]} * ${#MODELS[@]} * ${#SAMPLE_SIZES[@]} ))
+total=$(( ${#CLASSIFY_PROMPTS[@]} * ${#CLUSTER_PROMPTS[@]} * ${#MODELS[@]} * ${#SAMPLE_SIZES[@]} ))
 count=0
 
 echo "Starting $total experiments on dataset: $DATASET..."
 
-for prompt_file in "${PROMPTS[@]}"; do
-  for model in "${MODELS[@]}"; do
-    for sample_size in "${SAMPLE_SIZES[@]}"; do
-      count=$(( count + 1 ))
-      echo "=== Experiment [$count/$total] ==="
-      ./pipeline.sh --dataset "$DATASET" --model "$model" --prompt "$prompt_file" --sample-size "$sample_size" --seed "$SEED"
+for classify_prompt in "${CLASSIFY_PROMPTS[@]}"; do
+  for cluster_prompt in "${CLUSTER_PROMPTS[@]}"; do
+    for model in "${MODELS[@]}"; do
+      for sample_size in "${SAMPLE_SIZES[@]}"; do
+        count=$(( count + 1 ))
+        echo "=== Experiment [$count/$total] ==="
+        ./pipeline.sh \
+            --dataset "$DATASET" \
+            --model "$model" \
+            --classify-prompt "$classify_prompt" \
+            --cluster-prompt "$cluster_prompt" \
+            --sample-size "$sample_size" \
+            --seed "$SEED"
+      done
     done
   done
 done

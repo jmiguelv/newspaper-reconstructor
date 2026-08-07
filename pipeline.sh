@@ -3,7 +3,8 @@
 set -euo pipefail
 
 MODEL=""
-PROMPT_FILE=""
+CLASSIFY_PROMPT_FILE=""
+CLUSTER_PROMPT_FILE=""
 SAMPLE_SIZE=""
 SEED="42"
 PAGE_ID=""
@@ -12,7 +13,8 @@ DATASET=""
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --model) MODEL="$2"; shift ;;
-        --prompt) PROMPT_FILE="$2"; shift ;;
+        --classify-prompt) CLASSIFY_PROMPT_FILE="$2"; shift ;;
+        --cluster-prompt) CLUSTER_PROMPT_FILE="$2"; shift ;;
         --sample-size) SAMPLE_SIZE="$2"; shift ;;
         --seed) SEED="$2"; shift ;;
         --page-id) PAGE_ID="$2"; shift ;;
@@ -22,8 +24,8 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-if [ -z "$MODEL" ] || [ -z "$PROMPT_FILE" ] || [ -z "$DATASET" ]; then
-    echo "Usage: $0 --dataset <dataset_name> --model <model> --prompt <prompt_file> [--sample-size <N>] [--seed <S>] [--page-id <ID>]"
+if [ -z "$MODEL" ] || [ -z "$CLASSIFY_PROMPT_FILE" ] || [ -z "$CLUSTER_PROMPT_FILE" ] || [ -z "$DATASET" ]; then
+    echo "Usage: $0 --dataset <dataset_name> --model <model> --classify-prompt <file> --cluster-prompt <file> [--sample-size <N>] [--seed <S>] [--page-id <ID>]"
     exit 1
 fi
 
@@ -38,17 +40,24 @@ GROUND_TRUTH_DIR="data/0_external/${DATASET}/article_xml"
 EVAL_DIR="reports/evaluations/${DATASET}"
 TIMEOUT=60
 
-prompt_name=$(basename "$PROMPT_FILE" .md)
+classify_prompt_name=$(basename "$CLASSIFY_PROMPT_FILE" .md)
+cluster_prompt_name=$(basename "$CLUSTER_PROMPT_FILE" .md)
 
 if [ -n "$PAGE_ID" ]; then
-    run_id="create_${MODEL}_${prompt_name}_page_${PAGE_ID}"
+    classify_run_id="create_${MODEL}_c-${classify_prompt_name}_page_${PAGE_ID}"
+    cluster_run_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
 else
-    run_id="create_${MODEL}_${prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    classify_run_id="create_${MODEL}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    cluster_run_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
-safe_run_id=$(echo "$run_id" | tr ':' '_')
-reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_run_id"
 
-echo "=== Running Pipeline for: $run_id (Dataset: $DATASET) ==="
+safe_classify_run_id=$(echo "$classify_run_id" | tr ':' '_')
+safe_cluster_run_id=$(echo "$cluster_run_id" | tr ':' '_')
+
+classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_run_id"
+reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_cluster_run_id"
+
+echo "=== Running Pipeline for: $cluster_run_id (Dataset: $DATASET) ==="
 
 PAGE_ARG=""
 if [ -n "$PAGE_ID" ]; then
@@ -67,23 +76,27 @@ if [ ! -d "$FRAGMENTS_DIR" ]; then
 fi
 
 # Step 2: Classify
-echo "Classifying..."
-uv run python main.py classify \
-    -i "$FRAGMENTS_DIR" \
-    -p "prompts/classify_v00.md" \
-    -o "data/1_interim/${DATASET}/classified/$safe_run_id" \
-    --model "$MODEL" \
-    --seed "$SEED" \
-    --timeout "$TIMEOUT" \
-    ${SAMPLE_ARG:+$SAMPLE_ARG} \
-    ${PAGE_ARG:+$PAGE_ARG}
+if [ ! -d "$classified_dir" ] || [ -z "$(ls -A "$classified_dir" 2>/dev/null)" ]; then
+    echo "Classifying..."
+    uv run python main.py classify \
+        -i "$FRAGMENTS_DIR" \
+        -p "$CLASSIFY_PROMPT_FILE" \
+        -o "$classified_dir" \
+        --model "$MODEL" \
+        --seed "$SEED" \
+        --timeout "$TIMEOUT" \
+        ${SAMPLE_ARG:+$SAMPLE_ARG} \
+        ${PAGE_ARG:+$PAGE_ARG}
+else
+    echo "Classification for $safe_classify_run_id already exists. Skipping classification."
+fi
 
 # Step 3: Cluster
 echo "Clustering..."
 uv run python main.py cluster \
-    -i "data/1_interim/${DATASET}/classified/$safe_run_id" \
+    -i "$classified_dir" \
     -o "$reconstructions_dir" \
-    -p "$PROMPT_FILE" \
+    -p "$CLUSTER_PROMPT_FILE" \
     --model "$MODEL" \
     --seed "$SEED" \
     --timeout "$TIMEOUT" \
@@ -96,7 +109,7 @@ uv run python main.py evaluate \
     -i "$reconstructions_dir" \
     -g "$GROUND_TRUTH_DIR" \
     --eval-dir "$EVAL_DIR" \
-    --run-id "$run_id" \
+    --run-id "$cluster_run_id" \
     ${PAGE_ARG:+$PAGE_ARG}
 
 echo "Pipeline complete!"
