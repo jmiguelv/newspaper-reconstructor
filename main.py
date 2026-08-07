@@ -110,7 +110,9 @@ def classify(
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     os.makedirs(output_folder, exist_ok=True)
-    client = make_client(model=model, base_url=base_url, api_key=api_key, timeout=timeout)
+    client = make_client(
+        model=model, base_url=base_url, api_key=api_key, timeout=timeout
+    )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
@@ -175,7 +177,9 @@ def cluster(
 ):
     """Cluster fragments into articles using an LLM."""
     os.makedirs(output_folder, exist_ok=True)
-    client = make_client(model=model, base_url=base_url, api_key=api_key, timeout=timeout)
+    client = make_client(
+        model=model, base_url=base_url, api_key=api_key, timeout=timeout
+    )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
@@ -237,18 +241,25 @@ def evaluate(
     if page_id:
         files = [f for f in files if f.startswith(page_id)]
 
-    results = {}
+    results = []
     for fname in files:
-        page_id = os.path.splitext(fname)[0]
-        if page_id not in gt_data:
-            typer.echo(f"Warning: No ground truth for {page_id}", err=True)
+        page_id_match = os.path.splitext(fname)[0]
+        if page_id_match not in gt_data:
+            typer.echo(f"Warning: No ground truth for {page_id_match}", err=True)
             continue
 
         with open(os.path.join(input_folder, fname), encoding="utf-8") as f:
             predicted_items = json.load(f)
 
-        page_metrics = evaluate_page(predicted_items, gt_data[page_id])
-        results[page_id] = page_metrics
+        page_metrics = evaluate_page(predicted_items, gt_data[page_id_match])
+        results.append(
+            {
+                "page_id": page_id_match,
+                "metrics": page_metrics,
+                "predicted_items": predicted_items,
+                "ground_truth_items": gt_data[page_id_match],
+            }
+        )
 
     if not results:
         typer.echo("No matching pages found for evaluation.", err=True)
