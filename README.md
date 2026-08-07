@@ -1,6 +1,6 @@
-# Article Reconstruction from ALTO XML using LLM Prompting
+# Article Reconstruction from ALTO XML using LLM Pipelines
 
-Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM to group fragments into complete items (articles, advertisements, etc.). Includes evaluation against ground truth article XML using pairwise clustering F1, class accuracy, and coverage metrics.
+Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM through a pipelined architecture (Parse → Classify → Cluster → Evaluate). Includes evaluation against ground truth article XML using pairwise clustering F1, class accuracy, and coverage metrics.
 
 Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
 
@@ -8,36 +8,31 @@ Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 
 
 ```mermaid
 flowchart LR
-    ALTO["ALTO XML<br/>data/0_external/alto/"] -->|alto_to_json| RECON["src/.../reconstruct.py<br/>parse fragments"]
-    PROMPT["Prompt file<br/>prompts/v01.json<br/>default: bundled"] --> MAIN["main.py<br/>CLI orchestration"]
-    RECON -->|fragments| MAIN["main.py<br/>CLI orchestration"]
-    MAIN -->|build prompt| LLM["src/.../llm.py<br/>LLMClient"]
-    LLM -->|API call| API["OpenAI-compatible<br/>endpoint"]
-    API -->|JSON response| LLM
-    LLM -->|raw text| RECON2["src/.../reconstruct.py<br/>parse JSON into items"]
-    RECON2 -->|predicted items| EVAL["src/.../evaluate.py"]
-    ARTXML["Article XML<br/>data/0_external/article_xml/"] -->|ground truth| EVAL
-    EVAL -->|clustering F1<br/>class accuracy<br/>coverage| LOG["eval log JSON<br/>reports/evaluations/"]
-    LOG -->|generate_network| NET["generate_network.py<br/>export nodes/edges"]
-    NET -->|nodes + edges| VIZ["article-network-visualizer<br/>reports/networks/"]
+    ALTO["ALTO XML<br/>data/0_external/alto/"] -->|main.py parse| PARSED["Parsed Fragments<br/>data/1_interim/fragments/"]
+    PARSED -->|main.py classify| CLASSIFIED["Classified Fragments<br/>data/1_interim/classified/"]
+    CLASSIFIED -->|main.py cluster| RECON["Reconstructed Articles<br/>data/1_interim/reconstructions/"]
+    ARTXML["Article XML<br/>data/0_external/article_xml/"] -->|ground truth| EVAL["main.py evaluate"]
+    RECON -->|predicted items| EVAL
+    EVAL -->|clustering F1<br/>class accuracy| LOG["Eval log JSON<br/>reports/evaluations/"]
+    LOG -->|generate_network| NET["nodes/edges CSV<br/>reports/networks/"]
 ```
 
 ## Project Structure
 
 ```
 article-reconstruction/
-├── main.py                 # CLI entry point
+├── main.py                 # Typer CLI entry point (parse, classify, cluster, evaluate)
 ├── generate_dashboard.py   # Alpine.js HTML dashboard generator for evaluation logs
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for the network visualizer
-├── run_evals.sh            # Batch evaluation orchestrator script
+├── pipeline.sh             # End-to-end evaluation orchestrator script
 ├── src/
 │   └── newspaper_reconstructor/
-│       ├── reconstruct.py  # ALTO XML parsing, article reconstruction
+│       ├── reconstruct.py  # Data parsing and LLM API mapping
 │       ├── llm.py          # LLM client wrapper
 │       ├── evaluate.py     # Ground truth parsing, evaluation metrics
 │       └── suggest.py      # LLM judge offline analysis tool
 ├── tests/                  # Unit tests + end-to-end tests
-├── prompts/                # Prompt files (v01=baseline, v02+=improved variants)
+├── prompts/                # Prompt files (e.g. classify.md, v00.md)
 ├── reports/
 │   ├── evaluations/        # Evaluation logs (JSON) and dashboard.html
 │   ├── networks/           # Exported nodes/edges CSV for the network visualizer
@@ -46,9 +41,10 @@ article-reconstruction/
     ├── 0_external/           # Raw external data (git submodule)
     │   ├── alto/             # 80 ALTO XML files (OCR text fragments)
     │   └── article_xml/      # 80 ground truth article XML files
-    └── 1_interim/            # Interim processed data
-        ├── fragments/        # Cached ALTO→JSON fragments
-        └── reconstructions/  # LLM output caches (by prompt/model)
+    └── 1_interim/            # Interim processed data (pipeline I/O)
+        ├── fragments/        # Parsed JSON fragments
+        ├── classified/       # Fragments enriched with 'predicted_class'
+        └── reconstructions/  # LLM clustered articles
 ```
 
 ## Installation
@@ -61,7 +57,7 @@ uv sync
 
 ## Configuration
 
-Set environment variables for the LLM API, or pass them as CLI flags. Works with any OpenAI-compatible endpoint (OpenAI, Ollama, vLLM, LM Studio, etc.).
+Set environment variables for the LLM API, or pass them as CLI options. Works with any OpenAI-compatible endpoint (OpenAI, Ollama, vLLM, LM Studio, etc.).
 
 | Variable         | Description                       | Default                                               |
 | ---------------- | --------------------------------- | ----------------------------------------------------- |
@@ -70,91 +66,58 @@ Set environment variables for the LLM API, or pass them as CLI flags. Works with
 | `LLM_BASE_URL`   | Custom OpenAI-compatible endpoint | None                                                  |
 | `IMAGE_BASE_URL` | Base URL for page scan images     | `https://jawi.sgp1.digitaloceanspaces.com/page_scans` |
 
-### Non-OpenAI example (local server)
-
-```bash
-LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=llama3 \
-  uv run python main.py --alto data/0_external/alto/UM-1956-01-09-6.xml
-```
-
 ## Usage
 
-### Convert ALTO to JSON (no LLM call)
+The CLI is built with `typer` and uses subcommands to execute discrete steps of the pipeline.
+
+### 1. Parse ALTO XML to JSON
+Converts raw XML to JSON fragment lists (no LLM required).
 
 ```bash
-uv run python main.py --alto data/0_external/alto/UM-1956-01-09-6.xml --json-only
+uv run python main.py parse -i data/0_external/alto -o data/1_interim/fragments
 ```
 
-### Reconstruct a single page
+### 2. Classify Fragments
+Uses an LLM to assign classes (headline, body, caption, etc.) to each fragment.
 
 ```bash
-uv run python main.py --alto data/0_external/alto/UM-1956-01-09-6.xml
+uv run python main.py classify \
+  -i data/1_interim/fragments \
+  -p prompts/classify.md \
+  -o data/1_interim/classified
 ```
 
-### Reconstruct a directory of pages
+### 3. Cluster Fragments into Articles
+Uses an LLM to group fragments into complete articles. Can accept raw parsed fragments or classified fragments as input.
 
 ```bash
-uv run python main.py --input-dir data/0_external/alto/
+uv run python main.py cluster \
+  -i data/1_interim/classified \
+  -p prompts/v00.md \
+  -o data/1_interim/reconstructions/my_run \
+  --sort-fragments
 ```
 
-### Reconstruct + evaluate a single page
+### 4. Evaluate Reconstructions
+Evaluates predicted articles against the ground truth.
 
 ```bash
-uv run python main.py --evaluate \
-  --alto data/0_external/alto/UM-1956-01-09-6.xml \
-  --article-xml data/0_external/article_xml/UM-1956-01-09-6.xml
+uv run python main.py evaluate \
+  -i data/1_interim/reconstructions/my_run \
+  -g data/0_external/article_xml \
+  --run-id "my_run_v00"
 ```
 
-### Reconstruct + evaluate a directory
-
-```bash
-uv run python main.py --evaluate \
-  --input-dir data/0_external/alto/ \
-  --ground-truth-dir data/0_external/article_xml/
-```
-
-### Save results to a file
-
-Add `--output results.json` to any command to write to a file instead of stdout.
-
-### Analyze evaluation results with LLM Judge (Suggestions)
-
+### 5. Generate Suggestions (LLM Judge)
 Generate systemic prompt and heuristic improvement suggestions based on the worst-performing pages of a specific evaluation run:
 
 ```bash
-uv run python main.py --suggest --run-id <timestamp>_<provider>_<model>_<prompt>
+uv run python main.py suggest --run-id "my_run_v00"
 ```
 
-This will read the evaluation log from `reports/evaluations/`, construct a prompt with the ground truth and predicted fragment clusters for the LLM Judge, and save the result to `reports/suggestions/`.
+## Prompt Files
 
-### Prompt files
-
-Prompt files can be JSON (with `system_prompt` and optional `user_prompt_template` keys) or Markdown (with `# System Prompt` and `# User Prompt` heading sections). The prompt name used in output filenames comes from the file stem (e.g., `v02.json` → `v02`).
-
-### CLI options
-
-| Option                   | Description                                                                                                                   |
-| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `--alto`                 | Path to a single ALTO XML file                                                                                                |
-| `--input-dir`            | Directory of ALTO or JSON fragment files                                                                                      |
-| `--article-xml`          | Path to ground truth article XML (single-page eval)                                                                           |
-| `--ground-truth-dir`     | Directory of ground truth article XML files (batch eval)                                                                      |
-| `--json-only`            | Convert ALTO to JSON and exit (no LLM call)                                                                                   |
-| `--sort-fragments`       | Sort fragments column-by-column (right-to-left) then top-to-bottom before reconstruction                                      |
-| `--evaluate`             | Evaluate against ground truth                                                                                                 |
-| `--suggest`              | Generate improvement suggestions using LLM judge                                                                              |
-| `--run-id`               | Specific evaluation run ID to analyze (used with `--suggest`)                                                                 |
-| `--model`                | LLM model name (overrides `LLM_MODEL`)                                                                                        |
-| `--base-url`             | OpenAI-compatible API base URL (overrides `LLM_BASE_URL`)                                                                     |
-| `--api-key`              | API key (overrides `LLM_API_KEY`)                                                                                             |
-| `--prompt-file`          | Read system prompt (and optionally user prompt template) from file                                                            |
-| `--output`               | Save results to file instead of stdout                                                                                        |
-| `--output-dir`           | Write one JSON file per page to this directory (batch modes)                                                                  |
-| `--eval-dir`             | Directory for evaluation logs (default: `reports/evaluations/`)                                                               |
-| `--interim-dir`          | Directory for cached JSON fragments (default: `data/1_interim`)                                                               |
-| `--force`                | Re-parse ALTO XML even if cached JSON exists                                                                                  |
-| `--sample-size`          | Randomly sample N pages from the input directory                                                                              |
-| `--seed`                 | Random seed for reproducible sampling (use with `--sample-size`)                                                              |
+Prompt files can be JSON (with `system_prompt` and optional `user_prompt_template` keys) or Markdown (with `# System Prompt` and `# User Prompt Template` heading sections).
 
 ## Evaluation Metrics
 
@@ -162,7 +125,7 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 - **Class accuracy** — On items where the predicted fragment set exactly matches a ground truth item, checks whether the class label matches. Reported as a fraction (or `null` if no matches).
 - **Coverage** — Fraction of ground truth fragments that appear in any predicted item.
 
-Evaluation logs are saved as JSON files in the `--eval-dir` directory, named `{timestamp}_{provider}_{model}_{prompt_name}.json`. They contain per-page metrics, aggregate summaries (including execution time), and run configuration. The prompt name is derived from the `--prompt-file` filename stem, defaulting to `"default"`.
+Evaluation logs are saved as JSON files in the `--eval-dir` directory. They contain per-page metrics, aggregate summaries (including execution time), and run configuration.
 
 Run `uv run python generate_dashboard.py` to generate an interactive HTML dashboard (`dashboard.html`) in the evaluation directory to visualize these metrics.
 
@@ -175,14 +138,6 @@ uv run python generate_network.py --eval-log reports/evaluations/<file>.json
 ```
 
 This creates one CSV per page in `reports/networks/{eval_name}/nodes/` and `reports/networks/{eval_name}/edges/`. Nodes carry per-fragment coordinates, OCR text, and segment assignments (`{model}_segment`, `ground_truth_segment`). Edges connect fragments within the same LLM-predicted item and include an `edge_weight` column (`1.0` when the grouping agrees with ground truth, `-1.0` when it does not). Page-level evaluation metrics (`clustering_f1`, `bcubed_f1`, `coverage`, `class_accuracy`, `tp`, `fp`, `fn`) are appended as constant columns on every edge row.
-
-| Option             | Description                                                |
-| ------------------ | ---------------------------------------------------------- |
-| `--eval-log`       | Path to evaluation log JSON (required)                     |
-| `--output-dir`     | Base output directory (default: `reports/networks`)        |
-| `--image-base-url` | Base URL for page scan images (env: `IMAGE_BASE_URL`)      |
-| `--interim-dir`    | Directory for cached fragments (default: `data/1_interim`) |
-| `--eval-name`      | Override the evaluation subdirectory name                  |
 
 ## Testing
 
