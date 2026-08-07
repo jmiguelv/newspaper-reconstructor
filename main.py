@@ -66,11 +66,15 @@ def parse(
     output_folder: str = typer.Option(
         ..., "--output-folder", "-o", help="Directory to save JSON fragments"
     ),
+    page_id: str | None = typer.Option(None, help="Process a single page ID"),
 ):
     """Parse ALTO XML files into JSON fragment lists."""
     os.makedirs(output_folder, exist_ok=True)
     count = 0
-    for fname in sorted(os.listdir(input_folder)):
+    files = sorted(os.listdir(input_folder))
+    if page_id:
+        files = [f for f in files if f.startswith(page_id)]
+    for fname in files:
         if not fname.endswith(".xml"):
             continue
         in_path = os.path.join(input_folder, fname)
@@ -102,6 +106,7 @@ def classify(
     timeout: float = typer.Option(300.0, help="API timeout in seconds"),
     sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
     seed: int = typer.Option(42, help="Random seed for sampling"),
+    page_id: str | None = typer.Option(None, help="Process a single page ID"),
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     os.makedirs(output_folder, exist_ok=True)
@@ -109,6 +114,8 @@ def classify(
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    if page_id:
+        files = [f for f in files if f.startswith(page_id)]
     if sample_size and sample_size < len(files):
         random.seed(seed)
         files = random.sample(files, sample_size)
@@ -164,6 +171,7 @@ def cluster(
     ),
     sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
     seed: int = typer.Option(42, help="Random seed for sampling"),
+    page_id: str | None = typer.Option(None, help="Process a single page ID"),
 ):
     """Cluster fragments into articles using an LLM."""
     os.makedirs(output_folder, exist_ok=True)
@@ -171,6 +179,8 @@ def cluster(
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    if page_id:
+        files = [f for f in files if f.startswith(page_id)]
     if sample_size and sample_size < len(files):
         random.seed(seed)
         files = random.sample(files, sample_size)
@@ -213,6 +223,7 @@ def evaluate(
     run_id: str = typer.Option(
         None, help="Identifier for this evaluation run (e.g., model_v1_sample16)"
     ),
+    page_id: str | None = typer.Option(None, help="Process a single page ID"),
 ):
     """Evaluate predicted articles against ground truth XML."""
     os.makedirs(eval_dir, exist_ok=True)
@@ -223,6 +234,8 @@ def evaluate(
     gt_data = load_ground_truth_dir(ground_truth_folder)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    if page_id:
+        files = [f for f in files if f.startswith(page_id)]
 
     results = {}
     for fname in files:
