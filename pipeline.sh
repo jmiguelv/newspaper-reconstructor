@@ -7,6 +7,7 @@ PROMPT_FILE=""
 SAMPLE_SIZE=""
 SEED="42"
 PAGE_ID=""
+DATASET=""
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -15,13 +16,14 @@ while [[ "$#" -gt 0 ]]; do
         --sample-size) SAMPLE_SIZE="$2"; shift ;;
         --seed) SEED="$2"; shift ;;
         --page-id) PAGE_ID="$2"; shift ;;
+        --dataset) DATASET="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
-if [ -z "$MODEL" ] || [ -z "$PROMPT_FILE" ]; then
-    echo "Usage: $0 --model <model> --prompt <prompt_file> [--sample-size <N>] [--seed <S>] [--page-id <ID>]"
+if [ -z "$MODEL" ] || [ -z "$PROMPT_FILE" ] || [ -z "$DATASET" ]; then
+    echo "Usage: $0 --dataset <dataset_name> --model <model> --prompt <prompt_file> [--sample-size <N>] [--seed <S>] [--page-id <ID>]"
     exit 1
 fi
 
@@ -30,10 +32,10 @@ if [ -n "$PAGE_ID" ] && [ -n "$SAMPLE_SIZE" ]; then
     SAMPLE_SIZE=""
 fi
 
-ALTO_DIR="data/0_external/alto"
-FRAGMENTS_DIR="data/1_interim/fragments"
-GROUND_TRUTH_DIR="data/0_external/article_xml"
-EVAL_DIR="reports/evaluations"
+ALTO_DIR="data/0_external/${DATASET}/alto"
+FRAGMENTS_DIR="data/1_interim/${DATASET}/fragments"
+GROUND_TRUTH_DIR="data/0_external/${DATASET}/article_xml"
+EVAL_DIR="reports/evaluations/${DATASET}"
 TIMEOUT=60
 
 prompt_name=$(basename "$PROMPT_FILE" .md)
@@ -44,9 +46,9 @@ else
     run_id="openai_${MODEL}_${prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
 safe_run_id=$(echo "$run_id" | tr ':' '_')
-reconstructions_dir="data/1_interim/reconstructions/$safe_run_id"
+reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_run_id"
 
-echo "=== Running Pipeline for: $run_id ==="
+echo "=== Running Pipeline for: $run_id (Dataset: $DATASET) ==="
 
 PAGE_ARG=""
 if [ -n "$PAGE_ID" ]; then
@@ -65,7 +67,7 @@ if [ ! -d "$FRAGMENTS_DIR" ]; then
 fi
 
 # Step 2: Classify (placeholder)
-# uv run python main.py classify -i "$FRAGMENTS_DIR" -p "prompts/classify.md" -o "data/1_interim/classified/$safe_run_id" $PAGE_ARG $SAMPLE_ARG --seed "$SEED"
+# uv run python main.py classify -i "$FRAGMENTS_DIR" -p "prompts/classify.md" -o "data/1_interim/${DATASET}/classified/$safe_run_id" $PAGE_ARG $SAMPLE_ARG --seed "$SEED"
 
 # Step 3: Cluster
 echo "Clustering..."

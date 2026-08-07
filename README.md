@@ -39,13 +39,15 @@ article-reconstruction/
 │   ├── networks/           # Exported nodes/edges CSV for the network visualizer
 │   └── suggestions/        # Output from the LLM judge
 └── data/
-    ├── 0_external/           # Raw external data (git submodule)
-    │   ├── alto/             # 80 ALTO XML files (OCR text fragments)
-    │   └── article_xml/      # 80 ground truth article XML files
-    └── 1_interim/            # Interim processed data (pipeline I/O)
-        ├── fragments/        # Parsed JSON fragments
-        ├── classified/       # Fragments enriched with 'predicted_class'
-        └── reconstructions/  # LLM clustered articles
+    ├── 0_external/           # Raw external datasets
+    │   └── <dataset_name>/   # E.g. ds-filteredUM1956alto (git submodule)
+    │       ├── alto/         # ALTO XML files (OCR text fragments)
+    │       └── article_xml/  # Ground truth article XML files
+    └── 1_interim/            # Interim pipeline I/O
+        └── <dataset_name>/
+            ├── fragments/        # Parsed JSON fragments
+            ├── classified/       # JSON fragments enriched with 'predicted_class'
+            └── reconstructions/  # LLM clustered articles (organized by run_id)
 ```
 
 ## Installation
