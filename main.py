@@ -110,7 +110,7 @@ def classify(
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     os.makedirs(output_folder, exist_ok=True)
-    client = make_client(model, base_url, api_key, timeout)
+    client = make_client(model=model, base_url=base_url, api_key=api_key, timeout=timeout)
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
@@ -175,7 +175,7 @@ def cluster(
 ):
     """Cluster fragments into articles using an LLM."""
     os.makedirs(output_folder, exist_ok=True)
-    client = make_client(model, base_url, api_key, timeout)
+    client = make_client(model=model, base_url=base_url, api_key=api_key, timeout=timeout)
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
     files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
