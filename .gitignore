@@ -31,3 +31,7 @@ reports/evaluations/*
 
 # Git submodule content
 data/0_external/
+reports/networks/*
+!reports/networks/.gitkeep
+reports/suggestions/*
+!reports/suggestions/.gitkeep
