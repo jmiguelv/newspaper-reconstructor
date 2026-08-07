@@ -1,38 +1,10 @@
-"""CLI entry point for article reconstruction and evaluation.
-
-Usage:
-    # Convert ALTO to JSON (no LLM call)
-    uv run python main.py --alto alto/UM-1956-01-09-6.xml --json-only
-
-    # Reconstruct a single page
-    uv run python main.py --alto alto/UM-1956-01-09-6.xml
-
-    # Reconstruct a directory of ALTO files
-    uv run python main.py --input-dir data/0_external/alto/
-
-    # Reconstruct + evaluate a single page
-    uv run python main.py --evaluate --alto alto/UM-1956-01-09-6.xml --article-xml article_xml/UM-1956-01-09-6.xml
-
-    # Reconstruct + evaluate a directory
-    uv run python main.py --evaluate --input-dir data/0_external/alto/ --ground-truth-dir data/0_external/article_xml/
-
-Options:
-    --model              Model name (or LLM_MODEL env var)
-    --base-url           OpenAI-compatible API base URL (or LLM_BASE_URL env var)
-    --api-key            API key (or LLM_API_KEY env var)
-    --output             Save results to file instead of stdout
-    --output-dir         Write one JSON file per page to this directory
-    --eval-dir           Directory for evaluation logs (default: reports/evaluations/)
-    --prompt-file        Read system prompt (and optionally user_prompt_template) from file
-"""
-
-import argparse
 import json
 import os
 import random
 import sys
 import time
 
+import typer
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -41,17 +13,22 @@ from src.newspaper_reconstructor.evaluate import (
     evaluate_page,
     load_ground_truth_dir,
     log_evaluation_run,
-    parse_article_xml,
 )
 from src.newspaper_reconstructor.llm import make_client
 from src.newspaper_reconstructor.reconstruct import (
-    load_fragments_cached,
-    reconstruct_articles_cached,
+    alto_to_json,
+    classify_fragments,
+    reconstruct_articles,
 )
 from src.newspaper_reconstructor.sort import sort_fragments
 
 _MD_SYSTEM_HEADING = "# System Prompt"
 _MD_USER_HEADING = "# User Prompt Template"
+
+app = typer.Typer(
+    help="Reconstruct articles from ALTO XML fragments using LLM pipelines.",
+    no_args_is_help=True,
+)
 
 
 def _parse_md_prompt(content: str) -> tuple[str, str]:
@@ -69,443 +46,238 @@ def _parse_md_prompt(content: str) -> tuple[str, str]:
     return system_prompt, user_prompt_template
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Reconstruct articles from ALTO XML fragments using LLM prompting."
-    )
-    parser.add_argument("--alto", help="Path to a single ALTO XML file")
-    parser.add_argument("--input-dir", help="Directory of ALTO or JSON fragment files")
-    parser.add_argument(
-        "--article-xml", help="Path to ground truth article XML (for single-page eval)"
-    )
-    parser.add_argument(
-        "--ground-truth-dir",
-        help="Directory of ground truth article XML files (for batch eval)",
-    )
-    parser.add_argument(
-        "--json-only",
-        action="store_true",
-        help="Convert ALTO to JSON and exit (no LLM call)",
-    )
-    parser.add_argument(
-        "--evaluate", action="store_true", help="Evaluate against ground truth"
-    )
-    parser.add_argument(
-        "--sort-fragments",
-        action="store_true",
-        help="Sort fragments before reconstruction (using spatial proximity)",
-    )
-    parser.add_argument(
-        "--suggest",
-        action="store_true",
-        help="Generate improvement suggestions using LLM judge",
-    )
-    parser.add_argument(
-        "--run-id",
-        default=None,
-        help="Specific evaluation run ID to analyze (used with --suggest)",
-    )
-    parser.add_argument("--model", default=None, help="LLM model name")
-    parser.add_argument(
-        "--base-url", default=None, help="OpenAI-compatible API base URL"
-    )
-    parser.add_argument("--api-key", default=None, help="API key")
-    parser.add_argument(
-        "--timeout",
-        type=float,
-        default=300.0,
-        help="LLM API request timeout in seconds (default: 300)",
-    )
-    parser.add_argument(
-        "--prompt-file",
-        default=None,
-        help="Read system prompt (and optionally user_prompt_template) from file",
-    )
-    parser.add_argument("--output", default=None, help="Save results to file")
-    parser.add_argument(
-        "--output-dir",
-        default=None,
-        help="Write one JSON file per page to this directory (for batch modes)",
-    )
-    parser.add_argument(
-        "--eval-dir",
-        default="reports/evaluations",
-        help="Directory for evaluation logs",
-    )
-    parser.add_argument(
-        "--interim-dir",
-        default="data/1_interim",
-        help="Directory for cached JSON fragments (default: data/1_interim)",
-    )
-    parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Re-parse ALTO XML even if cached JSON exists",
-    )
-    parser.add_argument(
-        "--sample-size",
-        type=int,
-        default=None,
-        help="Randomly sample N pages from the input directory",
-    )
-    parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed for reproducible sampling (use with --sample-size)",
-    )
-    args = parser.parse_args(argv)
-
-    model = args.model or os.environ.get("LLM_MODEL")
-
-    if not model:
-        print(
-            "Error: Model not set. Provide --model or set LLM_MODEL env var.",
-            file=sys.stderr,
-        )
-        return 1
-
-    prompt_file = args.prompt_file or "prompts/v00.md"
-    prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
-
+def _load_prompt(prompt_file: str) -> tuple[str, str]:
     with open(prompt_file, encoding="utf-8") as f:
         content = f.read()
     if prompt_file.endswith(".json"):
         data = json.loads(content)
-        system_prompt = data["system_prompt"]
-        user_prompt_template = data.get("user_prompt_template", "")
+        return data["system_prompt"], data.get("user_prompt_template", "")
     elif prompt_file.endswith(".md"):
-        system_prompt, user_prompt_template = _parse_md_prompt(content)
+        return _parse_md_prompt(content)
     else:
-        system_prompt = content
-        user_prompt_template = ""
-
-    if args.sort_fragments:
-        prompt_name = f"{prompt_name}_sorted"
-
-    # --json-only: convert and exit
-    if args.json_only:
-        if args.alto:
-            result = load_fragments_cached(args.alto, args.interim_dir, args.force)
-            _output(result, args.output)
-            return 0
-        if args.input_dir:
-            result = load_fragments_cached(args.input_dir, args.interim_dir, args.force)
-            if args.output_dir and isinstance(result, dict):
-                _output_dir(result, args.output_dir)
-                return 0
-            _output(result, args.output)
-            return 0
-        print("Error: --json-only requires --alto or --input-dir", file=sys.stderr)
-        return 1
-
-    if args.suggest:
-        if not args.run_id:
-            print(
-                "Error: --suggest requires --run-id to specify which evaluation log to analyze.",
-                file=sys.stderr,
-            )
-            return 1
-
-        # We import here to avoid circular dependencies or loading LLM judge if not needed
-        from src.newspaper_reconstructor.suggest import generate_suggestions
-
-        client = make_client(
-            base_url=args.base_url,
-            api_key=args.api_key,
-            model=model,
-            timeout=args.timeout,
-        )
-        return generate_suggestions(args.run_id, args.eval_dir, client, model)
-
-    # Determine mode: single page or directory
-    if args.input_dir:
-        return _run_input_dir(
-            args, model, system_prompt, user_prompt_template, prompt_name
-        )
-    elif args.alto:
-        return _run_single_page(
-            args, model, system_prompt, user_prompt_template, prompt_name
-        )
-
-    parser.print_help()
-    return 1
+        return content, ""
 
 
-def _run_single_page(
-    args, model: str, system_prompt: str, user_prompt_template: str, prompt_name: str
-) -> int:
-    fragments = load_fragments_cached(args.alto, args.interim_dir, args.force)
-    if args.sort_fragments:
-        fragments = sort_fragments(fragments)
-    page_id = os.path.splitext(os.path.basename(args.alto))[0]
+@app.command()
+def parse(
+    input_folder: str = typer.Option(
+        ..., "--input-folder", "-i", help="Directory of ALTO XML files"
+    ),
+    output_folder: str = typer.Option(
+        ..., "--output-folder", "-o", help="Directory to save JSON fragments"
+    ),
+):
+    """Parse ALTO XML files into JSON fragment lists."""
+    os.makedirs(output_folder, exist_ok=True)
+    count = 0
+    for fname in sorted(os.listdir(input_folder)):
+        if not fname.endswith(".xml"):
+            continue
+        in_path = os.path.join(input_folder, fname)
+        out_path = os.path.join(output_folder, f"{os.path.splitext(fname)[0]}.json")
 
-    if args.evaluate and args.article_xml:
-        return _reconstruct_and_eval_single(
-            args,
-            model,
-            fragments,
-            page_id,
-            system_prompt,
-            user_prompt_template,
-            prompt_name,
-        )
-
-    client = make_client(
-        base_url=args.base_url,
-        api_key=args.api_key,
-        model=model,
-        timeout=args.timeout,
-    )
-    result = reconstruct_articles_cached(
-        fragments,
-        client,
-        system_prompt,
-        user_prompt_template,
-        page_id,
-        args.interim_dir,
-        prompt_name,
-        model,
-        args.force,
-    )
-    if result is None:
-        print(f"[{page_id}] Reconstruction failed", file=sys.stderr)
-        return 1
-    _output({"page_id": page_id, "items": result}, args.output)
-    return 0
+        fragments = alto_to_json(in_path)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(fragments, f, indent=2, ensure_ascii=False)
+        count += 1
+    typer.echo(f"Parsed {count} files to {output_folder}")
 
 
-def _run_input_dir(
-    args, model: str, system_prompt: str, user_prompt_template: str, prompt_name: str
-) -> int:
-    pages = load_fragments_cached(args.input_dir, args.interim_dir, args.force)
-    if not isinstance(pages, dict):
-        print("Error: --input-dir expects a directory", file=sys.stderr)
-        return 1
+@app.command()
+def classify(
+    input_folder: str = typer.Option(
+        ..., "--input-folder", "-i", help="Directory of JSON fragments"
+    ),
+    prompt_file: str = typer.Option(
+        ..., "--prompt-file", "-p", help="Classification prompt file (.md or .json)"
+    ),
+    output_folder: str = typer.Option(
+        ..., "--output-folder", "-o", help="Directory to save classified JSON fragments"
+    ),
+    model: str = typer.Option(..., envvar="LLM_MODEL", help="LLM model name"),
+    base_url: str | None = typer.Option(
+        None, envvar="LLM_BASE_URL", help="API base URL"
+    ),
+    api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+    timeout: float = typer.Option(300.0, help="API timeout in seconds"),
+    sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
+    seed: int = typer.Option(42, help="Random seed for sampling"),
+):
+    """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
+    os.makedirs(output_folder, exist_ok=True)
+    client = make_client(model, base_url, api_key, timeout)
+    sys_prompt, user_prompt = _load_prompt(prompt_file)
 
-    all_page_ids = sorted(pages.keys())
-    if args.sample_size is not None and args.sample_size < len(all_page_ids):
-        rng = random.Random(args.seed)
-        all_page_ids = rng.sample(all_page_ids, args.sample_size)
-        print(f"Sampled {len(all_page_ids)} of {len(pages)} pages", file=sys.stderr)
+    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    if sample_size and sample_size < len(files):
+        random.seed(seed)
+        files = random.sample(files, sample_size)
 
-    client = make_client(
-        base_url=args.base_url,
-        api_key=args.api_key,
-        model=model,
-        timeout=args.timeout,
-    )
+    success = 0
+    for fname in files:
+        in_path = os.path.join(input_folder, fname)
+        out_path = os.path.join(output_folder, fname)
 
-    ground_truth = {}
-    if args.evaluate and args.ground_truth_dir:
-        ground_truth = load_ground_truth_dir(args.ground_truth_dir)
+        with open(in_path, encoding="utf-8") as f:
+            fragments = json.load(f)
 
-    eval_results = []
-    failed_pages = []
+        typer.echo(f"Classifying {fname}...")
+        classes = classify_fragments(fragments, client, sys_prompt, user_prompt)
 
-    start_time = time.time()
+        if classes:
+            # Enrich fragments
+            for frag in fragments:
+                if frag["id"] in classes:
+                    frag["predicted_class"] = classes[frag["id"]]
 
-    for page_id in all_page_ids:
-        print(f"[{page_id}] Reconstructing...", file=sys.stderr)
-        fragments = pages[page_id]
-        if args.sort_fragments:
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(fragments, f, indent=2, ensure_ascii=False)
+            success += 1
+        else:
+            typer.echo(f"Failed to classify {fname}", err=True)
+
+    typer.echo(f"Classified {success}/{len(files)} files to {output_folder}")
+
+
+@app.command()
+def cluster(
+    input_folder: str = typer.Option(
+        ...,
+        "--input-folder",
+        "-i",
+        help="Directory of JSON fragments (optionally classified)",
+    ),
+    prompt_file: str = typer.Option(
+        ..., "--prompt-file", "-p", help="Clustering prompt file (.md or .json)"
+    ),
+    output_folder: str = typer.Option(
+        ..., "--output-folder", "-o", help="Directory to save predicted articles"
+    ),
+    model: str = typer.Option(..., envvar="LLM_MODEL", help="LLM model name"),
+    base_url: str | None = typer.Option(
+        None, envvar="LLM_BASE_URL", help="API base URL"
+    ),
+    api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+    timeout: float = typer.Option(300.0, help="API timeout in seconds"),
+    sort_fragments_flag: bool = typer.Option(
+        False, "--sort-fragments", help="Sort fragments spatially before clustering"
+    ),
+    sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
+    seed: int = typer.Option(42, help="Random seed for sampling"),
+):
+    """Cluster fragments into articles using an LLM."""
+    os.makedirs(output_folder, exist_ok=True)
+    client = make_client(model, base_url, api_key, timeout)
+    sys_prompt, user_prompt = _load_prompt(prompt_file)
+
+    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    if sample_size and sample_size < len(files):
+        random.seed(seed)
+        files = random.sample(files, sample_size)
+
+    success = 0
+    for fname in files:
+        in_path = os.path.join(input_folder, fname)
+        out_path = os.path.join(output_folder, fname)
+
+        with open(in_path, encoding="utf-8") as f:
+            fragments = json.load(f)
+
+        if sort_fragments_flag:
             fragments = sort_fragments(fragments)
-        predicted = reconstruct_articles_cached(
-            fragments,
-            client,
-            system_prompt,
-            user_prompt_template,
-            page_id,
-            args.interim_dir,
-            prompt_name,
-            model,
-            args.force,
-        )
 
-        if predicted is None:
-            failed_pages.append(page_id)
-            print(f"[{page_id}] SKIPPED (reconstruction failed)", file=sys.stderr)
+        typer.echo(f"Clustering {fname}...")
+        articles = reconstruct_articles(fragments, client, sys_prompt, user_prompt)
+
+        if articles is not None:
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(articles, f, indent=2, ensure_ascii=False)
+            success += 1
+        else:
+            typer.echo(f"Failed to cluster {fname}", err=True)
+
+    typer.echo(f"Clustered {success}/{len(files)} files to {output_folder}")
+
+
+@app.command()
+def evaluate(
+    input_folder: str = typer.Option(
+        ..., "--input-folder", "-i", help="Directory of predicted articles JSON"
+    ),
+    ground_truth_folder: str = typer.Option(
+        ..., "--ground-truth-folder", "-g", help="Directory of ground truth XML"
+    ),
+    eval_dir: str = typer.Option(
+        "reports/evaluations", help="Directory for evaluation logs"
+    ),
+    run_id: str = typer.Option(
+        None, help="Identifier for this evaluation run (e.g., model_v1_sample16)"
+    ),
+):
+    """Evaluate predicted articles against ground truth XML."""
+    os.makedirs(eval_dir, exist_ok=True)
+
+    if run_id is None:
+        run_id = f"eval_{int(time.time())}"
+
+    gt_data = load_ground_truth_dir(ground_truth_folder)
+
+    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+
+    results = {}
+    for fname in files:
+        page_id = os.path.splitext(fname)[0]
+        if page_id not in gt_data:
+            typer.echo(f"Warning: No ground truth for {page_id}", err=True)
             continue
 
-        if page_id in ground_truth:
-            print(f"[{page_id}] Evaluating...", file=sys.stderr)
-            metrics = evaluate_page(predicted, ground_truth[page_id])
-            print(
-                f"[{page_id}] F1={metrics['clustering_f1']:.3f}  "
-                f"BCF1={metrics['bcubed_f1']:.3f}  "
-                f"coverage={metrics['coverage']:.3f}  "
-                f"class_acc={metrics['class_accuracy']}",
-                file=sys.stderr,
-            )
-        else:
-            metrics = None
-            if args.evaluate:
-                print(
-                    f"[{page_id}] No ground truth found, skipping evaluation",
-                    file=sys.stderr,
-                )
+        with open(os.path.join(input_folder, fname), encoding="utf-8") as f:
+            predicted_items = json.load(f)
 
-        eval_results.append(
-            {
-                "page_id": page_id,
-                "metrics": metrics,
-                "predicted_items": predicted,
-                "ground_truth_items": ground_truth.get(page_id),
-            }
-        )
+        page_metrics = evaluate_page(predicted_items, gt_data[page_id])
+        results[page_id] = page_metrics
 
-    if failed_pages:
-        print(
-            f"\nFailed pages ({len(failed_pages)}): {', '.join(failed_pages)}",
-            file=sys.stderr,
-        )
+    if not results:
+        typer.echo("No matching pages found for evaluation.", err=True)
+        raise typer.Exit(1)
 
-    if args.evaluate and args.ground_truth_dir:
-        paged_results = [r for r in eval_results if r["metrics"] is not None]
-        config = {
-            "provider": "openai",
-            "model": model,
-            "base_url": args.base_url or os.environ.get("LLM_BASE_URL"),
-            "system_prompt": system_prompt,
-            "user_prompt_template": user_prompt_template,
-            "prompt_name": prompt_name,
-            "sample_size": args.sample_size,
-            "pages_processed": len(eval_results),
-            "pages_failed": len(failed_pages),
-            "seed": args.seed,
-            "execution_time_seconds": time.time() - start_time,
-        }
-        log_path = log_evaluation_run(paged_results, config, args.eval_dir)
-        print(f"\nEvaluation log saved to: {log_path}", file=sys.stderr)
-
-        if paged_results:
-            f1s = [r["metrics"]["clustering_f1"] for r in paged_results]
-            bcubed_f1s = [r["metrics"]["bcubed_f1"] for r in paged_results]
-            coverages = [r["metrics"]["coverage"] for r in paged_results]
-            class_accs = [
-                r["metrics"]["class_accuracy"]
-                for r in paged_results
-                if r["metrics"]["class_accuracy"] is not None
-            ]
-            requested = args.sample_size or len(all_page_ids)
-            print(
-                f"\n=== Summary ({len(paged_results)}/{requested} pages, {len(failed_pages)} skipped) ===",
-                file=sys.stderr,
-            )
-            print(
-                f"  Mean clustering F1:    {sum(f1s) / len(f1s):.4f}", file=sys.stderr
-            )
-            print(
-                f"  Mean B-cubed F1:       {sum(bcubed_f1s) / len(bcubed_f1s):.4f}",
-                file=sys.stderr,
-            )
-            print(
-                f"  Mean coverage:         {sum(coverages) / len(coverages):.4f}",
-                file=sys.stderr,
-            )
-            if class_accs:
-                print(
-                    f"  Mean class accuracy:   {sum(class_accs) / len(class_accs):.4f}",
-                    file=sys.stderr,
-                )
-
-    all_results = {r["page_id"]: r["predicted_items"] for r in eval_results}
-    if args.output_dir:
-        _output_dir(all_results, args.output_dir)
-    else:
-        _output(eval_results if args.evaluate else all_results, args.output)
-    return 0
-
-
-def _reconstruct_and_eval_single(
-    args, model, fragments, page_id, system_prompt, user_prompt_template, prompt_name
-):
-    client = make_client(
-        base_url=args.base_url,
-        api_key=args.api_key,
-        model=model,
-        timeout=args.timeout,
-    )
-    start_time = time.time()
-    predicted = reconstruct_articles_cached(
-        fragments,
-        client,
-        system_prompt,
-        user_prompt_template,
-        page_id,
-        args.interim_dir,
-        prompt_name,
-        model,
-        args.force,
-    )
-    if predicted is None:
-        print(
-            f"[{page_id}] Reconstruction failed, skipping evaluation", file=sys.stderr
-        )
-        return 1
-
-    truth = parse_article_xml(args.article_xml)
-    metrics = evaluate_page(predicted, truth)
-
-    print(f"\n=== {page_id} ===", file=sys.stderr)
-    print(f"  Clustering F1:  {metrics['clustering_f1']:.4f}", file=sys.stderr)
-    print(f"  B-cubed F1:      {metrics['bcubed_f1']:.4f}", file=sys.stderr)
-    print(f"  Precision:      {metrics['clustering_precision']:.4f}", file=sys.stderr)
-    print(f"  Recall:         {metrics['clustering_recall']:.4f}", file=sys.stderr)
-    print(f"  Class accuracy: {metrics['class_accuracy']}", file=sys.stderr)
-    print(f"  Coverage:       {metrics['coverage']:.4f}", file=sys.stderr)
-    print(
-        f"  Items:          {metrics['num_predicted_items']} pred / {metrics['num_ground_truth_items']} truth",
-        file=sys.stderr,
-    )
-
+    # Mock config for log since we decoupled it
     config = {
-        "provider": "openai",
-        "model": model,
-        "base_url": args.base_url or os.environ.get("LLM_BASE_URL"),
-        "system_prompt": system_prompt,
-        "user_prompt_template": user_prompt_template,
-        "prompt_name": prompt_name,
-        "sample_size": None,
-        "seed": args.seed,
-        "execution_time_seconds": time.time() - start_time,
+        "run_id": run_id,
+        "input_folder": input_folder,
+        "ground_truth_folder": ground_truth_folder,
     }
-    log_path = log_evaluation_run(
-        [
-            {
-                "page_id": page_id,
-                "metrics": metrics,
-                "predicted_items": predicted,
-                "ground_truth_items": truth,
-            }
-        ],
-        config,
-        args.eval_dir,
-    )
-    print(f"\nEvaluation log: {log_path}", file=sys.stderr)
-
-    _output({"page_id": page_id, "items": predicted, "metrics": metrics}, args.output)
-    return 0
+    log_path = log_evaluation_run(results, config, eval_dir, run_id)
+    typer.echo(f"Evaluation complete. Logs saved to {log_path}")
 
 
-def _output(data, output_path):
-    if output_path:
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(f"Results saved to {output_path}", file=sys.stderr)
-    else:
-        print(json.dumps(data, indent=2, ensure_ascii=False))
+@app.command()
+def suggest(
+    run_id: str = typer.Option(..., help="Run ID of the evaluation to analyze"),
+    model: str = typer.Option(..., envvar="LLM_MODEL", help="LLM model name"),
+    base_url: str | None = typer.Option(
+        None, envvar="LLM_BASE_URL", help="API base URL"
+    ),
+    api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+):
+    """Analyze evaluation logs and suggest improvements using LLM judge."""
+    # We will invoke the suggest logic here. Let's just run it as a subprocess for now
+    # to avoid modifying suggest.py directly, or we can import it.
+    from src.newspaper_reconstructor.suggest import main as suggest_main
 
+    # suggest.py uses sys.argv, so we override it temporarily
+    old_argv = sys.argv
+    sys.argv = ["suggest.py", run_id, "--model", model]
+    if base_url:
+        sys.argv.extend(["--base-url", base_url])
+    if api_key:
+        sys.argv.extend(["--api-key", api_key])
 
-def _output_dir(pages: dict, output_dir: str):
-    """Write one JSON file per page to output_dir."""
-    os.makedirs(output_dir, exist_ok=True)
-    for page_id, data in pages.items():
-        path = os.path.join(output_dir, f"{page_id}.json")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-    print(f"Wrote {len(pages)} files to {output_dir}/", file=sys.stderr)
+    try:
+        suggest_main()
+    finally:
+        sys.argv = old_argv
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    app()
