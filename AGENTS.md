@@ -20,7 +20,7 @@ ALTO XML → main.py parse (extract JSON fragments)
          → main.py classify (enrich JSON with predicted classes via LLM)
          → main.py cluster (reconstruct JSON fragments into articles via LLM)
          → main.py evaluate (compare against ground truth article XML)
-         → generate_dashboard.py (visualize eval logs as HTML)
+         → dashboard.html (visualize eval logs as HTML)
 ```
 
 ### Module roles
@@ -33,7 +33,7 @@ ALTO XML → main.py parse (extract JSON fragments)
 | `reconstruct.py`        | Data transformation, dict parsing, and mapping to LLM inputs |
 | `llm.py`                | LLM client wrapper (OpenAI-compatible API), client factory |
 | `evaluate.py`           | Ground truth parsing, clustering F1, class accuracy, coverage |
-| `generate_dashboard.py` | Generates interactive Alpine.js HTML dashboard from JSON eval logs |
+| `dashboard.html`        | Interactive Alpine.js HTML dashboard to visualize JSON eval logs |
 | `generate_network.py`   | Exports evaluation JSON to nodes/edges CSV for network visualizer |
 
 ## Code Conventions
@@ -61,7 +61,7 @@ data/
         ├── classified/       # JSON fragments enriched with 'predicted_class'
         └── reconstructions/  # LLM clustered articles (organized by run_id)
 reports/
-├── evaluations/          # Evaluation logs and dashboard.html
+├── evaluations/          # Evaluation logs
 ├── networks/             # Exported nodes/edges CSV for the network visualizer
 └── suggestions/          # Output from the LLM judge
 ```

@@ -189,6 +189,10 @@ def cluster(
         random.seed(seed)
         files = random.sample(files, sample_size)
 
+    import time
+
+    start_time = time.time()
+
     success = 0
     for fname in files:
         in_path = os.path.join(input_folder, fname)
@@ -210,7 +214,16 @@ def cluster(
         else:
             typer.echo(f"Failed to cluster {fname}", err=True)
 
-    typer.echo(f"Clustered {success}/{len(files)} files to {output_folder}")
+    execution_time_seconds = time.time() - start_time
+
+    # Save metadata for evaluation dashboard
+    metadata_path = os.path.join(output_folder, "_metadata.json")
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump({"execution_time_seconds": execution_time_seconds}, f, indent=2)
+
+    typer.echo(
+        f"Clustered {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s"
+    )
 
 
 @app.command()
@@ -271,6 +284,17 @@ def evaluate(
         "input_folder": input_folder,
         "ground_truth_folder": ground_truth_folder,
     }
+
+    metadata_path = os.path.join(input_folder, "_metadata.json")
+    if os.path.exists(metadata_path):
+        try:
+            with open(metadata_path, encoding="utf-8") as f:
+                meta = json.load(f)
+                if "execution_time_seconds" in meta:
+                    config["execution_time_seconds"] = meta["execution_time_seconds"]
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            typer.echo(f"Warning: Failed to read metadata.json: {e}", err=True)
+
     log_path = log_evaluation_run(results, config, eval_dir, run_id)
     typer.echo(f"Evaluation complete. Logs saved to {log_path}")
 

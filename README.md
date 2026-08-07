@@ -22,7 +22,7 @@ flowchart LR
 ```
 article-reconstruction/
 ├── main.py                 # Typer CLI entry point (parse, classify, cluster, evaluate)
-├── generate_dashboard.py   # Alpine.js HTML dashboard generator for evaluation logs
+├── dashboard.html          # Standalone Alpine.js HTML dashboard for evaluation logs
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for the network visualizer
 ├── pipeline.sh             # Single run evaluation orchestrator script
 ├── run_experiments.sh      # Batch evaluation grid-search script
@@ -35,7 +35,7 @@ article-reconstruction/
 ├── tests/                  # Unit tests + end-to-end tests
 ├── prompts/                # Prompt files (e.g. classify.md, v00.md)
 ├── reports/
-│   ├── evaluations/        # Evaluation logs (JSON) and dashboard.html
+│   ├── evaluations/        # Evaluation logs (JSON)
 │   ├── networks/           # Exported nodes/edges CSV for the network visualizer
 │   └── suggestions/        # Output from the LLM judge
 └── data/
@@ -130,7 +130,7 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 
 Evaluation logs are saved as JSON files in the `--eval-dir` directory. They contain per-page metrics, aggregate summaries (including execution time), and run configuration.
 
-Run `uv run python generate_dashboard.py` to generate an interactive HTML dashboard (`dashboard.html`) in the evaluation directory to visualize these metrics.
+Open `dashboard.html` in your browser and select the project folder (or host it with a local server) to visualize these metrics.
 
 ### Export for Network Visualization
 

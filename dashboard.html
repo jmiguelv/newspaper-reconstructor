@@ -1,16 +1,4 @@
-"""Generate a self-contained evaluation dashboard HTML from eval JSON files.
-
-Usage:
-    uv run python generate_dashboard.py
-    uv run python generate_dashboard.py --eval-dir reports/evaluations --output dashboard.html
-"""
-
-import argparse
-import glob
-import json
-import os
-
-HTML_TEMPLATE = r"""<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -586,18 +574,27 @@ HTML_TEMPLATE = r"""<!doctype html>
         }
     </style>
 </head>
-<body>
-    <header role="banner">
-        <h1>Evaluation Dashboard</h1>
-        <p x-data x-text="EVAL_DATA.length + ' evaluation runs — Jawi Newspaper Article Reconstruction'">…</p>
-        <p style="margin-top: var(--space-s); max-width: 72ch; font-size: var(--step--1);">
-            Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM to group fragments into complete items (articles, advertisements, etc.). Includes evaluation against ground truth article XML using pairwise clustering F1, class accuracy, and coverage metrics.
-            <br><br>
-            Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
-        </p>
+<body x-data="dashboard()" x-cloak>
+    <header role="banner" style="display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-l); flex-wrap: wrap; margin-bottom: var(--space-xl);">
+        <div>
+            <h1 style="margin-bottom: var(--space-3xs);">Evaluation Dashboard</h1>
+            <p x-text="runs.length + ' evaluation runs — Jawi Newspaper Article Reconstruction'">…</p>
+            <p style="margin-top: var(--space-s); max-width: 72ch; font-size: var(--step--1);">
+                Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM to group fragments into complete items (articles, advertisements, etc.). Includes evaluation against ground truth article XML using pairwise clustering F1, class accuracy, and coverage metrics.
+                <br><br>
+                Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
+            </p>
+        </div>
+        <div style="text-align: right; flex-shrink: 0;">
+            <label class="button" style="cursor: pointer; display: inline-block; background: var(--blue-bg); color: var(--blue); padding: 0.5rem 1rem; border-radius: 0.5rem; font-weight: 500; font-size: var(--step--1); border: 1px solid var(--blue); transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+                <span x-text="runs.length === 0 ? 'Select Project Folder' : 'Switch Project Folder'">Select Project Folder</span>
+                <input type="file" webkitdirectory directory multiple @change="handleFilesSelected" style="display: none;">
+            </label>
+            <p class="muted" style="margin-top: var(--space-3xs); font-size: var(--step--2);">Select root folder</p>
+        </div>
     </header>
 
-    <main x-data="dashboard()" x-cloak>
+    <main>
 
         <!-- ── Reference Section ────────────────────────────────────── -->
         <section style="margin-bottom: var(--space-xl);">
@@ -643,7 +640,13 @@ HTML_TEMPLATE = r"""<!doctype html>
             <details class="prompts-info" style="margin-bottom: var(--space-s);">
                 <summary>Prompts reference</summary>
                 <div style="padding: var(--space-s); background: var(--surface-2); border-radius: 0.5rem; border: 1px solid var(--rule); margin-top: var(--space-s); display: flex; flex-direction: column; gap: var(--space-s);">
-                    __PROMPTS_PLACEHOLDER__
+                    <template x-for="p in prompts" :key="p.name">
+                        <details>
+                            <summary><strong style="color: var(--ink);" x-text="p.name"></strong></summary>
+                            <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--surface-3); border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); overflow-x: auto; white-space: pre-wrap;" x-text="p.content"></pre>
+                        </details>
+                    </template>
+                    <p x-show="prompts.length === 0" class="muted">No prompts loaded.</p>
                 </div>
             </details>
 
@@ -702,11 +705,13 @@ HTML_TEMPLATE = r"""<!doctype html>
         <section>
             <h2>Runs</h2>
 
-            <div x-show="bestF1Run" style="margin-bottom: var(--space-m); font-size: var(--step--1); color: var(--ink-light); max-width: 80ch;">
-                The highest Clustering F1 score (<strong x-text="fmt(bestF1Run.aggregate.mean_clustering_f1)"></strong>) was achieved by <strong x-text="bestF1Run.config.model" style="color: var(--ink);"></strong> using prompt <code x-text="bestF1Run.config.prompt_name"></code>.
-                For Class Accuracy, the top performer is <strong x-text="bestAccRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestAccRun.aggregate.mean_class_accuracy)"></strong>),
-                while the best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
-            </div>
+            <template x-if="bestF1Run">
+                <div style="margin-bottom: var(--space-m); font-size: var(--step--1); color: var(--ink-light); max-width: 80ch;">
+                    The highest Clustering F1 score (<strong x-text="fmt(bestF1Run.aggregate.mean_clustering_f1)"></strong>) was achieved by <strong x-text="bestF1Run.config.model" style="color: var(--ink);"></strong> using prompt <code x-text="bestF1Run.config.prompt_name"></code>.
+                    For Class Accuracy, the top performer is <strong x-text="bestAccRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestAccRun.aggregate.mean_class_accuracy)"></strong>),
+                    while the best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
+                </div>
+            </template>
             <div style="display: flex; align-items: center; gap: var(--space-s); margin-bottom: var(--space-m); flex-wrap: wrap; font-size: var(--step--1); color: var(--ink-light);">
                 <label for="model-filter" style="white-space: nowrap;">Model</label>
                 <select id="model-filter" x-model="filterModel" style="font-size: var(--step--1); padding: 0.2em 0.5em; border: 1px solid var(--rule); border-radius: 0.25rem; background: var(--surface); color: var(--ink); cursor: pointer;">
@@ -825,14 +830,21 @@ HTML_TEMPLATE = r"""<!doctype html>
                     <summary>Configuration</summary>
                     <dl class="config-grid">
                         <div><dt>Run ID</dt><dd x-text="activeRun.run_id" style="font-family: var(--font-mono);"></dd></div>
-                        <div><dt>Provider</dt><dd x-text="activeRun.config.provider"></dd></div>
+                        <div x-show="activeRun.config.provider"><dt>Provider</dt><dd x-text="activeRun.config.provider"></dd></div>
                         <div><dt>Model</dt><dd x-text="activeRun.config.model"></dd></div>
                         <div><dt>Prompt</dt><dd x-text="activeRun.config.prompt_name"></dd></div>
                         <div><dt>Sample size</dt><dd x-text="activeRun.config.sample_size || 'all'"></dd></div>
                         <div><dt>Seed</dt><dd x-text="activeRun.config.seed || '—'"></dd></div>
-                        <div><dt>Base URL</dt><dd x-text="activeRun.config.base_url || '—'"></dd></div>
-                        <div><dt>System prompt</dt><dd x-text="truncate(activeRun.config.system_prompt, 500)"></dd></div>
-                        <div><dt>User prompt template</dt><dd x-text="truncate(activeRun.config.user_prompt_template, 500)"></dd></div>
+                        <div x-show="activeRun.config.base_url"><dt>Base URL</dt><dd x-text="activeRun.config.base_url"></dd></div>
+                        <template x-if="activeRun.config.system_prompt">
+                            <div><dt>System prompt</dt><dd x-text="truncate(activeRun.config.system_prompt, 500)"></dd></div>
+                        </template>
+                        <template x-if="activeRun.config.user_prompt_template">
+                            <div><dt>User prompt template</dt><dd x-text="truncate(activeRun.config.user_prompt_template, 500)"></dd></div>
+                        </template>
+                        <template x-if="!activeRun.config.system_prompt">
+                            <div><dt>Prompt Content</dt><dd x-text="truncate(prompts.find(p => p.name === activeRun.config.prompt_name)?.content || 'Prompt not found in loaded files.', 500)"></dd></div>
+                        </template>
                     </dl>
                 </details>
 
@@ -975,16 +987,155 @@ HTML_TEMPLATE = r"""<!doctype html>
             </section>
         </template>
 
-        <p x-show="runs.length === 0" class="muted">No evaluation files found. Run evaluations first.</p>
+        
+        <div x-show="runs.length === 0" style="text-align: center; margin: var(--space-xl) 0;">
+            <p class="muted" style="margin-bottom: var(--space-m);" x-text="isLoading ? 'Loading...' : 'No evaluation files found. Select the project folder to load data.'"></p>
+        </div>
+
     </main>
 
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
-        const EVAL_DATA = __DATA_PLACEHOLDER__;
-
         function dashboard() {
             return {
-                runs: EVAL_DATA,
+                runs: [],
+                prompts: [],
+                isLoading: false,
+                sortKey: 'aggregate.mean_clustering_f1',
+                sortDir: 'desc',
+                pageSortKey: 'page_id',
+                pageSortDir: 'asc',
+                expandedRun: null,
+                expandedPage: null,
+                minCompletionRatio: 0.5,
+                filterModel: '',
+                filterPrompt: '',
+                filterSampleSize: '',
+                
+                async init() {
+                    this.isLoading = true;
+                    try {
+                        await this.autoLoadData();
+                    } catch (e) {
+                        console.log("Auto-load failed, waiting for user selection.", e);
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
+                enrichRunConfig(runData) {
+                    if (!runData.config) runData.config = {};
+                    const runId = runData.run_id || '';
+                    
+                    if (!runData.config.model) {
+                        const m = runId.match(/create_(.+?)_c-/);
+                        runData.config.model = m ? m[1] : (runId.length > 20 ? runId.substring(0, 20) + '...' : runId);
+                    }
+                    if (!runData.config.prompt_name) {
+                        const m = runId.match(/_r-(.+?)(?:_|$)/);
+                        runData.config.prompt_name = m ? m[1] : 'unknown';
+                    }
+                    if (!runData.config.sample_size) {
+                        const m = runId.match(/_sample(\d+)/);
+                        runData.config.sample_size = m ? m[1] : 'all';
+                    }
+                    if (!runData.config.seed) {
+                        const m = runId.match(/_seed(\d+)/);
+                        if (m) runData.config.seed = m[1];
+                    }
+                },
+
+                async autoLoadData() {
+                    // Prevent ugly CORS errors in the console if opened directly via file://
+                    if (window.location.protocol === 'file:') {
+                        return;
+                    }
+
+                    // Attempt to fetch from local server directory listing
+                    const [evalRes, promptRes] = await Promise.allSettled([
+                        fetch('reports/evaluations/'),
+                        fetch('prompts/')
+                    ]);
+
+                    if (evalRes.status === 'fulfilled' && evalRes.value.ok) {
+                        const html = await evalRes.value.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const links = Array.from(doc.querySelectorAll('a')).map(a => a.getAttribute('href'));
+                        const jsonFiles = links.filter(href => href && href.endsWith('.json')).map(href => href.split('/').pop());
+                        
+                        const runs = [];
+                        for (const file of jsonFiles) {
+                            const res = await fetch(`reports/evaluations/${file}`);
+                            if (res.ok) {
+                                const runData = await res.json();
+                                this.enrichRunConfig(runData);
+                                runs.push(runData);
+                            }
+                        }
+                        this.runs = runs;
+                    }
+
+                    if (promptRes.status === 'fulfilled' && promptRes.value.ok) {
+                        const html = await promptRes.value.text();
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(html, 'text/html');
+                        const links = Array.from(doc.querySelectorAll('a')).map(a => a.getAttribute('href'));
+                        const mdFiles = links.filter(href => href && href.endsWith('.md')).map(href => href.split('/').pop());
+                        
+                        const prompts = [];
+                        for (const file of mdFiles) {
+                            const res = await fetch(`prompts/${file}`);
+                            if (res.ok) {
+                                prompts.push({
+                                    name: file.replace('.md', ''),
+                                    content: await res.text()
+                                });
+                            }
+                        }
+                        this.prompts = prompts;
+                    }
+                },
+
+                async handleFilesSelected(event) {
+                    this.isLoading = true;
+                    this.runs = [];
+                    this.prompts = [];
+                    try {
+                        const files = Array.from(event.target.files);
+                        
+                        const evalFiles = files.filter(f => f.name.endsWith('.json') && f.webkitRelativePath.includes('reports/evaluations'));
+                        const promptFiles = files.filter(f => f.name.endsWith('.md') && f.webkitRelativePath.includes('prompts'));
+                        
+                        // Parse JSONs
+                        const parsedRuns = [];
+                        for (const file of evalFiles) {
+                            const text = await file.text();
+                            try {
+                                const runData = JSON.parse(text);
+                                if (!runData.run_id || !runData.aggregate) continue; // Skip invalid JSONs
+                                this.enrichRunConfig(runData);
+                                parsedRuns.push(runData);
+                            } catch(e) { console.error("Failed to parse", file.name, e); }
+                        }
+                        this.runs = parsedRuns;
+                        
+                        // Parse Prompts
+                        const parsedPrompts = [];
+                        for (const file of promptFiles) {
+                            const text = await file.text();
+                            parsedPrompts.push({
+                                name: file.name.replace('.md', ''),
+                                content: text
+                            });
+                        }
+                        this.prompts = parsedPrompts.sort((a,b) => a.name.localeCompare(b.name));
+                        
+                    } finally {
+                        this.isLoading = false;
+                    }
+                },
+
                 sortKey: 'aggregate.mean_clustering_f1',
                 sortDir: 'desc',
                 pageSortKey: 'page_id',
@@ -1195,86 +1346,4 @@ HTML_TEMPLATE = r"""<!doctype html>
         }
     </script>
 </body>
-</html>"""
-
-
-def load_evaluations(eval_dir: str = "reports/evaluations") -> list[dict]:
-    """Load all evaluation JSON files from the given directory."""
-    runs = []
-    for path in sorted(glob.glob(os.path.join(eval_dir, "*.json"))):
-        with open(path, encoding="utf-8") as f:
-            runs.append(json.load(f))
-    return runs
-
-
-def load_prompts(prompts_dir: str = "prompts") -> list[dict]:
-    """Load all prompt .md files from the given directory, sorted by name."""
-    prompts = []
-    for path in sorted(glob.glob(os.path.join(prompts_dir, "*.md"))):
-        name = os.path.splitext(os.path.basename(path))[0]
-        with open(path, encoding="utf-8") as f:
-            content = f.read()
-        prompts.append({"name": name, "content": content})
-    return prompts
-
-
-def _render_prompts_html(prompts: list[dict]) -> str:
-    """Render prompt files as a series of expandable <details> blocks."""
-    if not prompts:
-        return "<p>No prompt files found.</p>"
-    parts = []
-    for p in prompts:
-        escaped = (
-            p["content"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-        )
-        parts.append(
-            f"<details>\n"
-            f'    <summary><strong style="color: var(--ink);">{p["name"]}</strong></summary>\n'
-            f'    <pre style="margin-top: var(--space-2xs); padding: var(--space-s); background: var(--bg); '
-            f"border: 1px solid var(--rule); border-radius: 0.25rem; font-size: var(--step--2); "
-            f'overflow-x: auto; white-space: pre-wrap;">{escaped}</pre>\n'
-            f"</details>"
-        )
-    return "\n".join(parts)
-
-
-def generate_html(runs: list[dict], prompts: list[dict]) -> str:
-    """Generate a self-contained HTML dashboard with embedded eval data."""
-    embedded = json.dumps(runs, ensure_ascii=False)
-    prompts_html = _render_prompts_html(prompts)
-    return HTML_TEMPLATE.replace("__DATA_PLACEHOLDER__", embedded).replace(
-        "__PROMPTS_PLACEHOLDER__", prompts_html
-    )
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Generate an evaluation dashboard HTML from eval JSON files."
-    )
-    parser.add_argument(
-        "--eval-dir",
-        default="reports/evaluations",
-        help="Directory containing evaluation JSON files (default: reports/evaluations)",
-    )
-    parser.add_argument(
-        "--output",
-        default="reports/evaluations/dashboard.html",
-        help="Output HTML file path (default: reports/evaluations/dashboard.html)",
-    )
-    args = parser.parse_args()
-
-    runs = load_evaluations(args.eval_dir)
-    if not runs:
-        print(f"No evaluation files found in {args.eval_dir}")
-
-    prompts = load_prompts()
-    html = generate_html(runs, prompts)
-    os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
-    with open(args.output, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"Dashboard written to {args.output} ({len(runs)} runs)")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+</html>
