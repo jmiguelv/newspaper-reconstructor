@@ -18,7 +18,7 @@ if [ -z "$DATASET" ]; then
 fi
 
 CLASSIFY_PROMPTS=(
-  "prompts/classify_v00.md"
+  "prompts/classify_v01.md"
 )
 
 CLUSTER_PROMPTS=(
