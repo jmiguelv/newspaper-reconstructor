@@ -10,7 +10,6 @@ from generate_network import (
     derive_eval_name,
     export_eval_log,
     export_page,
-    load_fragments,
 )
 
 
@@ -178,21 +177,6 @@ class TestBuildSegmentMaps:
         llm_map, gt_map = build_segment_maps(None, None)
         assert llm_map == {}
         assert gt_map == {}
-
-
-# ─── load_fragments ──────────────────────────────────────────────────────────
-
-
-class TestLoadFragments:
-    def test_loads_existing(self, tmp_path):
-        _write_fragment_cache(tmp_path, "test_page", _make_fragments())
-        result = load_fragments("test_page", str(tmp_path / "interim"))
-        assert len(result) == 3
-        assert result[0]["id"] == "r_1"
-
-    def test_returns_none_if_missing(self, tmp_path):
-        result = load_fragments("nonexistent", str(tmp_path / "interim"))
-        assert result is None
 
 
 # ─── export_page ────────────────────────────────────────────────────────────

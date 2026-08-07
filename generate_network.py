@@ -64,6 +64,28 @@ EDGE_COLUMNS = [
 def derive_eval_name(config: dict, override: str | None = None) -> str:
     if override:
         return override
+
+    # Parse missing configuration fields from run_id (since they were decoupled)
+    import re
+
+    run_id = config.get("run_id", "")
+    if "model" not in config and "create_" in run_id:
+        m = re.search(r"create_(.+?)_c-", run_id)
+        if m:
+            config["model"] = m.group(1)
+    if "prompt_name" not in config and "_r-" in run_id:
+        m = re.search(r"_r-(.+?)(?:_|$)", run_id)
+        if m:
+            config["prompt_name"] = m.group(1)
+    if "sample_size" not in config and "_sample" in run_id:
+        m = re.search(r"_sample(\d+)", run_id)
+        if m:
+            config["sample_size"] = int(m.group(1))
+    if "seed" not in config and "_seed" in run_id:
+        m = re.search(r"_seed(\d+)", run_id)
+        if m:
+            config["seed"] = int(m.group(1))
+
     parts = [config.get("prompt_name", "unknown")]
     model = config.get("model", "unknown")
     parts.append(model)
@@ -74,14 +96,6 @@ def derive_eval_name(config: dict, override: str | None = None) -> str:
     if seed is not None:
         parts.append(f"seed{seed}")
     return "_".join(parts)
-
-
-def load_fragments(page_id: str, interim_dir: str) -> list[dict] | None:
-    path = Path(interim_dir) / "fragments" / f"{page_id}.json"
-    if not path.exists():
-        return None
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
 
 
 def build_segment_maps(
@@ -183,22 +197,39 @@ def export_eval_log(
         log = json.load(f)
 
     config = log.get("config", {})
-    model = config.get("model", "unknown")
     name = derive_eval_name(config, eval_name)
+    model = config.get("model", "unknown")
     eval_dir = Path(output_dir) / name
     nodes_dir = eval_dir / "nodes"
     edges_dir = eval_dir / "edges"
     nodes_dir.mkdir(parents=True, exist_ok=True)
     edges_dir.mkdir(parents=True, exist_ok=True)
 
+    # Infer fragments directory from input_folder if available
+    input_folder = config.get("input_folder")
+    if input_folder:
+        # e.g., data/1_interim/ds-filteredUM1956alto/reconstructions/run_id
+        # We want data/1_interim/ds-filteredUM1956alto/fragments
+        fragments_dir = Path(input_folder).parent.parent / "fragments"
+    else:
+        fragments_dir = Path(interim_dir) / "fragments"
+
     pages = log.get("pages", [])
     exported = 0
     for page in pages:
         page_id = page["page_id"]
-        fragments = load_fragments(page_id, interim_dir)
+
+        path = fragments_dir / f"{page_id}.json"
+        if not path.exists():
+            fragments = None
+        else:
+            with open(path, encoding="utf-8") as f:
+                fragments = json.load(f)
+
         if fragments is None:
             print(
-                f"[{page_id}] WARN: fragment cache missing, skipping", file=sys.stderr
+                f"[{page_id}] WARN: fragment cache missing ({path}), skipping",
+                file=sys.stderr,
             )
             continue
         export_page(page, fragments, image_base_url, nodes_dir, edges_dir, model)

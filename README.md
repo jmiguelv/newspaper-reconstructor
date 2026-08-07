@@ -140,6 +140,12 @@ Export an evaluation log to nodes and edges CSV files for the [article-network-v
 uv run python generate_network.py --eval-log reports/evaluations/<file>.json
 ```
 
+**Options:**
+- `--output-dir`: Base output directory (default: `reports/networks`, env: `OUTPUT_DIR`)
+- `--image-base-url`: Base URL for page scan images (default: `https://jawi.sgp1.digitaloceanspaces.com/page_scans`, env: `IMAGE_BASE_URL`)
+- `--interim-dir`: Directory for cached fragments (default: `data/1_interim`, overridden by `input_folder` in evaluation config if present)
+- `--eval-name`: Override the auto-generated evaluation subdirectory name
+
 This creates one CSV per page in `reports/networks/{eval_name}/nodes/` and `reports/networks/{eval_name}/edges/`. Nodes carry per-fragment coordinates, OCR text, and segment assignments (`{model}_segment`, `ground_truth_segment`). Edges connect fragments within the same LLM-predicted item and include an `edge_weight` column (`1.0` when the grouping agrees with ground truth, `-1.0` when it does not). Page-level evaluation metrics (`clustering_f1`, `bcubed_f1`, `coverage`, `class_accuracy`, `tp`, `fp`, `fn`) are appended as constant columns on every edge row.
 
 ## Testing

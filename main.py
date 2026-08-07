@@ -250,7 +250,11 @@ def evaluate(
 
     gt_data = load_ground_truth_dir(ground_truth_folder)
 
-    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    files = [
+        f
+        for f in sorted(os.listdir(input_folder))
+        if f.endswith(".json") and not f.startswith("_")
+    ]
     if page_id:
         files = [f for f in files if f.startswith(page_id)]
 
