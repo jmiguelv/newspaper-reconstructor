@@ -24,7 +24,8 @@ article-reconstruction/
 ├── main.py                 # Typer CLI entry point (parse, classify, cluster, evaluate)
 ├── generate_dashboard.py   # Alpine.js HTML dashboard generator for evaluation logs
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for the network visualizer
-├── pipeline.sh             # End-to-end evaluation orchestrator script
+├── pipeline.sh             # Single run evaluation orchestrator script
+├── run_experiments.sh      # Batch evaluation grid-search script
 ├── src/
 │   └── newspaper_reconstructor/
 │       ├── reconstruct.py  # Data parsing and LLM API mapping

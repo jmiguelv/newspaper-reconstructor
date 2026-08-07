@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# run_experiments.sh: Orchestrates multiple evaluation runs across combinations of prompts, models, and sample sizes.
+set -euo pipefail
+
+PROMPTS=(
+  "prompts/v00.md"
+  "prompts/v01.md"
+  "prompts/v02.md"
+  "prompts/v03.md"
+  "prompts/v04.md"
+)
+
+MODELS=(
+  "arc:lite"
+  "arc:nexus"
+)
+
+SAMPLE_SIZES=(
+  16
+  32
+)
+
+SEED=42
+
+total=$(( ${#PROMPTS[@]} * ${#MODELS[@]} * ${#SAMPLE_SIZES[@]} ))
+count=0
+
+echo "Starting $total experiments..."
+
+for prompt_file in "${PROMPTS[@]}"; do
+  for model in "${MODELS[@]}"; do
+    for sample_size in "${SAMPLE_SIZES[@]}"; do
+      count=$(( count + 1 ))
+      echo "=== Experiment [$count/$total] ==="
+      ./pipeline.sh "$model" "$prompt_file" "$sample_size" "$SEED"
+    done
+  done
+done
+
+echo "All $count experiments completed successfully!"

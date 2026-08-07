@@ -28,7 +28,8 @@ ALTO XML → main.py parse (extract JSON fragments)
 | Module                  | Responsibility                                          |
 |-------------------------|---------------------------------------------------------|
 | `main.py`               | Typer CLI entry point (parse, classify, cluster, evaluate, suggest) |
-| `pipeline.sh`           | Bash script to orchestrate end-to-end evaluations       |
+| `pipeline.sh`           | Bash script to run a single end-to-end evaluation pipeline |
+| `run_experiments.sh`    | Bash script to orchestrate multiple batched grid-search evaluations |
 | `reconstruct.py`        | Data transformation, dict parsing, and mapping to LLM inputs |
 | `llm.py`                | LLM client wrapper (OpenAI-compatible API), client factory |
 | `evaluate.py`           | Ground truth parsing, clustering F1, class accuracy, coverage |
