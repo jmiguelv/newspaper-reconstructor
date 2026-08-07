@@ -32,7 +32,7 @@ for prompt_file in "${PROMPTS[@]}"; do
     for sample_size in "${SAMPLE_SIZES[@]}"; do
       count=$(( count + 1 ))
       echo "=== Experiment [$count/$total] ==="
-      ./pipeline.sh "$model" "$prompt_file" "$sample_size" "$SEED"
+      ./pipeline.sh --model "$model" --prompt "$prompt_file" --sample-size "$sample_size" --seed "$SEED"
     done
   done
 done

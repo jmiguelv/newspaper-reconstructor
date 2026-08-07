@@ -2,16 +2,33 @@
 # pipeline.sh: Runs a single end-to-end evaluation pipeline
 set -euo pipefail
 
-if [ "$#" -lt 4 ] || [ "$#" -gt 5 ]; then
-    echo "Usage: $0 <model> <prompt_file> <sample_size> <seed> [page_id]"
+MODEL=""
+PROMPT_FILE=""
+SAMPLE_SIZE=""
+SEED="42"
+PAGE_ID=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --model) MODEL="$2"; shift ;;
+        --prompt) PROMPT_FILE="$2"; shift ;;
+        --sample-size) SAMPLE_SIZE="$2"; shift ;;
+        --seed) SEED="$2"; shift ;;
+        --page-id) PAGE_ID="$2"; shift ;;
+        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+if [ -z "$MODEL" ] || [ -z "$PROMPT_FILE" ]; then
+    echo "Usage: $0 --model <model> --prompt <prompt_file> [--sample-size <N>] [--seed <S>] [--page-id <ID>]"
     exit 1
 fi
 
-MODEL=$1
-PROMPT_FILE=$2
-SAMPLE_SIZE=$3
-SEED=$4
-PAGE_ID=${5:-""}
+if [ -n "$PAGE_ID" ] && [ -n "$SAMPLE_SIZE" ]; then
+    echo "Warning: Both --page-id and --sample-size provided. Ignoring --sample-size."
+    SAMPLE_SIZE=""
+fi
 
 ALTO_DIR="data/0_external/alto"
 FRAGMENTS_DIR="data/1_interim/fragments"
@@ -20,26 +37,35 @@ EVAL_DIR="reports/evaluations"
 TIMEOUT=60
 
 prompt_name=$(basename "$PROMPT_FILE" .md)
-run_id="openai_${MODEL}_${prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+
+if [ -n "$PAGE_ID" ]; then
+    run_id="openai_${MODEL}_${prompt_name}_page_${PAGE_ID}"
+else
+    run_id="openai_${MODEL}_${prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+fi
 safe_run_id=$(echo "$run_id" | tr ':' '_')
 reconstructions_dir="data/1_interim/reconstructions/$safe_run_id"
 
 echo "=== Running Pipeline for: $run_id ==="
 
-# Setup optional page_id argument
 PAGE_ARG=""
 if [ -n "$PAGE_ID" ]; then
     PAGE_ARG="--page-id $PAGE_ID"
+fi
+SAMPLE_ARG=""
+if [ -n "$SAMPLE_SIZE" ]; then
+    SAMPLE_ARG="--sample-size $SAMPLE_SIZE"
 fi
 
 # Step 1: Parse ALTO to JSON (if not already done)
 if [ ! -d "$FRAGMENTS_DIR" ]; then
     echo "Parsing ALTO..."
-    uv run python main.py parse -i "$ALTO_DIR" -o "$FRAGMENTS_DIR" $PAGE_ARG
+    # Intentionally don't pass PAGE_ARG here so we parse everything once
+    uv run python main.py parse -i "$ALTO_DIR" -o "$FRAGMENTS_DIR"
 fi
 
-# Step 2: Classify (placeholder - skipping for now since no prompt)
-# uv run python main.py classify -i "$FRAGMENTS_DIR" -p "prompts/classify.md" -o "data/1_interim/classified/$safe_run_id" $PAGE_ARG
+# Step 2: Classify (placeholder)
+# uv run python main.py classify -i "$FRAGMENTS_DIR" -p "prompts/classify.md" -o "data/1_interim/classified/$safe_run_id" $PAGE_ARG $SAMPLE_ARG --seed "$SEED"
 
 # Step 3: Cluster
 echo "Clustering..."
@@ -48,10 +74,10 @@ uv run python main.py cluster \
     -o "$reconstructions_dir" \
     -p "$PROMPT_FILE" \
     --model "$MODEL" \
-    --sample-size "$SAMPLE_SIZE" \
     --seed "$SEED" \
     --timeout "$TIMEOUT" \
-    $PAGE_ARG
+    ${SAMPLE_ARG:+$SAMPLE_ARG} \
+    ${PAGE_ARG:+$PAGE_ARG}
 
 # Step 4: Evaluate
 echo "Evaluating..."
@@ -60,7 +86,7 @@ uv run python main.py evaluate \
     -g "$GROUND_TRUTH_DIR" \
     --eval-dir "$EVAL_DIR" \
     --run-id "$run_id" \
-    $PAGE_ARG
+    ${PAGE_ARG:+$PAGE_ARG}
 
 echo "Pipeline complete!"
 echo "----------------------------------------"
