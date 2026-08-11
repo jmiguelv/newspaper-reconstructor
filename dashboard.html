@@ -887,6 +887,59 @@
                                                     <span>Recall <strong :class="metricClass(page.metrics.weighted_recall)" x-text="fmt(page.metrics.weighted_recall)"></strong></span>
                                                     <span>Fragments <strong x-text="page.metrics.num_fragments"></strong></span>
                                                 </div>
+
+                                                <div class="comparison-grid" style="margin-top: var(--space-m);">
+                                                    <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-l);">
+                                                        <h5 style="margin: 0;">Predicted <small x-text="'(' + (page.predicted_items || []).length + ')'"></small></h5>
+                                                        <h5 style="margin: 0;">Ground truth</h5>
+                                                    </div>
+                                                    <template x-for="item in page.predicted_items || []" :key="item.id">
+                                                        <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-l); margin-bottom: var(--space-xs);"
+                                                             x-data="{ 
+                                                                 gtItem: (page.ground_truth_items || []).find(g => (g.fragment_ids || []).includes(item.id)),
+                                                                 get expectedClass() { return this.gtItem ? this.gtItem.class : 'unknown'; }
+                                                             }">
+                                                             
+                                                            <!-- Predicted side -->
+                                                            <article class="item-card" :class="item.predicted_class === expectedClass ? 'match' : 'mismatch'" style="margin-bottom: 0;">
+                                                                <div class="item-card-header">
+                                                                    <span class="badge" :class="'badge-' + item.predicted_class" x-text="item.predicted_class || 'none'"></span>
+                                                                    <span :class="item.predicted_class === expectedClass ? 'match-icon' : 'mismatch-icon'" x-text="item.predicted_class === expectedClass ? '✓' : '✗'"></span>
+                                                                </div>
+                                                                <div style="font-size: var(--step--1); line-height: 1.5; color: var(--ink); margin-bottom: var(--space-s);" x-text="item.text" dir="rtl"></div>
+                                                                <div class="chips">
+                                                                    <span class="chip" x-text="item.id"></span>
+                                                                </div>
+                                                            </article>
+
+                                                            <!-- Ground Truth side -->
+                                                            <template x-if="gtItem">
+                                                                <article class="item-card" :class="item.predicted_class === expectedClass ? 'match' : 'mismatch'" style="margin-bottom: 0;">
+                                                                    <div class="item-card-header">
+                                                                        <span class="badge" :class="'badge-' + expectedClass" x-text="expectedClass"></span>
+                                                                        <small :class="item.predicted_class === expectedClass ? 'match-icon' : 'mismatch-icon'" x-text="item.predicted_class === expectedClass ? 'recovered' : 'missed'"></small>
+                                                                    </div>
+                                                                    <code x-text="gtItem.uuid"></code>
+                                                                    <div class="chips" style="margin-top: var(--space-xs);">
+                                                                        <template x-for="fid in gtItem.fragment_ids" :key="fid">
+                                                                            <span class="chip" :style="fid === item.id ? 'background-color: var(--ink); color: var(--surface-1); border-color: var(--ink);' : ''" x-text="fid"></span>
+                                                                        </template>
+                                                                    </div>
+                                                                    <template x-if="gtItem.topics && gtItem.topics.length">
+                                                                        <div style="margin-top: var(--space-xs);">
+                                                                            <template x-for="topic in gtItem.topics" :key="topic">
+                                                                                <span class="topic-tag" x-text="topic"></span>
+                                                                            </template>
+                                                                        </div>
+                                                                    </template>
+                                                                </article>
+                                                            </template>
+                                                            <template x-if="!gtItem">
+                                                                <div class="item-card" style="border: 1px dashed var(--rule); background: transparent; opacity: 0.5;"></div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
