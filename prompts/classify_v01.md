@@ -10,7 +10,7 @@ The possible classes are:
 - "obituary": Death notices.
 - "letter": Letters to the editor.
 - "caption": Image or photo captions.
-- "noise": Page numbers, margin artifacts, publisher details, or unintelligible OCR noise.
+- "miscellaneous": Page numbers, margin artifacts, publisher details, unintelligible OCR noise, or anything else that doesn't fit the above.
 
 Return ONLY a valid JSON object mapping each fragment ID to its predicted class string. No other text, no markdown blocks, no explanation.
 
@@ -19,7 +19,7 @@ Example:
 "r_1": "article",
 "r_2": "advertisement",
 "r_3": "caption",
-"r_4": "noise"
+"r_4": "miscellaneous"
 }
 
 # User Prompt Template

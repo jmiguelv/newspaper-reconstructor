@@ -116,7 +116,11 @@ def classify(
     )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
-    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    files = [
+        f
+        for f in sorted(os.listdir(input_folder))
+        if f.endswith(".json") and not f.startswith("_")
+    ]
     if page_id:
         files = [f for f in files if f.startswith(page_id)]
     if sample_size and sample_size < len(files):
@@ -124,6 +128,7 @@ def classify(
         files = random.sample(files, sample_size)
 
     import time
+
     start_time = time.time()
 
     success = 0
@@ -166,7 +171,9 @@ def classify(
             indent=2,
         )
 
-    typer.echo(f"Classified {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s")
+    typer.echo(
+        f"Classified {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s"
+    )
 
 
 @app.command()
@@ -203,7 +210,11 @@ def cluster(
     )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
-    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(".json")]
+    files = [
+        f
+        for f in sorted(os.listdir(input_folder))
+        if f.endswith(".json") and not f.startswith("_")
+    ]
     if page_id:
         files = [f for f in files if f.startswith(page_id)]
     if sample_size and sample_size < len(files):
