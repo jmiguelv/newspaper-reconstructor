@@ -195,6 +195,7 @@ class TestEvaluateReconstructionPage:
         ]
         result = evaluate_reconstruction_page(pred, truth)
         assert result["clustering_f1"] == 1.0
+        assert result["ari"] == 1.0
         assert result["coverage"] == 1.0
         assert result["num_predicted_items"] == 2
         assert result["num_ground_truth_items"] == 2
@@ -264,6 +265,7 @@ class TestLogEvaluationRun:
                     "bcubed_f1": 0.88,
                     "bcubed_precision": 0.9,
                     "bcubed_recall": 0.87,
+                    "ari": 0.89,
                     "coverage": 0.9,
                     "num_fragments": 10,
                     "num_predicted_items": 5,
@@ -297,6 +299,7 @@ class TestLogEvaluationRun:
                     "bcubed_f1": 0.82,
                     "bcubed_precision": 0.83,
                     "bcubed_recall": 0.81,
+                    "ari": 0.85,
                     "num_fragments": 10,
                     "num_predicted_items": 5,
                     "num_ground_truth_items": 5,
@@ -314,6 +317,7 @@ class TestLogEvaluationRun:
                     "bcubed_f1": 0.62,
                     "bcubed_precision": 0.63,
                     "bcubed_recall": 0.61,
+                    "ari": 0.65,
                     "num_fragments": 8,
                     "num_predicted_items": 4,
                     "num_ground_truth_items": 4,

@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from itertools import combinations
 
+from sklearn.metrics import adjusted_rand_score
+
 # Classes in ground truth that fold into "miscellaneous"
 _FOLD_CLASSES = {"letter", "caption"}
 
@@ -173,6 +175,42 @@ def _bcubed_f1(predicted: list[dict], ground_truth: list[dict]) -> dict:
     return {"precision": precision, "recall": recall, "f1": f1}
 
 
+def _ari(predicted: list[dict], ground_truth: list[dict]) -> float:
+    """Compute the Adjusted Rand Index (ARI) for the reconstruction.
+
+    Evaluates the similarity of the predicted clusters to the ground truth clusters,
+    ignoring unassigned fragments.
+    """
+    truth_map = {}
+    for i, item in enumerate(ground_truth):
+        for fid in item.get("fragment_ids", []):
+            truth_map[fid] = i
+
+    pred_map = {}
+    for i, item in enumerate(predicted):
+        for fid in item.get("fragment_ids", []):
+            pred_map[fid] = i
+
+    # We only care about fragments that exist in the ground truth
+    fragments = sorted(truth_map.keys())
+    if not fragments:
+        return 1.0
+
+    labels_true = [truth_map[f] for f in fragments]
+    # For fragments not in any predicted item, assign them a unique cluster ID
+    # so they don't incorrectly cluster together.
+    labels_pred = []
+    unassigned_id = len(predicted)
+    for f in fragments:
+        if f in pred_map:
+            labels_pred.append(pred_map[f])
+        else:
+            labels_pred.append(unassigned_id)
+            unassigned_id += 1
+
+    return float(adjusted_rand_score(labels_true, labels_pred))
+
+
 def evaluate_classification_page(
     predicted: list[dict], ground_truth: list[dict]
 ) -> dict:
@@ -210,21 +248,20 @@ def evaluate_classification_page(
                     fp[pred_c] = fp.get(pred_c, 0) + 1
                 fn[true_c] = fn.get(true_c, 0) + 1
 
-    total_tp = sum(tp.values())
     total_samples = len([f for f in predicted if f["id"] in truth_map])
 
     total_support = 0
     weighted_p = 0.0
     weighted_r = 0.0
     weighted_f1 = 0.0
-    
+
     valid_classes = [c for c in classes if c is not None]
 
     for c in valid_classes:
         c_tp = tp.get(c, 0)
         c_fp = fp.get(c, 0)
         c_fn = fn.get(c, 0)
-        
+
         support = c_tp + c_fn
         total_support += support
 
@@ -264,6 +301,7 @@ def evaluate_reconstruction_page(
     """
     cluster_metrics = clustering_f1(predicted, ground_truth)
     bcubed_metrics = _bcubed_f1(predicted, ground_truth)
+    ari_score = _ari(predicted, ground_truth)
 
     all_fragment_ids = set()
     for item in ground_truth:
@@ -295,6 +333,7 @@ def evaluate_reconstruction_page(
         "false_positives": cluster_metrics["false_positives"],
         "false_negatives": cluster_metrics["false_negatives"],
         "coverage": coverage,
+        "ari": ari_score,
     }
 
 
@@ -343,9 +382,15 @@ def log_evaluation_run(
         weighted_f1s = [r["metrics"]["weighted_f1"] for r in results]
 
         aggregate = {
-            "mean_weighted_precision": sum(weighted_ps) / len(weighted_ps) if weighted_ps else 0.0,
-            "mean_weighted_recall": sum(weighted_rs) / len(weighted_rs) if weighted_rs else 0.0,
-            "mean_weighted_f1": sum(weighted_f1s) / len(weighted_f1s) if weighted_f1s else 0.0,
+            "mean_weighted_precision": sum(weighted_ps) / len(weighted_ps)
+            if weighted_ps
+            else 0.0,
+            "mean_weighted_recall": sum(weighted_rs) / len(weighted_rs)
+            if weighted_rs
+            else 0.0,
+            "mean_weighted_f1": sum(weighted_f1s) / len(weighted_f1s)
+            if weighted_f1s
+            else 0.0,
             "total_pages": len(results),
         }
     else:
@@ -369,6 +414,9 @@ def log_evaluation_run(
             if results
             else 0.0,
             "mean_coverage": sum(coverages) / len(coverages) if coverages else 0.0,
+            "mean_ari": sum(r["metrics"]["ari"] for r in results) / len(results)
+            if results
+            else 0.0,
             "total_pages": len(results),
         }
 

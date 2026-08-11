@@ -1,6 +1,6 @@
 # Article Reconstruction from ALTO XML using LLM Pipelines
 
-Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM through a pipelined architecture (Parse → Classify → Cluster → Evaluate). Includes evaluation against ground truth article XML using pairwise clustering F1, class accuracy, and coverage metrics.
+Reconstructs newspaper articles from OCR text fragments (ALTO XML) by prompting an LLM through a pipelined architecture (Parse → Classify → Cluster → Evaluate). Includes evaluation against ground truth article XML using pairwise clustering F1, Adjusted Rand Index (ARI), class accuracy, and coverage metrics.
 
 Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
 
@@ -125,6 +125,7 @@ Prompt files can be JSON (with `system_prompt` and optional `user_prompt_templat
 ## Evaluation Metrics
 
 - **Pairwise clustering F1** — Treats each item as a cluster of fragment IDs. For every pair of fragments, checks whether they are co-grouped in the prediction vs. ground truth. Reports precision, recall, and F1.
+- **Adjusted Rand Index (ARI)** — Measures the similarity between the predicted and ground truth clusterings by considering all pairs of fragments, adjusted for chance.
 - **Class accuracy** — On items where the predicted fragment set exactly matches a ground truth item, checks whether the class label matches. Reported as a fraction (or `null` if no matches).
 - **Coverage** — Fraction of ground truth fragments that appear in any predicted item.
 
