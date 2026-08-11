@@ -919,10 +919,10 @@
                                                                         <span class="badge" :class="'badge-' + expectedClass" x-text="expectedClass"></span>
                                                                         <small :class="item.predicted_class === expectedClass ? 'match-icon' : 'mismatch-icon'" x-text="item.predicted_class === expectedClass ? 'recovered' : 'missed'"></small>
                                                                     </div>
-                                                                    <code x-text="gtItem.uuid"></code>
+                                                                    <code x-text="gtItem.uuid" style="word-break: break-all;"></code>
                                                                     <div class="chips" style="margin-top: var(--space-xs);">
                                                                         <template x-for="fid in gtItem.fragment_ids" :key="fid">
-                                                                            <span class="chip" :style="fid === item.id ? 'background-color: var(--ink); color: var(--surface-1); border-color: var(--ink);' : ''" x-text="fid"></span>
+                                                                            <span class="chip" :style="fid === item.id ? 'background-color: var(--ink); color: var(--surface); border-color: var(--ink);' : ''" x-text="fid"></span>
                                                                         </template>
                                                                     </div>
                                                                     <template x-if="gtItem.topics && gtItem.topics.length">
