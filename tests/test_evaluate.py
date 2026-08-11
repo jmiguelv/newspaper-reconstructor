@@ -7,7 +7,8 @@ import pytest
 
 from src.newspaper_reconstructor.evaluate import (
     clustering_f1,
-    evaluate_page,
+    evaluate_classification_page,
+    evaluate_reconstruction_page,
     load_ground_truth_dir,
     log_evaluation_run,
     parse_article_xml,
@@ -169,10 +170,10 @@ class TestClusteringF1:
         assert result["fn"] == 0
 
 
-# ─── evaluate_page ─────────────────────────────────────────────────────────────
+# ─── evaluate_reconstruction_page & evaluate_classification_page ────────────
 
 
-class TestEvaluatePage:
+class TestEvaluateReconstructionPage:
     def test_perfect_prediction(self):
         pred = [
             {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
@@ -192,9 +193,8 @@ class TestEvaluatePage:
                 "topics": [],
             },
         ]
-        result = evaluate_page(pred, truth)
+        result = evaluate_reconstruction_page(pred, truth)
         assert result["clustering_f1"] == 1.0
-        assert result["class_accuracy"] == 1.0
         assert result["coverage"] == 1.0
         assert result["num_predicted_items"] == 2
         assert result["num_ground_truth_items"] == 2
@@ -215,14 +215,17 @@ class TestEvaluatePage:
                 "topics": [],
             },
         ]
-        result = evaluate_page(pred, truth)
+        result = evaluate_reconstruction_page(pred, truth)
         # r_3 not assigned → coverage = 2/3
         assert result["coverage"] == pytest.approx(2 / 3)
 
-    def test_class_accuracy_on_matched_items(self):
+
+class TestEvaluateClassificationPage:
+    def test_class_accuracy_and_f1(self):
         pred = [
-            {"fragment_ids": ["r_1", "r_2"], "title": "A", "class": "article"},
-            {"fragment_ids": ["r_3"], "title": "B", "class": "obituary"},
+            {"id": "r_1", "predicted_class": "article"},
+            {"id": "r_2", "predicted_class": "article"},
+            {"id": "r_3", "predicted_class": "obituary"},
         ]
         truth = [
             {
@@ -238,23 +241,12 @@ class TestEvaluatePage:
                 "topics": [],
             },
         ]
-        result = evaluate_page(pred, truth)
-        # Both items match by fragment set. r_1+r_2: article==article (correct).
-        # r_3: obituary!=advertisement (wrong). class_accuracy = 1/2 = 0.5
-        assert result["class_accuracy"] == pytest.approx(0.5)
-
-    def test_class_accuracy_no_matches(self):
-        pred = [{"fragment_ids": ["r_1", "r_3"], "title": "A", "class": "article"}]
-        truth = [
-            {
-                "uuid": "u1",
-                "class": "article",
-                "fragment_ids": ["r_1", "r_2"],
-                "topics": [],
-            },
-        ]
-        result = evaluate_page(pred, truth)
-        assert result["class_accuracy"] is None  # no exact matches
+        result = evaluate_classification_page(pred, truth)
+        # r_1: article == article (correct)
+        # r_2: article == article (correct)
+        # r_3: obituary != advertisement (wrong)
+        # 2 correct out of 3 total
+        assert result["num_fragments"] == 3
 
 
 # ─── log_evaluation_run ─────────────────────────────────────────────────────────
@@ -272,7 +264,6 @@ class TestLogEvaluationRun:
                     "bcubed_f1": 0.88,
                     "bcubed_precision": 0.9,
                     "bcubed_recall": 0.87,
-                    "class_accuracy": 0.75,
                     "coverage": 0.9,
                     "num_fragments": 10,
                     "num_predicted_items": 5,
@@ -282,7 +273,7 @@ class TestLogEvaluationRun:
                 "ground_truth_items": [],
             }
         ]
-        config = {"provider": "openai", "model": "gpt-4o"}
+        config = {"provider": "openai", "model": "gpt-4o", "task": "reconstruction"}
         output_dir = str(tmp_path / "evaluations")
         path = log_evaluation_run(results, config, output_dir)
         assert os.path.exists(path)
@@ -294,13 +285,12 @@ class TestLogEvaluationRun:
         assert len(data["pages"]) == 1
         assert "aggregate" in data
 
-    def test_aggregate_metrics(self, tmp_path):
+    def test_aggregate_metrics_reconstruction(self, tmp_path):
         results = [
             {
                 "page_id": "p1",
                 "metrics": {
                     "clustering_f1": 0.8,
-                    "class_accuracy": 0.7,
                     "coverage": 0.9,
                     "clustering_precision": 0.8,
                     "clustering_recall": 0.8,
@@ -318,7 +308,6 @@ class TestLogEvaluationRun:
                 "page_id": "p2",
                 "metrics": {
                     "clustering_f1": 0.6,
-                    "class_accuracy": 0.5,
                     "coverage": 0.8,
                     "clustering_precision": 0.6,
                     "clustering_recall": 0.6,
@@ -333,14 +322,46 @@ class TestLogEvaluationRun:
                 "ground_truth_items": [],
             },
         ]
-        config = {"provider": "openai", "model": "gpt-4o"}
+        config = {"provider": "openai", "model": "gpt-4o", "task": "reconstruction"}
         output_dir = str(tmp_path / "evaluations")
         path = log_evaluation_run(results, config, output_dir)
         with open(path) as f:
             data = json.load(f)
         assert data["aggregate"]["mean_clustering_f1"] == pytest.approx(0.7)
-        assert data["aggregate"]["mean_class_accuracy"] == pytest.approx(0.6)
         assert data["aggregate"]["mean_coverage"] == pytest.approx(0.85)
+        assert data["aggregate"]["total_pages"] == 2
+
+    def test_aggregate_metrics_classification(self, tmp_path):
+        results = [
+            {
+                "page_id": "p1",
+                "metrics": {
+                    "weighted_precision": 0.8,
+                    "weighted_recall": 0.8,
+                    "weighted_f1": 0.8,
+                    "num_fragments": 10,
+                },
+                "predicted_items": [],
+                "ground_truth_items": [],
+            },
+            {
+                "page_id": "p2",
+                "metrics": {
+                    "weighted_precision": 0.6,
+                    "weighted_recall": 0.6,
+                    "weighted_f1": 0.6,
+                    "num_fragments": 10,
+                },
+                "predicted_items": [],
+                "ground_truth_items": [],
+            },
+        ]
+        config = {"provider": "openai", "model": "gpt-4o", "task": "classification"}
+        output_dir = str(tmp_path / "evaluations")
+        path = log_evaluation_run(results, config, output_dir)
+        with open(path) as f:
+            data = json.load(f)
+        assert data["aggregate"]["mean_weighted_f1"] == pytest.approx(0.7)
         assert data["aggregate"]["total_pages"] == 2
 
     def test_includes_prompts_in_config(self, tmp_path):

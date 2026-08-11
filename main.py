@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from src.newspaper_reconstructor.evaluate import (
-    evaluate_page,
+    evaluate_classification_page,
+    evaluate_reconstruction_page,
     load_ground_truth_dir,
     log_evaluation_run,
 )
@@ -122,6 +123,9 @@ def classify(
         random.seed(seed)
         files = random.sample(files, sample_size)
 
+    import time
+    start_time = time.time()
+
     success = 0
     for fname in files:
         in_path = os.path.join(input_folder, fname)
@@ -145,7 +149,24 @@ def classify(
         else:
             typer.echo(f"Failed to classify {fname}", err=True)
 
-    typer.echo(f"Classified {success}/{len(files)} files to {output_folder}")
+    execution_time_seconds = time.time() - start_time
+
+    # Save metadata for evaluation dashboard
+    prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
+    metadata_path = os.path.join(output_folder, "_metadata.json")
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "execution_time_seconds": execution_time_seconds,
+                "model": model,
+                "prompt_name": prompt_name,
+                "sample_size": sample_size,
+            },
+            f,
+            indent=2,
+        )
+
+    typer.echo(f"Classified {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s")
 
 
 @app.command()
@@ -217,9 +238,19 @@ def cluster(
     execution_time_seconds = time.time() - start_time
 
     # Save metadata for evaluation dashboard
+    prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
     metadata_path = os.path.join(output_folder, "_metadata.json")
     with open(metadata_path, "w", encoding="utf-8") as f:
-        json.dump({"execution_time_seconds": execution_time_seconds}, f, indent=2)
+        json.dump(
+            {
+                "execution_time_seconds": execution_time_seconds,
+                "model": model,
+                "prompt_name": prompt_name,
+                "sample_size": sample_size,
+            },
+            f,
+            indent=2,
+        )
 
     typer.echo(
         f"Clustered {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s"
@@ -241,8 +272,17 @@ def evaluate(
         None, help="Identifier for this evaluation run (e.g., model_v1_sample16)"
     ),
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
+    task: str = typer.Option(
+        ..., help="Task to evaluate ('classification' or 'reconstruction')"
+    ),
 ):
-    """Evaluate predicted articles against ground truth XML."""
+    """Evaluate predicted results against ground truth XML."""
+    if task not in ("classification", "reconstruction"):
+        typer.echo(
+            "Error: --task must be 'classification' or 'reconstruction'", err=True
+        )
+        raise typer.Exit(1)
+
     os.makedirs(eval_dir, exist_ok=True)
 
     if run_id is None:
@@ -268,7 +308,15 @@ def evaluate(
         with open(os.path.join(input_folder, fname), encoding="utf-8") as f:
             predicted_items = json.load(f)
 
-        page_metrics = evaluate_page(predicted_items, gt_data[page_id_match])
+        if task == "classification":
+            page_metrics = evaluate_classification_page(
+                predicted_items, gt_data[page_id_match]
+            )
+        else:
+            page_metrics = evaluate_reconstruction_page(
+                predicted_items, gt_data[page_id_match]
+            )
+
         results.append(
             {
                 "page_id": page_id_match,
@@ -285,6 +333,7 @@ def evaluate(
     # Mock config for log since we decoupled it
     config = {
         "run_id": run_id,
+        "task": task,
         "input_folder": input_folder,
         "ground_truth_folder": ground_truth_folder,
     }
@@ -294,8 +343,7 @@ def evaluate(
         try:
             with open(metadata_path, encoding="utf-8") as f:
                 meta = json.load(f)
-                if "execution_time_seconds" in meta:
-                    config["execution_time_seconds"] = meta["execution_time_seconds"]
+                config.update(meta)
         except (FileNotFoundError, json.JSONDecodeError) as e:
             typer.echo(f"Warning: Failed to read metadata.json: {e}", err=True)
 

@@ -173,14 +173,94 @@ def _bcubed_f1(predicted: list[dict], ground_truth: list[dict]) -> dict:
     return {"precision": precision, "recall": recall, "f1": f1}
 
 
-def evaluate_page(predicted: list[dict], ground_truth: list[dict]) -> dict:
+def evaluate_classification_page(
+    predicted: list[dict], ground_truth: list[dict]
+) -> dict:
+    """Evaluate classification items against ground truth for a single page.
+
+    Args:
+        predicted: list of fragments with 'id' and 'predicted_class'
+        ground_truth: list of {"uuid": str, "class": str, "fragment_ids": [...], "topics": [...]}
+
+    Returns metrics dict with weighted precision, recall, and f1.
+    """
+    truth_map = {}
+    for item in ground_truth:
+        cls = item["class"]
+        for fid in item["fragment_ids"]:
+            truth_map[fid] = cls
+
+    tp = {}
+    fp = {}
+    fn = {}
+
+    classes = set(truth_map.values())
+    for item in predicted:
+        fid = item["id"]
+        pred_c = item.get("predicted_class")
+        if pred_c is not None:
+            classes.add(pred_c)
+
+        if fid in truth_map:
+            true_c = truth_map[fid]
+            if pred_c == true_c:
+                tp[true_c] = tp.get(true_c, 0) + 1
+            else:
+                if pred_c is not None:
+                    fp[pred_c] = fp.get(pred_c, 0) + 1
+                fn[true_c] = fn.get(true_c, 0) + 1
+
+    total_tp = sum(tp.values())
+    total_samples = len([f for f in predicted if f["id"] in truth_map])
+
+    total_support = 0
+    weighted_p = 0.0
+    weighted_r = 0.0
+    weighted_f1 = 0.0
+    
+    valid_classes = [c for c in classes if c is not None]
+
+    for c in valid_classes:
+        c_tp = tp.get(c, 0)
+        c_fp = fp.get(c, 0)
+        c_fn = fn.get(c, 0)
+        
+        support = c_tp + c_fn
+        total_support += support
+
+        p = c_tp / (c_tp + c_fp) if (c_tp + c_fp) > 0 else 0.0
+        r = c_tp / (c_tp + c_fn) if (c_tp + c_fn) > 0 else 0.0
+        f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+
+        weighted_p += p * support
+        weighted_r += r * support
+        weighted_f1 += f1 * support
+
+    if total_support > 0:
+        weighted_p /= total_support
+        weighted_r /= total_support
+        weighted_f1 /= total_support
+    else:
+        weighted_p, weighted_r, weighted_f1 = 0.0, 0.0, 0.0
+
+    return {
+        "weighted_precision": weighted_p,
+        "weighted_recall": weighted_r,
+        "weighted_f1": weighted_f1,
+        "num_fragments": total_samples,
+    }
+
+
+def evaluate_reconstruction_page(
+    predicted: list[dict], ground_truth: list[dict]
+) -> dict:
     """Evaluate predicted items against ground truth for a single page.
 
     Args:
         predicted: list of {"fragment_ids": [...], "title": str, "class": str}
         ground_truth: list of {"uuid": str, "class": str, "fragment_ids": [...], "topics": [...]}
 
-    Returns metrics dict with clustering F1, class accuracy, coverage.
+    Returns metrics dict with clustering F1 and coverage.
     """
     cluster_metrics = clustering_f1(predicted, ground_truth)
     bcubed_metrics = _bcubed_f1(predicted, ground_truth)
@@ -199,23 +279,6 @@ def evaluate_page(predicted: list[dict], ground_truth: list[dict]) -> dict:
         else 0.0
     )
 
-    # Class accuracy: on items where predicted fragment_ids set exactly matches a ground truth item
-    truth_by_frozenset = {}
-    for item in ground_truth:
-        key = frozenset(item["fragment_ids"])
-        truth_by_frozenset[key] = item["class"]
-
-    matched = 0
-    correct = 0
-    for item in predicted:
-        key = frozenset(item["fragment_ids"])
-        if key in truth_by_frozenset:
-            matched += 1
-            if item["class"] == truth_by_frozenset[key]:
-                correct += 1
-
-    class_accuracy = correct / matched if matched > 0 else None
-
     return {
         "num_fragments": num_fragments,
         "num_predicted_items": len(predicted),
@@ -231,7 +294,6 @@ def evaluate_page(predicted: list[dict], ground_truth: list[dict]) -> dict:
         "fn": cluster_metrics["fn"],
         "false_positives": cluster_metrics["false_positives"],
         "false_negatives": cluster_metrics["false_negatives"],
-        "class_accuracy": class_accuracy,
         "coverage": coverage,
     }
 
@@ -272,35 +334,43 @@ def log_evaluation_run(
         if seed is not None:
             run_id = f"{run_id}_seed{seed}"
 
-    # Compute aggregate metrics
-    f1s = [r["metrics"]["clustering_f1"] for r in results]
-    bcubed_f1s = [r["metrics"]["bcubed_f1"] for r in results]
-    class_accs = [
-        r["metrics"]["class_accuracy"]
-        for r in results
-        if r["metrics"]["class_accuracy"] is not None
-    ]
-    coverages = [r["metrics"]["coverage"] for r in results]
+    # Compute aggregate metrics based on task
+    task = config.get("task", "reconstruction")
 
-    aggregate = {
-        "mean_clustering_f1": sum(f1s) / len(f1s) if f1s else 0.0,
-        "mean_bcubed_f1": sum(bcubed_f1s) / len(bcubed_f1s) if bcubed_f1s else 0.0,
-        "mean_clustering_precision": sum(
-            r["metrics"]["clustering_precision"] for r in results
-        )
-        / len(results)
-        if results
-        else 0.0,
-        "mean_clustering_recall": sum(
-            r["metrics"]["clustering_recall"] for r in results
-        )
-        / len(results)
-        if results
-        else 0.0,
-        "mean_class_accuracy": sum(class_accs) / len(class_accs) if class_accs else 0.0,
-        "mean_coverage": sum(coverages) / len(coverages) if coverages else 0.0,
-        "total_pages": len(results),
-    }
+    if task == "classification":
+        weighted_ps = [r["metrics"]["weighted_precision"] for r in results]
+        weighted_rs = [r["metrics"]["weighted_recall"] for r in results]
+        weighted_f1s = [r["metrics"]["weighted_f1"] for r in results]
+
+        aggregate = {
+            "mean_weighted_precision": sum(weighted_ps) / len(weighted_ps) if weighted_ps else 0.0,
+            "mean_weighted_recall": sum(weighted_rs) / len(weighted_rs) if weighted_rs else 0.0,
+            "mean_weighted_f1": sum(weighted_f1s) / len(weighted_f1s) if weighted_f1s else 0.0,
+            "total_pages": len(results),
+        }
+    else:
+        f1s = [r["metrics"]["clustering_f1"] for r in results]
+        bcubed_f1s = [r["metrics"]["bcubed_f1"] for r in results]
+        coverages = [r["metrics"]["coverage"] for r in results]
+
+        aggregate = {
+            "mean_clustering_f1": sum(f1s) / len(f1s) if f1s else 0.0,
+            "mean_bcubed_f1": sum(bcubed_f1s) / len(bcubed_f1s) if bcubed_f1s else 0.0,
+            "mean_clustering_precision": sum(
+                r["metrics"]["clustering_precision"] for r in results
+            )
+            / len(results)
+            if results
+            else 0.0,
+            "mean_clustering_recall": sum(
+                r["metrics"]["clustering_recall"] for r in results
+            )
+            / len(results)
+            if results
+            else 0.0,
+            "mean_coverage": sum(coverages) / len(coverages) if coverages else 0.0,
+            "total_pages": len(results),
+        }
 
     log = {
         "run_id": run_id,

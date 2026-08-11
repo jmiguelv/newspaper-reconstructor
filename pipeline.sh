@@ -91,6 +91,17 @@ else
     echo "Classification for $safe_classify_run_id already exists. Skipping classification."
 fi
 
+# Step 2.5: Evaluate Classification
+echo "Evaluating Classification..."
+uv run python main.py evaluate \
+    -i "$classified_dir" \
+    -g "$GROUND_TRUTH_DIR" \
+    --eval-dir "$EVAL_DIR" \
+    --run-id "$classify_run_id" \
+    --task classification \
+    ${PAGE_ARG:+$PAGE_ARG}
+
+
 # Step 3: Cluster
 echo "Clustering..."
 uv run python main.py cluster \
@@ -110,6 +121,7 @@ uv run python main.py evaluate \
     -g "$GROUND_TRUTH_DIR" \
     --eval-dir "$EVAL_DIR" \
     --run-id "$cluster_run_id" \
+    --task reconstruction \
     ${PAGE_ARG:+$PAGE_ARG}
 
 echo "Pipeline complete!"

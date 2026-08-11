@@ -372,7 +372,6 @@ class TestExportPage:
             "clustering_f1",
             "bcubed_f1",
             "coverage",
-            "class_accuracy",
             "tp",
             "fp",
             "fn",
@@ -493,7 +492,6 @@ class TestExportPage:
                 "clustering_f1": 0.55,
                 "bcubed_f1": 0.78,
                 "coverage": 0.82,
-                "class_accuracy": 1.0,
                 "tp": 13,
                 "fp": 15,
                 "fn": 6,
@@ -530,7 +528,6 @@ class TestExportPage:
             assert r["clustering_f1"] == "0.55"
             assert r["bcubed_f1"] == "0.78"
             assert r["coverage"] == "0.82"
-            assert r["class_accuracy"] == "1.0"
             assert r["tp"] == "13"
             assert r["fp"] == "15"
             assert r["fn"] == "6"
@@ -565,7 +562,6 @@ class TestExportPage:
             assert r["clustering_f1"] == ""
             assert r["bcubed_f1"] == ""
             assert r["coverage"] == ""
-            assert r["class_accuracy"] == ""
             assert r["tp"] == ""
             assert r["fp"] == ""
             assert r["fn"] == ""

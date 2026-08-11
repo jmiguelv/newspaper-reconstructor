@@ -44,7 +44,6 @@ EDGE_METRIC_COLUMNS = [
     "clustering_f1",
     "bcubed_f1",
     "coverage",
-    "class_accuracy",
     "tp",
     "fp",
     "fn",

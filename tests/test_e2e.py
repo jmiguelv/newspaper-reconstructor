@@ -188,6 +188,8 @@ class TestE2EEvaluate:
                 str(article_dir),
                 "--eval-dir",
                 eval_dir,
+                "--task",
+                "reconstruction",
             ],
         )
         assert result.exit_code == 0
