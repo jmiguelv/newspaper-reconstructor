@@ -1,3 +1,50 @@
+## 0.6.0 (2026-08-11)
+
+### Feat
+
+- **suggest**: add --focus flag to analyze classification and clustering errors
+- **dashboard**: layout restructure and experiment linking
+- **eval**: add adjusted rand index (ARI) metric
+- **ui**: redesign dashboard with split classification and reconstruction views and dynamic layout
+- split classification and reconstruction evaluation and record metadata
+
+### Fix
+
+- **dashboard**: allow text to wrap in page details
+- **dashboard**: resolve overflow in gt card and invisible chip text
+- ignore metadata JSON files during processing and correct classify prompt
+
+### Refactor
+
+- rename runs to experiments
+
+## v1.0.0 (2026-08-07)
+
+### Feat
+
+- **dashboard**: refactor to single-page dashboard.html
+- decouple classify and cluster prompts in orchestrator scripts and enable classification caching
+- introduce classify_v00.md prompt and integrate classification step into pipeline
+- add support for parameterized datasets in pipeline orchestrator scripts
+- add support for processing a single page in pipeline and CLI
+- implement prompt pipelining using typer
+- replace rigid sort with externalized proximity sort
+- add --sort-fragments option to sort before reconstruction
+- **dashboard**: show run ID and format dates in expanded view
+
+### Fix
+
+- initialize timestamp before early return to prevent UnboundLocalError
+- construct results as list of dicts in evaluate command to match log_evaluation_run signature
+- add missing run_id argument to log_evaluation_run to fix TypeError
+- use named kwargs when calling make_client to avoid positional argument mismatch
+- change provider prefix in run_id from openai_ to create_
+- use column-aware RTL heuristic for --sort-fragments
+
+### Refactor
+
+- remove redundant inline prompt CLI args
+
 ## 0.5.0 (2026-08-06)
 
 ### Feat
