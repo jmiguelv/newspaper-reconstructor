@@ -651,7 +651,6 @@
             </details>
 
             <!-- ── Metrics legend ─────────────────────────────────── -->
-
             <details class="metrics-legend">
                 <summary>Metrics reference</summary>
             <dl>
@@ -674,10 +673,6 @@
                 <div>
                     <dt>Coverage</dt>
                     <dd>Fraction of ground truth fragments that appear in at least one predicted item. A value below 1.0 means some fragments were missed entirely.</dd>
-                </div>
-                <div>
-                    <dt>Class Accuracy <code>Class Acc</code></dt>
-                    <dd>Fraction of predicted items whose class label (article, advertisement, obituary, miscellaneous) matches the ground truth item they best align with.</dd>
                 </div>
                 <div>
                     <dt>True Positives <code>TP</code></dt>
@@ -708,8 +703,7 @@
             <template x-if="bestF1Run">
                 <div style="margin-bottom: var(--space-m); font-size: var(--step--1); color: var(--ink-light); max-width: 80ch;">
                     The highest Clustering F1 score (<strong x-text="fmt(bestF1Run.aggregate.mean_clustering_f1)"></strong>) was achieved by <strong x-text="bestF1Run.config.model" style="color: var(--ink);"></strong> using prompt <code x-text="bestF1Run.config.prompt_name"></code>.
-                    For Class Accuracy, the top performer is <strong x-text="bestAccRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestAccRun.aggregate.mean_class_accuracy)"></strong>),
-                    while the best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
+                    The best Coverage was seen in <strong x-text="bestCovRun.config.model" style="color: var(--ink);"></strong> (<strong x-text="fmt(bestCovRun.aggregate.mean_coverage)"></strong>).
                 </div>
             </template>
             <div style="display: flex; align-items: center; gap: var(--space-s); margin-bottom: var(--space-m); flex-wrap: wrap; font-size: var(--step--1); color: var(--ink-light);">
@@ -742,26 +736,64 @@
                 <span x-text="Math.round(minCompletionRatio * 100) + '%'" style="min-width: 3rem;"></span>
                 <span style="color: var(--ink-muted);">(<span x-text="filteredRuns.length"></span> of <span x-text="runs.length"></span> runs)</span>
             </div>
+            
+        <section id="classification-section">
+            <h2>Classification Runs</h2>
             <div class="table-wrap">
             <table>
                 <thead>
                     <tr>
-                        <th @click="sort('timestamp')" title="Date and time of the run">Date <span x-show="sortKey==='timestamp'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('timestamp')">Date <span x-show="sortKey==='timestamp'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('config.model')">Model <span x-show="sortKey==='config.model'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('config.prompt_name')">Prompt <span x-show="sortKey==='config.prompt_name'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('config.sample_size')">Sample <span x-show="sortKey==='config.sample_size'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                         <th @click="sort('aggregate.total_pages')">Pages <span x-show="sortKey==='aggregate.total_pages'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('aggregate.mean_clustering_f1')" title="Pairwise clustering F1: harmonic mean of precision and recall over all fragment pairs">F1 <span x-show="sortKey==='aggregate.mean_clustering_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('aggregate.mean_bcubed_f1')" title="B-Cubed F1: element-level clustering metric averaged across all fragments">B³ F1 <span x-show="sortKey==='aggregate.mean_bcubed_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('aggregate.mean_clustering_precision')" title="Fraction of predicted same-cluster pairs that are correct">Precision <span x-show="sortKey==='aggregate.mean_clustering_precision'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('aggregate.mean_clustering_recall')" title="Fraction of ground truth same-cluster pairs correctly predicted">Recall <span x-show="sortKey==='aggregate.mean_clustering_recall'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('aggregate.mean_coverage')" title="Fraction of ground truth fragments appearing in at least one predicted item">Coverage <span x-show="sortKey==='aggregate.mean_coverage'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('aggregate.mean_class_accuracy')" title="Fraction of predicted items whose class label matches ground truth">Class Acc <span x-show="sortKey==='aggregate.mean_class_accuracy'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
-                        <th @click="sort('config.execution_time_seconds')" title="Total execution time in seconds">Time <span x-show="sortKey==='config.execution_time_seconds'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_weighted_f1')">F1 <span x-show="sortKey==='aggregate.mean_weighted_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_weighted_precision')">Precision <span x-show="sortKey==='aggregate.mean_weighted_precision'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_weighted_recall')">Recall <span x-show="sortKey==='aggregate.mean_weighted_recall'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.execution_time_seconds')">Time <span x-show="sortKey==='config.execution_time_seconds'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <template x-for="run in sortedRuns" :key="run.run_id">
+                    <template x-for="run in sortedClassificationRuns" :key="run.run_id">
+                        <tr @click="toggleRun(run.run_id)" :data-active="expandedRun === run.run_id">
+                            <td style="white-space: nowrap; font-size: var(--step--2); color: var(--ink-light);" x-text="run.timestamp ? new Date(run.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"></td>
+                            <td x-text="run.config.model"></td>
+                            <td x-text="run.config.prompt_name"></td>
+                            <td x-text="run.config.sample_size || 'all'"></td>
+                            <td x-text="run.aggregate.total_pages"></td>
+                            <td :class="metricClass(run.aggregate.mean_weighted_f1)" x-text="fmt(run.aggregate.mean_weighted_f1)"></td>
+                            <td :class="metricClass(run.aggregate.mean_weighted_precision)" x-text="fmt(run.aggregate.mean_weighted_precision)"></td>
+                            <td :class="metricClass(run.aggregate.mean_weighted_recall)" x-text="fmt(run.aggregate.mean_weighted_recall)"></td>
+                            <td x-text="run.config.execution_time_seconds ? run.config.execution_time_seconds.toFixed(3) + 's' : '—'"></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+            </div>
+        </section>
+
+        <section id="reconstruction-section">
+            <h2>Reconstruction Runs</h2>
+            <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th @click="sort('timestamp')">Date <span x-show="sortKey==='timestamp'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.model')">Model <span x-show="sortKey==='config.model'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.prompt_name')">Prompt <span x-show="sortKey==='config.prompt_name'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.sample_size')">Sample <span x-show="sortKey==='config.sample_size'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.total_pages')">Pages <span x-show="sortKey==='aggregate.total_pages'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_clustering_f1')">F1 <span x-show="sortKey==='aggregate.mean_clustering_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_bcubed_f1')">B³ F1 <span x-show="sortKey==='aggregate.mean_bcubed_f1'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_clustering_precision')">Precision <span x-show="sortKey==='aggregate.mean_clustering_precision'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_clustering_recall')">Recall <span x-show="sortKey==='aggregate.mean_clustering_recall'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('aggregate.mean_coverage')">Coverage <span x-show="sortKey==='aggregate.mean_coverage'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                        <th @click="sort('config.execution_time_seconds')">Time <span x-show="sortKey==='config.execution_time_seconds'" x-text="sortDir==='asc'?'↑':'↓'"></span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="run in sortedReconstructionRuns" :key="run.run_id">
                         <tr @click="toggleRun(run.run_id)" :data-active="expandedRun === run.run_id">
                             <td style="white-space: nowrap; font-size: var(--step--2); color: var(--ink-light);" x-text="run.timestamp ? new Date(run.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"></td>
                             <td x-text="run.config.model"></td>
@@ -773,7 +805,6 @@
                             <td :class="metricClass(run.aggregate.mean_clustering_precision)" x-text="fmt(run.aggregate.mean_clustering_precision)"></td>
                             <td :class="metricClass(run.aggregate.mean_clustering_recall)" x-text="fmt(run.aggregate.mean_clustering_recall)"></td>
                             <td :class="metricClass(run.aggregate.mean_coverage)" x-text="fmt(run.aggregate.mean_coverage)"></td>
-                            <td :class="metricClass(run.aggregate.mean_class_accuracy)" x-text="fmt(run.aggregate.mean_class_accuracy)"></td>
                             <td x-text="run.config.execution_time_seconds ? run.config.execution_time_seconds.toFixed(3) + 's' : '—'"></td>
                         </tr>
                     </template>
@@ -781,6 +812,7 @@
             </table>
             </div>
         </section>
+
 
         <!-- ── Selected run detail ────────────────────────────── -->
 
@@ -793,39 +825,55 @@
                     · sample <span x-text="activeRun.config.sample_size || 'all'"></span>
                 </p>
 
+                
                 <!-- Stat bar -->
                 <nav class="stat-bar" aria-label="Aggregate metrics">
-                    <figure>
-                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_f1)" x-text="fmt(activeRun.aggregate.mean_clustering_f1)"></span>
-                        <figcaption>Clustering F1</figcaption>
-                    </figure>
-                    <figure>
-                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_bcubed_f1)" x-text="fmt(activeRun.aggregate.mean_bcubed_f1)"></span>
-                        <figcaption>B³ F1</figcaption>
-                    </figure>
-                    <figure>
-                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_precision)" x-text="fmt(activeRun.aggregate.mean_clustering_precision)"></span>
-                        <figcaption>Precision</figcaption>
-                    </figure>
-                    <figure>
-                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_recall)" x-text="fmt(activeRun.aggregate.mean_clustering_recall)"></span>
-                        <figcaption>Recall</figcaption>
-                    </figure>
-                    <figure>
-                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_coverage)" x-text="fmt(activeRun.aggregate.mean_coverage)"></span>
-                        <figcaption>Coverage</figcaption>
-                    </figure>
-                    <figure>
-                        <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_class_accuracy)" x-text="fmt(activeRun.aggregate.mean_class_accuracy)"></span>
-                        <figcaption>Class Acc</figcaption>
-                    </figure>
+                    <template x-if="activeRun.config.task === 'classification'">
+                        <div style="display: flex; gap: var(--space-xs); width: 100%;">
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_weighted_f1)" x-text="fmt(activeRun.aggregate.mean_weighted_f1)"></span>
+                                <figcaption>F1</figcaption>
+                            </figure>
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_weighted_precision)" x-text="fmt(activeRun.aggregate.mean_weighted_precision)"></span>
+                                <figcaption>Precision</figcaption>
+                            </figure>
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_weighted_recall)" x-text="fmt(activeRun.aggregate.mean_weighted_recall)"></span>
+                                <figcaption>Recall</figcaption>
+                            </figure>
+                        </div>
+                    </template>
+                    <template x-if="activeRun.config.task !== 'classification'">
+                        <div style="display: flex; gap: var(--space-xs); width: 100%;">
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_f1)" x-text="fmt(activeRun.aggregate.mean_clustering_f1)"></span>
+                                <figcaption>Clustering F1</figcaption>
+                            </figure>
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_bcubed_f1)" x-text="fmt(activeRun.aggregate.mean_bcubed_f1)"></span>
+                                <figcaption>B³ F1</figcaption>
+                            </figure>
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_precision)" x-text="fmt(activeRun.aggregate.mean_clustering_precision)"></span>
+                                <figcaption>Precision</figcaption>
+                            </figure>
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_clustering_recall)" x-text="fmt(activeRun.aggregate.mean_clustering_recall)"></span>
+                                <figcaption>Recall</figcaption>
+                            </figure>
+                            <figure>
+                                <span class="stat-value" :class="metricClass(activeRun.aggregate.mean_coverage)" x-text="fmt(activeRun.aggregate.mean_coverage)"></span>
+                                <figcaption>Coverage</figcaption>
+                            </figure>
+                        </div>
+                    </template>
                     <figure>
                         <span class="stat-value" x-text="activeRun.aggregate.total_pages"></span>
                         <figcaption>Pages</figcaption>
                     </figure>
                 </nav>
-
-                <!-- Config -->
+<!-- Config -->
                 <details>
                     <summary>Configuration</summary>
                     <dl class="config-grid">
@@ -848,17 +896,24 @@
                     </dl>
                 </details>
 
+                
                 <!-- Per-page table -->
                 <h3>Per-page metrics</h3>
                 <div class="table-wrap">
                 <table>
                     <thead>
-                        <tr>
+                        <tr x-show="activeRun.config.task === 'classification'">
+                            <th @click="sortPage('page_id')">Page <span x-show="pageSortKey === 'page_id'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th @click="sortPage('metrics.weighted_f1')">F1 <span x-show="pageSortKey === 'metrics.weighted_f1'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th @click="sortPage('metrics.weighted_precision')">Precision <span x-show="pageSortKey === 'metrics.weighted_precision'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th @click="sortPage('metrics.weighted_recall')">Recall <span x-show="pageSortKey === 'metrics.weighted_recall'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                            <th @click="sortPage('metrics.num_fragments')">Fragments <span x-show="pageSortKey === 'metrics.num_fragments'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
+                        </tr>
+                        <tr x-show="activeRun.config.task !== 'classification'">
                             <th @click="sortPage('page_id')">Page <span x-show="pageSortKey === 'page_id'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                             <th title="Pairwise clustering F1" @click="sortPage('metrics.clustering_f1')">F1 <span x-show="pageSortKey === 'metrics.clustering_f1'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                             <th title="B-Cubed F1" @click="sortPage('metrics.bcubed_f1')">B³ F1 <span x-show="pageSortKey === 'metrics.bcubed_f1'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                             <th title="Fraction of ground truth fragments covered" @click="sortPage('metrics.coverage')">Coverage <span x-show="pageSortKey === 'metrics.coverage'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
-                            <th title="Fraction of predicted items with correct class label" @click="sortPage('metrics.class_accuracy')">Class Acc <span x-show="pageSortKey === 'metrics.class_accuracy'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                             <th title="Number of predicted items" @click="sortPage('metrics.num_predicted_items')">Pred <span x-show="pageSortKey === 'metrics.num_predicted_items'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                             <th title="Number of ground truth items" @click="sortPage('metrics.num_ground_truth_items')">Truth <span x-show="pageSortKey === 'metrics.num_ground_truth_items'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
                             <th title="True positive fragment pairs" @click="sortPage('metrics.tp')">TP <span x-show="pageSortKey === 'metrics.tp'" x-text="pageSortDir === 'asc' ? '▲' : '▼'"></span></th>
@@ -868,12 +923,18 @@
                     </thead>
                     <template x-for="page in sortedPages" :key="page.page_id">
                         <tbody>
-                            <tr @click="togglePage(page.page_id)" :data-active="expandedPage === page.page_id">
+                            <tr @click="togglePage(page.page_id)" :data-active="expandedPage === page.page_id" x-show="activeRun.config.task === 'classification'">
+                                <td x-text="page.page_id"></td>
+                                <td :class="metricClass(page.metrics.weighted_f1)" x-text="fmt(page.metrics.weighted_f1)"></td>
+                                <td :class="metricClass(page.metrics.weighted_precision)" x-text="fmt(page.metrics.weighted_precision)"></td>
+                                <td :class="metricClass(page.metrics.weighted_recall)" x-text="fmt(page.metrics.weighted_recall)"></td>
+                                <td x-text="page.metrics.num_fragments"></td>
+                            </tr>
+                            <tr @click="togglePage(page.page_id)" :data-active="expandedPage === page.page_id" x-show="activeRun.config.task !== 'classification'">
                                 <td x-text="page.page_id"></td>
                                 <td :class="metricClass(page.metrics.clustering_f1)" x-text="fmt(page.metrics.clustering_f1)"></td>
                                 <td :class="metricClass(page.metrics.bcubed_f1)" x-text="fmt(page.metrics.bcubed_f1)"></td>
                                 <td :class="metricClass(page.metrics.coverage)" x-text="fmt(page.metrics.coverage)"></td>
-                                <td :class="metricClass(page.metrics.class_accuracy)" x-text="fmt(page.metrics.class_accuracy)"></td>
                                 <td x-text="page.metrics.num_predicted_items"></td>
                                 <td x-text="page.metrics.num_ground_truth_items"></td>
                                 <td x-text="page.metrics.tp"></td>
@@ -883,17 +944,28 @@
                             <tr x-show="expandedPage === page.page_id" class="page-detail-row">
                                 <td colspan="10">
                                     <div class="page-detail">
-                                        <div class="page-metrics-summary">
-                                            <span>F1 <strong :class="metricClass(page.metrics.clustering_f1)" x-text="fmt(page.metrics.clustering_f1)"></strong></span>
-                                            <span>B³ F1 <strong :class="metricClass(page.metrics.bcubed_f1)" x-text="fmt(page.metrics.bcubed_f1)"></strong></span>
-                                            <span>Precision <strong :class="metricClass(page.metrics.clustering_precision)" x-text="fmt(page.metrics.clustering_precision)"></strong></span>
-                                            <span>Recall <strong :class="metricClass(page.metrics.clustering_recall)" x-text="fmt(page.metrics.clustering_recall)"></strong></span>
-                                            <span>Coverage <strong :class="metricClass(page.metrics.coverage)" x-text="fmt(page.metrics.coverage)"></strong></span>
-                                            <span>Class Acc <strong :class="metricClass(page.metrics.class_accuracy)" x-text="fmt(page.metrics.class_accuracy)"></strong></span>
-                                            <span>Fragments <strong x-text="page.metrics.num_fragments"></strong></span>
-                                        </div>
+                                        <template x-if="activeRun.config.task === 'classification'">
+                                            <div class="page-metrics-summary">
+                                                <span>F1 <strong :class="metricClass(page.metrics.weighted_f1)" x-text="fmt(page.metrics.weighted_f1)"></strong></span>
+                                                <span>Precision <strong :class="metricClass(page.metrics.weighted_precision)" x-text="fmt(page.metrics.weighted_precision)"></strong></span>
+                                                <span>Recall <strong :class="metricClass(page.metrics.weighted_recall)" x-text="fmt(page.metrics.weighted_recall)"></strong></span>
+                                                <span>Fragments <strong x-text="page.metrics.num_fragments"></strong></span>
+                                            </div>
+                                        </template>
+                                        <template x-if="activeRun.config.task !== 'classification'">
+                                            <div class="page-metrics-summary">
+                                                <span>F1 <strong :class="metricClass(page.metrics.clustering_f1)" x-text="fmt(page.metrics.clustering_f1)"></strong></span>
+                                                <span>B³ F1 <strong :class="metricClass(page.metrics.bcubed_f1)" x-text="fmt(page.metrics.bcubed_f1)"></strong></span>
+                                                <span>Precision <strong :class="metricClass(page.metrics.clustering_precision)" x-text="fmt(page.metrics.clustering_precision)"></strong></span>
+                                                <span>Recall <strong :class="metricClass(page.metrics.clustering_recall)" x-text="fmt(page.metrics.clustering_recall)"></strong></span>
+                                                <span>Coverage <strong :class="metricClass(page.metrics.coverage)" x-text="fmt(page.metrics.coverage)"></strong></span>
+                                                <span>Fragments <strong x-text="page.metrics.num_fragments"></strong></span>
+                                            </div>
+                                        </template>
 
-                                        <div class="comparison-grid">
+                                        <template x-if="activeRun.config.task !== 'classification'">
+                                            <div>
+<div class="comparison-grid">
                                             <div style="grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-l);">
                                                 <h3 style="margin: 0;">Predicted <small x-text="'(' + page.predicted_items.length + ')'"></small></h3>
                                                 <h3 style="margin: 0;">Ground truth <small x-text="'(' + (page.ground_truth_items || []).length + ')'"></small></h3>
@@ -977,6 +1049,9 @@
                                                 </div>
                                             </details>
                                         </template>
+</div>
+</template>
+
                                     </div>
                                 </td>
                             </tr>
@@ -1155,6 +1230,32 @@
                 },
                 get sampleSizeOptions() {
                     return [...new Set(this.runs.map(r => r.config?.sample_size).filter(v => v != null))].sort((a, b) => a - b);
+                },
+
+                
+                get classificationRuns() { return this.runs.filter(r => r.config?.task === 'classification'); },
+                get reconstructionRuns() { return this.runs.filter(r => r.config?.task !== 'classification'); },
+
+                get filteredClassificationRuns() { return this.filteredRuns.filter(r => r.config?.task === 'classification'); },
+                get sortedClassificationRuns() {
+                    return [...this.filteredClassificationRuns].sort((a, b) => {
+                        const aVal = this.getNested(a, this.sortKey);
+                        const bVal = this.getNested(b, this.sortKey);
+                        if (typeof aVal === 'string') return this.sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                        const aNum = aVal ?? 0; const bNum = bVal ?? 0;
+                        return this.sortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                    });
+                },
+
+                get filteredReconstructionRuns() { return this.filteredRuns.filter(r => r.config?.task !== 'classification'); },
+                get sortedReconstructionRuns() {
+                    return [...this.filteredReconstructionRuns].sort((a, b) => {
+                        const aVal = this.getNested(a, this.sortKey);
+                        const bVal = this.getNested(b, this.sortKey);
+                        if (typeof aVal === 'string') return this.sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+                        const aNum = aVal ?? 0; const bNum = bVal ?? 0;
+                        return this.sortDir === 'asc' ? aNum - bNum : bNum - aNum;
+                    });
                 },
 
                 get filteredRuns() {
