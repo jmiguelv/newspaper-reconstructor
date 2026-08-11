@@ -337,11 +337,11 @@ def evaluate_reconstruction_page(
     }
 
 
-def log_evaluation_run(
+def log_evaluation_experiment(
     results: list[dict],
     config: dict,
     output_dir: str,
-    run_id: str | None = None,
+    experiment_id: str | None = None,
 ) -> str:
     """Log an evaluation run to a JSON file for reproducibility.
 
@@ -349,7 +349,7 @@ def log_evaluation_run(
         results: list of per-page result dicts (page_id, metrics, predicted_items, ground_truth_items)
         config: run configuration (provider, model, prompts, etc.)
         output_dir: directory to write the log file
-        run_id: optional run identifier to use instead of generating one
+        experiment_id: optional run identifier to use instead of generating one
 
     Returns the path to the written file.
     """
@@ -357,21 +357,21 @@ def log_evaluation_run(
 
     timestamp = datetime.now().astimezone()
 
-    if not run_id:
-        run_id = config.get("run_id")
+    if not experiment_id:
+        experiment_id = config.get("experiment_id")
 
-    if not run_id:
+    if not experiment_id:
         timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S")
         provider = config.get("provider", "unknown")
         model = config.get("model", "unknown")
         prompt_name = config.get("prompt_name", "default")
         sample_size = config.get("sample_size")
         seed = config.get("seed")
-        run_id = f"{timestamp_str}_{provider}_{model}_{prompt_name}"
+        experiment_id = f"{timestamp_str}_{provider}_{model}_{prompt_name}"
         if sample_size is not None:
-            run_id = f"{run_id}_sample{sample_size}"
+            experiment_id = f"{experiment_id}_sample{sample_size}"
         if seed is not None:
-            run_id = f"{run_id}_seed{seed}"
+            experiment_id = f"{experiment_id}_seed{seed}"
 
     # Compute aggregate metrics based on task
     task = config.get("task", "reconstruction")
@@ -421,14 +421,14 @@ def log_evaluation_run(
         }
 
     log = {
-        "run_id": run_id,
+        "experiment_id": experiment_id,
         "timestamp": timestamp.isoformat(),
         "config": config,
         "pages": results,
         "aggregate": aggregate,
     }
 
-    filename = f"{run_id}.json"
+    filename = f"{experiment_id}.json"
     path = os.path.join(output_dir, filename)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(log, f, indent=2, ensure_ascii=False)

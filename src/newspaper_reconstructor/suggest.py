@@ -5,9 +5,9 @@ import os
 import sys
 
 
-def load_run_data(run_id: str, eval_dir: str) -> dict:
+def load_run_data(experiment_id: str, eval_dir: str) -> dict:
     """Load the JSON evaluation log for a specific run ID."""
-    log_path = os.path.join(eval_dir, f"{run_id}.json")
+    log_path = os.path.join(eval_dir, f"{experiment_id}.json")
     if not os.path.exists(log_path):
         print(f"Error: Evaluation log not found at {log_path}", file=sys.stderr)
         return None
@@ -118,10 +118,10 @@ Output your response in Markdown format.
     return prompt
 
 
-def generate_suggestions(run_id: str, eval_dir: str, client, model: str) -> int:
+def generate_suggestions(experiment_id: str, eval_dir: str, client, model: str) -> int:
     """Generate and save LLM suggestions for a specific evaluation run."""
-    print(f"Loading run data for {run_id}...", file=sys.stderr)
-    run_data = load_run_data(run_id, eval_dir)
+    print(f"Loading run data for {experiment_id}...", file=sys.stderr)
+    run_data = load_run_data(experiment_id, eval_dir)
     if not run_data:
         return 1
 
@@ -148,13 +148,13 @@ def generate_suggestions(run_id: str, eval_dir: str, client, model: str) -> int:
     out_dir = os.path.join("reports", "suggestions")
     os.makedirs(out_dir, exist_ok=True)
 
-    prompt_path = os.path.join(out_dir, f"{run_id}_prompt.md")
+    prompt_path = os.path.join(out_dir, f"{experiment_id}_prompt.md")
     with open(prompt_path, "w", encoding="utf-8") as f:
         f.write(judge_prompt)
 
-    out_path = os.path.join(out_dir, f"{run_id}_suggestions.md")
+    out_path = os.path.join(out_dir, f"{experiment_id}_suggestions.md")
     with open(out_path, "w", encoding="utf-8") as f:
-        f.write(f"# Evaluation Suggestions for Run `{run_id}`\n\n")
+        f.write(f"# Evaluation Suggestions for Run `{experiment_id}`\n\n")
         f.write(suggestions)
 
     print(f"Successfully saved prompt to {prompt_path}", file=sys.stderr)

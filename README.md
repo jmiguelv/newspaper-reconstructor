@@ -47,7 +47,7 @@ article-reconstruction/
         └── <dataset_name>/
             ├── fragments/        # Parsed JSON fragments
             ├── classified/       # JSON fragments enriched with 'predicted_class'
-            └── reconstructions/  # LLM clustered articles (organized by run_id)
+            └── reconstructions/  # LLM clustered articles (organized by experiment_id)
 ```
 
 ## Installation
@@ -108,14 +108,14 @@ Evaluates predicted articles against the ground truth.
 uv run python main.py evaluate \
   -i data/1_interim/reconstructions/my_run \
   -g data/0_external/article_xml \
-  --run-id "my_run_v00"
+  --experiment-id "my_run_v00"
 ```
 
 ### 5. Generate Suggestions (LLM Judge)
 Generate systemic prompt and heuristic improvement suggestions based on the worst-performing pages of a specific evaluation run:
 
 ```bash
-uv run python main.py suggest --run-id "my_run_v00"
+uv run python main.py suggest --experiment-id "my_run_v00"
 ```
 
 ## Prompt Files

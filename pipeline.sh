@@ -44,20 +44,20 @@ classify_prompt_name=$(basename "$CLASSIFY_PROMPT_FILE" .md)
 cluster_prompt_name=$(basename "$CLUSTER_PROMPT_FILE" .md)
 
 if [ -n "$PAGE_ID" ]; then
-    classify_run_id="create_${MODEL}_c-${classify_prompt_name}_page_${PAGE_ID}"
-    cluster_run_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
+    classify_experiment_id="create_${MODEL}_c-${classify_prompt_name}_page_${PAGE_ID}"
+    cluster_experiment_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
 else
-    classify_run_id="create_${MODEL}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
-    cluster_run_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    classify_experiment_id="create_${MODEL}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    cluster_experiment_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
 
-safe_classify_run_id=$(echo "$classify_run_id" | tr ':' '_')
-safe_cluster_run_id=$(echo "$cluster_run_id" | tr ':' '_')
+safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':' '_')
+safe_cluster_experiment_id=$(echo "$cluster_experiment_id" | tr ':' '_')
 
-classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_run_id"
-reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_cluster_run_id"
+classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_experiment_id"
+reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_cluster_experiment_id"
 
-echo "=== Running Pipeline for: $cluster_run_id (Dataset: $DATASET) ==="
+echo "=== Running Pipeline for: $cluster_experiment_id (Dataset: $DATASET) ==="
 
 PAGE_ARG=""
 if [ -n "$PAGE_ID" ]; then
@@ -88,7 +88,7 @@ if [ ! -d "$classified_dir" ] || [ -z "$(ls -A "$classified_dir" 2>/dev/null)" ]
         ${SAMPLE_ARG:+$SAMPLE_ARG} \
         ${PAGE_ARG:+$PAGE_ARG}
 else
-    echo "Classification for $safe_classify_run_id already exists. Skipping classification."
+    echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
 fi
 
 # Step 2.5: Evaluate Classification
@@ -97,7 +97,7 @@ uv run python main.py evaluate \
     -i "$classified_dir" \
     -g "$GROUND_TRUTH_DIR" \
     --eval-dir "$EVAL_DIR" \
-    --run-id "$classify_run_id" \
+    --experiment-id "$classify_experiment_id" \
     --task classification \
     ${PAGE_ARG:+$PAGE_ARG}
 
@@ -120,7 +120,7 @@ uv run python main.py evaluate \
     -i "$reconstructions_dir" \
     -g "$GROUND_TRUTH_DIR" \
     --eval-dir "$EVAL_DIR" \
-    --run-id "$cluster_run_id" \
+    --experiment-id "$cluster_experiment_id" \
     --task reconstruction \
     ${PAGE_ARG:+$PAGE_ARG}
 

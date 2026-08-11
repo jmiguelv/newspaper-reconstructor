@@ -10,7 +10,7 @@ from src.newspaper_reconstructor.evaluate import (
     evaluate_classification_page,
     evaluate_reconstruction_page,
     load_ground_truth_dir,
-    log_evaluation_run,
+    log_evaluation_experiment,
     parse_article_xml,
 )
 
@@ -250,7 +250,7 @@ class TestEvaluateClassificationPage:
         assert result["num_fragments"] == 3
 
 
-# ─── log_evaluation_run ─────────────────────────────────────────────────────────
+# ─── log_evaluation_experiment ─────────────────────────────────────────────────────────
 
 
 class TestLogEvaluationRun:
@@ -277,11 +277,11 @@ class TestLogEvaluationRun:
         ]
         config = {"provider": "openai", "model": "gpt-4o", "task": "reconstruction"}
         output_dir = str(tmp_path / "evaluations")
-        path = log_evaluation_run(results, config, output_dir)
+        path = log_evaluation_experiment(results, config, output_dir)
         assert os.path.exists(path)
         with open(path) as f:
             data = json.load(f)
-        assert "run_id" in data
+        assert "experiment_id" in data
         assert "timestamp" in data
         assert data["config"]["model"] == "gpt-4o"
         assert len(data["pages"]) == 1
@@ -328,7 +328,7 @@ class TestLogEvaluationRun:
         ]
         config = {"provider": "openai", "model": "gpt-4o", "task": "reconstruction"}
         output_dir = str(tmp_path / "evaluations")
-        path = log_evaluation_run(results, config, output_dir)
+        path = log_evaluation_experiment(results, config, output_dir)
         with open(path) as f:
             data = json.load(f)
         assert data["aggregate"]["mean_clustering_f1"] == pytest.approx(0.7)
@@ -362,7 +362,7 @@ class TestLogEvaluationRun:
         ]
         config = {"provider": "openai", "model": "gpt-4o", "task": "classification"}
         output_dir = str(tmp_path / "evaluations")
-        path = log_evaluation_run(results, config, output_dir)
+        path = log_evaluation_experiment(results, config, output_dir)
         with open(path) as f:
             data = json.load(f)
         assert data["aggregate"]["mean_weighted_f1"] == pytest.approx(0.7)
@@ -377,7 +377,7 @@ class TestLogEvaluationRun:
             "user_prompt_template": "Fragments: {fragments}",
         }
         output_dir = str(tmp_path / "evaluations")
-        path = log_evaluation_run(results, config, output_dir)
+        path = log_evaluation_experiment(results, config, output_dir)
         with open(path) as f:
             data = json.load(f)
         assert data["config"]["system_prompt"] == "You are..."
@@ -391,18 +391,18 @@ class TestLogEvaluationRun:
             "prompt_name": "jawi_v2",
         }
         output_dir = str(tmp_path / "evaluations")
-        path = log_evaluation_run(results, config, output_dir)
+        path = log_evaluation_experiment(results, config, output_dir)
         assert "jawi_v2" in os.path.basename(path)
         with open(path) as f:
             data = json.load(f)
-        assert data["run_id"].endswith("_jawi_v2")
+        assert data["experiment_id"].endswith("_jawi_v2")
         assert data["config"]["prompt_name"] == "jawi_v2"
 
     def test_prompt_name_defaults_to_default(self, tmp_path):
         results = []
         config = {"provider": "openai", "model": "gpt-4o"}
         output_dir = str(tmp_path / "evaluations")
-        path = log_evaluation_run(results, config, output_dir)
+        path = log_evaluation_experiment(results, config, output_dir)
         assert "_default" in os.path.basename(path)
 
 

@@ -55,7 +55,7 @@ def _make_eval_log(
     if pages is None:
         pages = []
     return {
-        "run_id": "test_run",
+        "experiment_id": "test_run",
         "timestamp": "2026-01-01T00:00:00",
         "config": {
             "provider": "openai",

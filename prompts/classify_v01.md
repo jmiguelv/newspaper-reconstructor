@@ -10,7 +10,7 @@ The possible classes are:
 - "obituary": Death notices.
 - "letter": Letters to the editor.
 - "caption": Image or photo captions.
-- "miscellaneous": Page numbers, margin artifacts, publisher details, unintelligible OCR noise, or anything else that doesn't fit the above.
+- "miscellaneous": Anything else that doesn't fit the above.
 
 Return ONLY a valid JSON object mapping each fragment ID to its predicted class string. No other text, no markdown blocks, no explanation.
 

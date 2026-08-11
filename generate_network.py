@@ -64,24 +64,24 @@ def derive_eval_name(config: dict, override: str | None = None) -> str:
     if override:
         return override
 
-    # Parse missing configuration fields from run_id (since they were decoupled)
+    # Parse missing configuration fields from experiment_id (since they were decoupled)
     import re
 
-    run_id = config.get("run_id", "")
-    if "model" not in config and "create_" in run_id:
-        m = re.search(r"create_(.+?)_c-", run_id)
+    experiment_id = config.get("experiment_id", "")
+    if "model" not in config and "create_" in experiment_id:
+        m = re.search(r"create_(.+?)_c-", experiment_id)
         if m:
             config["model"] = m.group(1)
-    if "prompt_name" not in config and "_r-" in run_id:
-        m = re.search(r"_r-(.+?)(?:_|$)", run_id)
+    if "prompt_name" not in config and "_r-" in experiment_id:
+        m = re.search(r"_r-(.+?)(?:_|$)", experiment_id)
         if m:
             config["prompt_name"] = m.group(1)
-    if "sample_size" not in config and "_sample" in run_id:
-        m = re.search(r"_sample(\d+)", run_id)
+    if "sample_size" not in config and "_sample" in experiment_id:
+        m = re.search(r"_sample(\d+)", experiment_id)
         if m:
             config["sample_size"] = int(m.group(1))
-    if "seed" not in config and "_seed" in run_id:
-        m = re.search(r"_seed(\d+)", run_id)
+    if "seed" not in config and "_seed" in experiment_id:
+        m = re.search(r"_seed(\d+)", experiment_id)
         if m:
             config["seed"] = int(m.group(1))
 
@@ -207,7 +207,7 @@ def export_eval_log(
     # Infer fragments directory from input_folder if available
     input_folder = config.get("input_folder")
     if input_folder:
-        # e.g., data/1_interim/ds-filteredUM1956alto/reconstructions/run_id
+        # e.g., data/1_interim/ds-filteredUM1956alto/reconstructions/experiment_id
         # We want data/1_interim/ds-filteredUM1956alto/fragments
         fragments_dir = Path(input_folder).parent.parent / "fragments"
     else:

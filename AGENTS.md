@@ -59,7 +59,7 @@ data/
     └── <dataset_name>/
         ├── fragments/        # Parsed JSON fragments
         ├── classified/       # JSON fragments enriched with 'predicted_class'
-        └── reconstructions/  # LLM clustered articles (organized by run_id)
+        └── reconstructions/  # LLM clustered articles (organized by experiment_id)
 reports/
 ├── evaluations/          # Evaluation logs
 ├── networks/             # Exported nodes/edges CSV for the network visualizer

@@ -13,7 +13,7 @@ from src.newspaper_reconstructor.evaluate import (
     evaluate_classification_page,
     evaluate_reconstruction_page,
     load_ground_truth_dir,
-    log_evaluation_run,
+    log_evaluation_experiment,
 )
 from src.newspaper_reconstructor.llm import make_client
 from src.newspaper_reconstructor.reconstruct import (
@@ -279,7 +279,7 @@ def evaluate(
     eval_dir: str = typer.Option(
         "reports/evaluations", help="Directory for evaluation logs"
     ),
-    run_id: str = typer.Option(
+    experiment_id: str = typer.Option(
         None, help="Identifier for this evaluation run (e.g., model_v1_sample16)"
     ),
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
@@ -296,8 +296,8 @@ def evaluate(
 
     os.makedirs(eval_dir, exist_ok=True)
 
-    if run_id is None:
-        run_id = f"eval_{int(time.time())}"
+    if experiment_id is None:
+        experiment_id = f"eval_{int(time.time())}"
 
     gt_data = load_ground_truth_dir(ground_truth_folder)
 
@@ -343,7 +343,7 @@ def evaluate(
 
     # Mock config for log since we decoupled it
     config = {
-        "run_id": run_id,
+        "experiment_id": experiment_id,
         "task": task,
         "input_folder": input_folder,
         "ground_truth_folder": ground_truth_folder,
@@ -358,13 +358,15 @@ def evaluate(
         except (FileNotFoundError, json.JSONDecodeError) as e:
             typer.echo(f"Warning: Failed to read metadata.json: {e}", err=True)
 
-    log_path = log_evaluation_run(results, config, eval_dir, run_id)
+    log_path = log_evaluation_experiment(results, config, eval_dir, experiment_id)
     typer.echo(f"Evaluation complete. Logs saved to {log_path}")
 
 
 @app.command()
 def suggest(
-    run_id: str = typer.Option(..., help="Run ID of the evaluation to analyze"),
+    experiment_id: str = typer.Option(
+        ..., help="Experiment ID of the evaluation to analyze"
+    ),
     model: str = typer.Option(..., envvar="LLM_MODEL", help="LLM model name"),
     base_url: str | None = typer.Option(
         None, envvar="LLM_BASE_URL", help="API base URL"
@@ -378,7 +380,7 @@ def suggest(
 
     # suggest.py uses sys.argv, so we override it temporarily
     old_argv = sys.argv
-    sys.argv = ["suggest.py", run_id, "--model", model]
+    sys.argv = ["suggest.py", experiment_id, "--model", model]
     if base_url:
         sys.argv.extend(["--base-url", base_url])
     if api_key:
