@@ -372,24 +372,22 @@ def suggest(
         None, envvar="LLM_BASE_URL", help="API base URL"
     ),
     api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+    focus: str = typer.Option(
+        "clustering", help="Focus of the analysis: clustering, classification, or both"
+    ),
 ):
     """Analyze evaluation logs and suggest improvements using LLM judge."""
-    # We will invoke the suggest logic here. Let's just run it as a subprocess for now
-    # to avoid modifying suggest.py directly, or we can import it.
-    from src.newspaper_reconstructor.suggest import main as suggest_main
+    from src.newspaper_reconstructor.llm import make_client
+    from src.newspaper_reconstructor.suggest import generate_suggestions
 
-    # suggest.py uses sys.argv, so we override it temporarily
-    old_argv = sys.argv
-    sys.argv = ["suggest.py", experiment_id, "--model", model]
-    if base_url:
-        sys.argv.extend(["--base-url", base_url])
-    if api_key:
-        sys.argv.extend(["--api-key", api_key])
+    eval_dir = os.path.join("reports", "evaluations")
+    client = make_client(
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+    )
 
-    try:
-        suggest_main()
-    finally:
-        sys.argv = old_argv
+    sys.exit(generate_suggestions(experiment_id, eval_dir, client, model, focus))
 
 
 if __name__ == "__main__":
