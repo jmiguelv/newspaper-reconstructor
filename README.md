@@ -67,7 +67,10 @@ Set environment variables for the LLM API, or pass them as CLI options. Works wi
 | `LLM_API_KEY`    | API key for the LLM provider      | `"none"`                                              |
 | `LLM_MODEL`      | Model name                        | Required                                              |
 | `LLM_BASE_URL`   | Custom OpenAI-compatible endpoint | None                                                  |
+| `LLM_PROVIDER`   | Provider name in providers.json   | None                                                  |
 | `IMAGE_BASE_URL` | Base URL for page scan images     | `https://jawi.sgp1.digitaloceanspaces.com/page_scans` |
+
+You can also define providers with custom `base_url` and `default_headers` in a `providers.json` file in the project root. When `LLM_PROVIDER` (or `--provider`) is passed, the CLI automatically resolves the endpoint configuration from this file.
 
 ## Usage
 
@@ -87,7 +90,9 @@ Uses an LLM to assign classes (headline, body, caption, etc.) to each fragment.
 uv run python main.py classify \
   -i data/1_interim/fragments \
   -p prompts/classify.md \
-  -o data/1_interim/classified
+  -o data/1_interim/classified \
+  --provider openrouter \
+  --save-prompts
 ```
 
 ### 3. Cluster Fragments into Articles
@@ -98,7 +103,9 @@ uv run python main.py cluster \
   -i data/1_interim/classified \
   -p prompts/v00.md \
   -o data/1_interim/reconstructions/my_run \
-  --sort-fragments
+  --provider openrouter \
+  --sort-fragments \
+  --save-prompts
 ```
 
 ### 4. Evaluate Reconstructions
