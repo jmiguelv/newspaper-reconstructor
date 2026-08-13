@@ -1282,7 +1282,7 @@
                     const runId = experimentData.experiment_id || '';
                     
                     if (!experimentData.config.model) {
-                        const m = runId.match(/create_(.+?)_c-/);
+                        const m = runId.match(/^(?:create_|openai_)?(.+?)_c-/);
                         experimentData.config.model = m ? m[1] : (runId.length > 20 ? runId.substring(0, 20) + '...' : runId);
                     }
                     if (!experimentData.config.prompt_name) {

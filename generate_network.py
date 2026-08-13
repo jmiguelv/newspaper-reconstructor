@@ -68,8 +68,8 @@ def derive_eval_name(config: dict, override: str | None = None) -> str:
     import re
 
     experiment_id = config.get("experiment_id", "")
-    if "model" not in config and "create_" in experiment_id:
-        m = re.search(r"create_(.+?)_c-", experiment_id)
+    if "model" not in config and "_c-" in experiment_id:
+        m = re.search(r"^(?:create_|openai_)?(.+?)_c-", experiment_id)
         if m:
             config["model"] = m.group(1)
     if "prompt_name" not in config and "_r-" in experiment_id:
