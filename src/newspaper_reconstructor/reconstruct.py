@@ -7,6 +7,7 @@ Workflow:
 """
 
 import json
+import os
 import re
 import sys
 import time
@@ -55,6 +56,7 @@ def classify_fragments(
     system_prompt: str,
     user_prompt_template: str,
     max_retries: int = 3,
+    prompt_out_path: str | None = None,
 ) -> dict[str, str] | None:
     """Send fragments to LLM for classification.
 
@@ -63,6 +65,11 @@ def classify_fragments(
     """
     frag_text = json.dumps(fragments, ensure_ascii=False, indent=2)
     user_prompt = user_prompt_template.format(fragments=frag_text)
+
+    if prompt_out_path:
+        os.makedirs(os.path.dirname(prompt_out_path), exist_ok=True)
+        with open(prompt_out_path, "w", encoding="utf-8") as f:
+            f.write(f"# System Prompt\n{system_prompt}\n\n# User Prompt\n{user_prompt}")
 
     for attempt in range(max_retries):
         try:
@@ -92,6 +99,7 @@ def reconstruct_articles(
     system_prompt: str,
     user_prompt_template: str,
     max_retries: int = 3,
+    prompt_out_path: str | None = None,
 ) -> list[dict] | None:
     """Send fragments to LLM and return reconstructed items.
 
@@ -100,6 +108,11 @@ def reconstruct_articles(
     """
     frag_text = json.dumps(fragments, ensure_ascii=False, indent=2)
     user_prompt = user_prompt_template.format(fragments=frag_text)
+
+    if prompt_out_path:
+        os.makedirs(os.path.dirname(prompt_out_path), exist_ok=True)
+        with open(prompt_out_path, "w", encoding="utf-8") as f:
+            f.write(f"# System Prompt\n{system_prompt}\n\n# User Prompt\n{user_prompt}")
 
     for attempt in range(max_retries):
         try:

@@ -104,15 +104,25 @@ def classify(
         None, envvar="LLM_BASE_URL", help="API base URL"
     ),
     api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+    provider: str | None = typer.Option(
+        None, envvar="LLM_PROVIDER", help="Provider name (e.g. create, openrouter)"
+    ),
     timeout: float = typer.Option(300.0, help="API timeout in seconds"),
     sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
     seed: int = typer.Option(42, help="Random seed for sampling"),
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
+    save_prompts: bool = typer.Option(
+        False, "--save-prompts", help="Save individual prompts sent to the LLM"
+    ),
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     os.makedirs(output_folder, exist_ok=True)
     client = make_client(
-        model=model, base_url=base_url, api_key=api_key, timeout=timeout
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        provider=provider,
     )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
@@ -139,8 +149,16 @@ def classify(
         with open(in_path, encoding="utf-8") as f:
             fragments = json.load(f)
 
+        prompt_out_path = None
+        if save_prompts:
+            prompt_out_path = os.path.join(
+                output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
+            )
+
         typer.echo(f"Classifying {fname}...")
-        classes = classify_fragments(fragments, client, sys_prompt, user_prompt)
+        classes = classify_fragments(
+            fragments, client, sys_prompt, user_prompt, prompt_out_path=prompt_out_path
+        )
 
         if classes:
             # Enrich fragments
@@ -166,6 +184,7 @@ def classify(
                 "model": model,
                 "prompt_name": prompt_name,
                 "sample_size": sample_size,
+                "provider": provider,
             },
             f,
             indent=2,
@@ -195,6 +214,9 @@ def cluster(
         None, envvar="LLM_BASE_URL", help="API base URL"
     ),
     api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+    provider: str | None = typer.Option(
+        None, envvar="LLM_PROVIDER", help="Provider name (e.g. create, openrouter)"
+    ),
     timeout: float = typer.Option(300.0, help="API timeout in seconds"),
     sort_fragments_flag: bool = typer.Option(
         False, "--sort-fragments", help="Sort fragments spatially before clustering"
@@ -202,11 +224,18 @@ def cluster(
     sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
     seed: int = typer.Option(42, help="Random seed for sampling"),
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
+    save_prompts: bool = typer.Option(
+        False, "--save-prompts", help="Save individual prompts sent to the LLM"
+    ),
 ):
     """Cluster fragments into articles using an LLM."""
     os.makedirs(output_folder, exist_ok=True)
     client = make_client(
-        model=model, base_url=base_url, api_key=api_key, timeout=timeout
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+        timeout=timeout,
+        provider=provider,
     )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
@@ -236,8 +265,16 @@ def cluster(
         if sort_fragments_flag:
             fragments = sort_fragments(fragments)
 
+        prompt_out_path = None
+        if save_prompts:
+            prompt_out_path = os.path.join(
+                output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
+            )
+
         typer.echo(f"Clustering {fname}...")
-        articles = reconstruct_articles(fragments, client, sys_prompt, user_prompt)
+        articles = reconstruct_articles(
+            fragments, client, sys_prompt, user_prompt, prompt_out_path=prompt_out_path
+        )
 
         if articles is not None:
             with open(out_path, "w", encoding="utf-8") as f:
@@ -258,6 +295,7 @@ def cluster(
                 "model": model,
                 "prompt_name": prompt_name,
                 "sample_size": sample_size,
+                "provider": provider,
             },
             f,
             indent=2,
@@ -372,6 +410,9 @@ def suggest(
         None, envvar="LLM_BASE_URL", help="API base URL"
     ),
     api_key: str | None = typer.Option(None, envvar="LLM_API_KEY", help="API key"),
+    provider: str | None = typer.Option(
+        None, envvar="LLM_PROVIDER", help="Provider name (e.g. create, openrouter)"
+    ),
     focus: str = typer.Option(
         "clustering", help="Focus of the analysis: clustering, classification, or both"
     ),
@@ -385,6 +426,7 @@ def suggest(
         model=model,
         base_url=base_url,
         api_key=api_key,
+        provider=provider,
     )
 
     sys.exit(generate_suggestions(experiment_id, eval_dir, client, model, focus))

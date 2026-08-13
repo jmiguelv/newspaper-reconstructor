@@ -9,6 +9,8 @@ SAMPLE_SIZE=""
 SEED="42"
 PAGE_ID=""
 DATASET=""
+PROVIDER=""
+SAVE_PROMPTS=""
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
@@ -19,6 +21,8 @@ while [[ "$#" -gt 0 ]]; do
         --seed) SEED="$2"; shift ;;
         --page-id) PAGE_ID="$2"; shift ;;
         --dataset) DATASET="$2"; shift ;;
+        --provider) PROVIDER="$2"; shift ;;
+        --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -43,12 +47,17 @@ TIMEOUT=60
 classify_prompt_name=$(basename "$CLASSIFY_PROMPT_FILE" .md)
 cluster_prompt_name=$(basename "$CLUSTER_PROMPT_FILE" .md)
 
+MODEL_PREFIX="${MODEL}"
+if [ -n "$PROVIDER" ]; then
+    MODEL_PREFIX="${PROVIDER}_${MODEL}"
+fi
+
 if [ -n "$PAGE_ID" ]; then
-    classify_experiment_id="create_${MODEL}_c-${classify_prompt_name}_page_${PAGE_ID}"
-    cluster_experiment_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
+    classify_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_page_${PAGE_ID}"
+    cluster_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
 else
-    classify_experiment_id="create_${MODEL}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
-    cluster_experiment_id="create_${MODEL}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    classify_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    cluster_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
 
 safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':' '_')
@@ -66,6 +75,10 @@ fi
 SAMPLE_ARG=""
 if [ -n "$SAMPLE_SIZE" ]; then
     SAMPLE_ARG="--sample-size $SAMPLE_SIZE"
+fi
+PROVIDER_ARG=""
+if [ -n "$PROVIDER" ]; then
+    PROVIDER_ARG="--provider $PROVIDER"
 fi
 
 # Step 1: Parse ALTO to JSON (if not already done)
@@ -86,7 +99,9 @@ if [ ! -d "$classified_dir" ] || [ -z "$(ls -A "$classified_dir" 2>/dev/null)" ]
         --seed "$SEED" \
         --timeout "$TIMEOUT" \
         ${SAMPLE_ARG:+$SAMPLE_ARG} \
-        ${PAGE_ARG:+$PAGE_ARG}
+        ${PAGE_ARG:+$PAGE_ARG} \
+        ${PROVIDER_ARG:+$PROVIDER_ARG} \
+        ${SAVE_PROMPTS:+$SAVE_PROMPTS}
 else
     echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
 fi
@@ -112,7 +127,9 @@ uv run python main.py cluster \
     --seed "$SEED" \
     --timeout "$TIMEOUT" \
     ${SAMPLE_ARG:+$SAMPLE_ARG} \
-    ${PAGE_ARG:+$PAGE_ARG}
+    ${PAGE_ARG:+$PAGE_ARG} \
+    ${PROVIDER_ARG:+$PROVIDER_ARG} \
+    ${SAVE_PROMPTS:+$SAVE_PROMPTS}
 
 # Step 4: Evaluate
 echo "Evaluating..."

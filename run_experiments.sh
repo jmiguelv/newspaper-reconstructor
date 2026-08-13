@@ -3,10 +3,12 @@
 set -euo pipefail
 
 DATASET=""
+PROVIDER=""
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dataset) DATASET="$2"; shift ;;
+        --provider) PROVIDER="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
@@ -41,6 +43,11 @@ SAMPLE_SIZES=(
 
 SEED=42
 
+PROVIDER_ARG=""
+if [ -n "$PROVIDER" ]; then
+    PROVIDER_ARG="--provider $PROVIDER"
+fi
+
 total=$(( ${#CLASSIFY_PROMPTS[@]} * ${#CLUSTER_PROMPTS[@]} * ${#MODELS[@]} * ${#SAMPLE_SIZES[@]} ))
 count=0
 
@@ -58,7 +65,8 @@ for classify_prompt in "${CLASSIFY_PROMPTS[@]}"; do
             --classify-prompt "$classify_prompt" \
             --cluster-prompt "$cluster_prompt" \
             --sample-size "$sample_size" \
-            --seed "$SEED"
+            --seed "$SEED" \
+            ${PROVIDER_ARG:+$PROVIDER_ARG}
       done
     done
   done
