@@ -1,3 +1,19 @@
+## 0.7.0 (2026-08-13)
+
+### Feat
+
+- add CLI options for LLM providers and saving raw prompts
+- **llm**: add provider configuration and fix malformed response handling
+- **dashboard**: independent sort, pipeline links, richer summary
+
+### Fix
+
+- **evaluate**: create parent directories before writing evaluation logs
+
+### Refactor
+
+- support provider prefixes in experiment IDs
+
 ## 0.6.0 (2026-08-11)
 
 ### Feat
