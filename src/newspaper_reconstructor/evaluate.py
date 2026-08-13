@@ -430,6 +430,7 @@ def log_evaluation_experiment(
 
     filename = f"{experiment_id}.json"
     path = os.path.join(output_dir, filename)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(log, f, indent=2, ensure_ascii=False)
 
