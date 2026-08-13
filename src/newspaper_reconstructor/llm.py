@@ -1,12 +1,23 @@
 """LLM client for OpenAI-compatible APIs.
 
-Env vars: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL.
+Env vars: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER.
 API key defaults to "none" (local servers ignore it).
 """
 
+import json
 import os
+from pathlib import Path
 
-from openai import OpenAI
+from openai import APIError, OpenAI
+
+PROVIDERS_FILE = Path(__file__).resolve().parent.parent.parent / "providers.json"
+
+
+def _load_providers() -> dict:
+    if not PROVIDERS_FILE.exists():
+        return {}
+    with open(PROVIDERS_FILE, encoding="utf-8") as f:
+        return json.load(f)
 
 
 class LLMClient:
@@ -18,24 +29,48 @@ class LLMClient:
         model: str,
         base_url: str | None = None,
         timeout: float = 300.0,
+        default_headers: dict[str, str] | None = None,
     ):
         kwargs = {"api_key": api_key, "max_retries": 0, "timeout": timeout}
         if base_url:
             kwargs["base_url"] = base_url
+        if default_headers:
+            kwargs["default_headers"] = default_headers
         self.client = OpenAI(**kwargs)
         self.model = model
         self.base_url = base_url
 
     def complete(self, system: str, user: str) -> str:
-        resp = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0,
-        )
-        return resp.choices[0].message.content
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+                temperature=0,
+            )
+        except json.JSONDecodeError as e:
+            raise APIError(
+                f"API returned invalid JSON (possibly a gateway HTML page): {e}",
+                request=None,
+                body=None,
+            ) from e
+
+        if not resp.choices:
+            raise APIError(
+                "API returned empty choices (possibly rate limited or content filtered).",
+                request=None,
+                body=None,
+            )
+        content = resp.choices[0].message.content
+        if content is None:
+            raise APIError(
+                "API returned null content (possibly due to a content filter).",
+                request=None,
+                body=None,
+            )
+        return content
 
 
 def make_client(
@@ -43,15 +78,40 @@ def make_client(
     api_key: str | None = None,
     model: str | None = None,
     timeout: float = 300.0,
+    provider: str | None = None,
 ) -> LLMClient:
     """Create an LLM client. Reads from env if args not provided.
 
-    Env vars: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL.
+    Env vars: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER.
     API key defaults to "none" (local servers ignore it).
+
+    If provider is given (or LLM_PROVIDER is set), the base_url and
+    default_headers are resolved from providers.json. The API key always
+    comes from LLM_API_KEY.
     """
+    provider = provider or os.environ.get("LLM_PROVIDER")
+    default_headers = None
+
+    if provider:
+        provider = provider.lower()
+        providers = _load_providers()
+        if provider not in providers:
+            available = ", ".join(sorted(providers)) if providers else "(none)"
+            raise ValueError(f"Unknown provider '{provider}'. Available: {available}.")
+        prov = providers[provider]
+        base_url = base_url or prov["base_url"]
+        default_headers = prov.get("default_headers")
+    else:
+        base_url = base_url or os.environ.get("LLM_BASE_URL")
+
     api_key = api_key or os.environ.get("LLM_API_KEY", "none")
-    base_url = base_url or os.environ.get("LLM_BASE_URL")
     model = model or os.environ.get("LLM_MODEL")
     if not model:
         raise ValueError("Model not set. Provide --model or set LLM_MODEL env var.")
-    return LLMClient(api_key=api_key, model=model, base_url=base_url, timeout=timeout)
+    return LLMClient(
+        api_key=api_key,
+        model=model,
+        base_url=base_url,
+        timeout=timeout,
+        default_headers=default_headers,
+    )

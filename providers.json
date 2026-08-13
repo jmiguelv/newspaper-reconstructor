@@ -1,0 +1,12 @@
+{
+  "create": {
+    "base_url": "https://ai.create.kcl.ac.uk/api/"
+  },
+  "openrouter": {
+    "base_url": "https://openrouter.ai/api/v1",
+    "default_headers": {
+      "HTTP-Referer": "https://github.com/culturalheritagenus/newspaper-reconstructor",
+      "X-Title": "Jawi Newspaper Reconstructor"
+    }
+  }
+}
