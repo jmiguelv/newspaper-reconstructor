@@ -1,3 +1,17 @@
+## 0.9.0 (2026-08-24)
+
+### Feat
+
+- **dashboard**: display dataset and allow filtering by dataset
+
+### Fix
+
+- **pipeline**: prefix experiment_id with dataset name to prevent cross-dataset collisions
+
+### Refactor
+
+- support pre-extracted JSON datasets via new etl command - Added ingest.py and etl command - Updated pipeline to auto-detect json vs alto - Removed spatial sorting (sort.py)
+
 ## 0.7.0 (2026-08-13)
 
 ### Feat
