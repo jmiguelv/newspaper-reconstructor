@@ -11,6 +11,7 @@ PAGE_ID=""
 DATASET=""
 PROVIDER=""
 SAVE_PROMPTS=""
+SKIP_CLASSIFICATION=0
 
 TIMEOUT="300"
 
@@ -26,13 +27,19 @@ while [[ "$#" -gt 0 ]]; do
         --provider) PROVIDER="$2"; shift ;;
         --timeout) TIMEOUT="$2"; shift ;;
         --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
+        --skip-classification) SKIP_CLASSIFICATION=1 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
-if [ -z "$MODEL" ] || [ -z "$CLASSIFY_PROMPT_FILE" ] || [ -z "$CLUSTER_PROMPT_FILE" ] || [ -z "$DATASET" ]; then
-    echo "Usage: $0 --dataset <dataset_name> --model <model> --classify-prompt <file> --cluster-prompt <file> [--sample-size <N>] [--seed <S>] [--page-id <ID>] [--timeout <T>]"
+if [ -z "$MODEL" ] || [ -z "$CLUSTER_PROMPT_FILE" ] || [ -z "$DATASET" ]; then
+    echo "Usage: $0 --dataset <dataset_name> --model <model> --cluster-prompt <file> [--classify-prompt <file>] [--skip-classification] [--sample-size <N>] [--seed <S>] [--page-id <ID>] [--timeout <T>]"
+    exit 1
+fi
+
+if [ "$SKIP_CLASSIFICATION" -eq 0 ] && [ -z "$CLASSIFY_PROMPT_FILE" ]; then
+    echo "Error: --classify-prompt is required unless --skip-classification is used."
     exit 1
 fi
 
@@ -58,7 +65,10 @@ else
     exit 1
 fi
 
-classify_prompt_name=$(basename "$CLASSIFY_PROMPT_FILE" .md)
+classify_prompt_name=""
+if [ -n "$CLASSIFY_PROMPT_FILE" ]; then
+    classify_prompt_name=$(basename "$CLASSIFY_PROMPT_FILE" .md)
+fi
 cluster_prompt_name=$(basename "$CLUSTER_PROMPT_FILE" .md)
 
 MODEL_PREFIX="${MODEL}"
@@ -67,18 +77,33 @@ if [ -n "$PROVIDER" ]; then
 fi
 
 if [ -n "$PAGE_ID" ]; then
-    classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_page_${PAGE_ID}"
-    cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
+    if [ "$SKIP_CLASSIFICATION" -eq 1 ]; then
+        cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_r-${cluster_prompt_name}_page_${PAGE_ID}"
+    else
+        classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_page_${PAGE_ID}"
+        cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
+    fi
 else
-    classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
-    cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    if [ "$SKIP_CLASSIFICATION" -eq 1 ]; then
+        cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    else
+        classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+        cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    fi
 fi
 
-safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':|/' '_')
 safe_cluster_experiment_id=$(echo "$cluster_experiment_id" | tr ':|/' '_')
-
-classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_experiment_id"
 reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_cluster_experiment_id"
+
+if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
+    safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':|/' '_')
+    classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_experiment_id"
+    cluster_input_dir="$classified_dir"
+else
+    cluster_input_dir="$FRAGMENTS_DIR"
+    safe_classify_experiment_id="skipped"
+    classified_dir=""
+fi
 
 echo "=== Running Pipeline for: $cluster_experiment_id (Dataset: $DATASET, Format: $INPUT_FORMAT) ==="
 
@@ -107,38 +132,40 @@ if [ ! -d "$FRAGMENTS_DIR" ]; then
 fi
 
 # Step 2: Classify
-if [ ! -d "$classified_dir" ] || [ "$(find "$classified_dir" -maxdepth 1 -name "*.json" ! -name "_*.json" 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]; then
-    echo "Classifying..."
-    uv run python main.py classify \
-        -i "$FRAGMENTS_DIR" \
-        -p "$CLASSIFY_PROMPT_FILE" \
-        -o "$classified_dir" \
-        --model "$MODEL" \
-        --seed "$SEED" \
-        --timeout "$TIMEOUT" \
-        ${SAMPLE_ARG:+$SAMPLE_ARG} \
-        ${PAGE_ARG:+$PAGE_ARG} \
-        ${PROVIDER_ARG:+$PROVIDER_ARG} \
-        ${SAVE_PROMPTS:+$SAVE_PROMPTS}
-else
-    echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
-fi
+if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
+    if [ ! -d "$classified_dir" ] || [ "$(find "$classified_dir" -maxdepth 1 -name "*.json" ! -name "_*.json" 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]; then
+        echo "Classifying..."
+        uv run python main.py classify \
+            -i "$FRAGMENTS_DIR" \
+            -p "$CLASSIFY_PROMPT_FILE" \
+            -o "$classified_dir" \
+            --model "$MODEL" \
+            --seed "$SEED" \
+            --timeout "$TIMEOUT" \
+            ${SAMPLE_ARG:+$SAMPLE_ARG} \
+            ${PAGE_ARG:+$PAGE_ARG} \
+            ${PROVIDER_ARG:+$PROVIDER_ARG} \
+            ${SAVE_PROMPTS:+$SAVE_PROMPTS}
+    else
+        echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
+    fi
 
-# Step 2.5: Evaluate Classification
-echo "Evaluating Classification..."
-uv run python main.py evaluate \
-    -i "$classified_dir" \
-    -g "$GROUND_TRUTH_DIR" \
-    --eval-dir "$EVAL_DIR" \
-    --experiment-id "$classify_experiment_id" \
-    --task classification \
-    ${PAGE_ARG:+$PAGE_ARG}
+    # Step 2.5: Evaluate Classification
+    echo "Evaluating Classification..."
+    uv run python main.py evaluate \
+        -i "$classified_dir" \
+        -g "$GROUND_TRUTH_DIR" \
+        --eval-dir "$EVAL_DIR" \
+        --experiment-id "$classify_experiment_id" \
+        --task classification \
+        ${PAGE_ARG:+$PAGE_ARG}
+fi
 
 
 # Step 3: Cluster
 echo "Clustering..."
 uv run python main.py cluster \
-    -i "$classified_dir" \
+    -i "$cluster_input_dir" \
     -o "$reconstructions_dir" \
     -p "$CLUSTER_PROMPT_FILE" \
     --model "$MODEL" \
