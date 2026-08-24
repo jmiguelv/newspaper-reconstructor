@@ -38,11 +38,23 @@ if [ -n "$PAGE_ID" ] && [ -n "$SAMPLE_SIZE" ]; then
     SAMPLE_SIZE=""
 fi
 
-ALTO_DIR="data/0_external/${DATASET}/alto"
 FRAGMENTS_DIR="data/1_interim/${DATASET}/fragments"
-GROUND_TRUTH_DIR="data/0_external/${DATASET}/article_xml"
 EVAL_DIR="reports/evaluations/${DATASET}"
 TIMEOUT=60
+
+# Auto-detect dataset format
+if [ -d "data/0_external/${DATASET}/articles" ]; then
+    INPUT_DIR="data/0_external/${DATASET}/articles"
+    GROUND_TRUTH_DIR="data/0_external/${DATASET}/regions"
+    INPUT_FORMAT="json"
+elif [ -d "data/0_external/${DATASET}/alto" ]; then
+    INPUT_DIR="data/0_external/${DATASET}/alto"
+    GROUND_TRUTH_DIR="data/0_external/${DATASET}/article_xml"
+    INPUT_FORMAT="alto"
+else
+    echo "Error: Could not detect dataset format for ${DATASET}. Expected 'articles/' or 'alto/' directory."
+    exit 1
+fi
 
 classify_prompt_name=$(basename "$CLASSIFY_PROMPT_FILE" .md)
 cluster_prompt_name=$(basename "$CLUSTER_PROMPT_FILE" .md)
@@ -66,7 +78,7 @@ safe_cluster_experiment_id=$(echo "$cluster_experiment_id" | tr ':' '_')
 classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_experiment_id"
 reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_cluster_experiment_id"
 
-echo "=== Running Pipeline for: $cluster_experiment_id (Dataset: $DATASET) ==="
+echo "=== Running Pipeline for: $cluster_experiment_id (Dataset: $DATASET, Format: $INPUT_FORMAT) ==="
 
 PAGE_ARG=""
 if [ -n "$PAGE_ID" ]; then
@@ -81,11 +93,15 @@ if [ -n "$PROVIDER" ]; then
     PROVIDER_ARG="--provider $PROVIDER"
 fi
 
-# Step 1: Parse ALTO to JSON (if not already done)
+# Step 1: Extract fragments (if not already done)
 if [ ! -d "$FRAGMENTS_DIR" ]; then
-    echo "Parsing ALTO..."
-    # Intentionally don't pass PAGE_ARG here so we parse everything once
-    uv run python main.py parse -i "$ALTO_DIR" -o "$FRAGMENTS_DIR"
+    if [ "$INPUT_FORMAT" = "json" ]; then
+        echo "Converting article JSON to fragments..."
+        uv run python main.py etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
+    else
+        echo "Parsing ALTO XML..."
+        uv run python main.py parse -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
+    fi
 fi
 
 # Step 2: Classify

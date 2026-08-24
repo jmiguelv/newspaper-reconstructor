@@ -122,6 +122,92 @@ class TestE2EParse:
         assert len(data) == 3
 
 
+# ─── ETL (JSON articles) ──────────────────────────────────────────────
+
+
+ARTICLE_JSON = {
+    "r_1": "Article text part 1",
+    "r_2": "Article text part 2",
+    "r_3": "Advertisement text",
+}
+
+
+class TestE2EEtl:
+    def test_etl_directory(self, tmp_path):
+        d = tmp_path / "articles"
+        d.mkdir()
+        (d / "page1.json").write_text(json.dumps(ARTICLE_JSON), encoding="utf-8")
+        out_dir = tmp_path / "fragments"
+
+        result = runner.invoke(
+            app,
+            [
+                "etl",
+                "-i",
+                str(d),
+                "-o",
+                str(out_dir),
+            ],
+        )
+        assert result.exit_code == 0
+
+        files = sorted(out_dir.glob("*.json"))
+        assert len(files) == 1
+        assert files[0].name == "page1.json"
+        data = json.loads(files[0].read_text())
+        assert len(data) == 3
+        assert all("id" in f and "text" in f for f in data)
+
+    def test_etl_page_filter(self, tmp_path):
+        d = tmp_path / "articles"
+        d.mkdir()
+        (d / "page1.json").write_text(json.dumps(ARTICLE_JSON), encoding="utf-8")
+        (d / "page2.json").write_text(json.dumps({"r_4": "Other"}), encoding="utf-8")
+        out_dir = tmp_path / "fragments"
+
+        result = runner.invoke(
+            app,
+            ["etl", "-i", str(d), "-o", str(out_dir), "--page-id", "page1"],
+        )
+        assert result.exit_code == 0
+
+        files = sorted(out_dir.glob("*.json"))
+        assert len(files) == 1
+        assert files[0].name == "page1.json"
+
+    def test_etl_then_cluster(self, tmp_path):
+        d = tmp_path / "articles"
+        d.mkdir()
+        (d / "page1.json").write_text(json.dumps(ARTICLE_JSON), encoding="utf-8")
+        frag_dir = tmp_path / "fragments"
+        out_dir = tmp_path / "reconstructions"
+        prompt_file = _make_prompt_file(tmp_path)
+
+        result = runner.invoke(app, ["etl", "-i", str(d), "-o", str(frag_dir)])
+        assert result.exit_code == 0
+
+        with patch("main.make_client", return_value=_mock_client()):
+            result = runner.invoke(
+                app,
+                [
+                    "cluster",
+                    "-i",
+                    str(frag_dir),
+                    "-o",
+                    str(out_dir),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                ],
+            )
+        assert result.exit_code == 0
+        files = [
+            f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"
+        ]
+        assert len(files) == 1
+
+
 # ─── Cluster (mocked LLM) ─────────────────────────────────────────────
 
 
@@ -170,7 +256,6 @@ class TestE2EEvaluate:
         article_dir.mkdir()
 
         recon_data = json.loads(MOCK_LLM_RESPONSE)
-        # evaluation expects page dict in reconstructions
         (recon_dir / "test_page.json").write_text(
             json.dumps(recon_data), encoding="utf-8"
         )
@@ -225,3 +310,27 @@ class TestE2ERealData:
         )
         assert result.exit_code == 0
         assert (out_dir / "UM-1956-01-09-6.json").exists()
+
+
+NEW_DATASET = os.path.join(REAL_DATA, "ds-articlereconstruction-20260821")
+
+
+@pytest.mark.skipif(
+    not os.path.isdir(os.path.join(NEW_DATASET, "articles")),
+    reason="ds-articlereconstruction-20260821 dataset not available",
+)
+class TestE2ERealDataNewFormat:
+    def test_etl_real_json(self, tmp_path):
+        articles = os.path.join(NEW_DATASET, "articles")
+        out_dir = tmp_path / "fragments"
+
+        result = runner.invoke(
+            app,
+            ["etl", "-i", articles, "-o", str(out_dir), "--page-id", "UM-1956-01-09-6"],
+        )
+        assert result.exit_code == 0
+        assert (out_dir / "UM-1956-01-09-6.json").exists()
+
+        data = json.loads((out_dir / "UM-1956-01-09-6.json").read_text())
+        assert len(data) > 0
+        assert all("id" in f and "text" in f for f in data)

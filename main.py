@@ -15,19 +15,19 @@ from src.newspaper_reconstructor.evaluate import (
     load_ground_truth_dir,
     log_evaluation_experiment,
 )
+from src.newspaper_reconstructor.ingest import load_article_json
 from src.newspaper_reconstructor.llm import make_client
 from src.newspaper_reconstructor.reconstruct import (
     alto_to_json,
     classify_fragments,
     reconstruct_articles,
 )
-from src.newspaper_reconstructor.sort import sort_fragments
 
 _MD_SYSTEM_HEADING = "# System Prompt"
 _MD_USER_HEADING = "# User Prompt Template"
 
 app = typer.Typer(
-    help="Reconstruct articles from ALTO XML fragments using LLM pipelines.",
+    help="Reconstruct articles from newspaper text fragments using LLM pipelines.",
     no_args_is_help=True,
 )
 
@@ -86,6 +86,35 @@ def parse(
             json.dump(fragments, f, indent=2, ensure_ascii=False)
         count += 1
     typer.echo(f"Parsed {count} files to {output_folder}")
+
+
+@app.command()
+def etl(
+    input_folder: str = typer.Option(
+        ..., "--input-folder", "-i", help="Directory of article JSON files"
+    ),
+    output_folder: str = typer.Option(
+        ..., "--output-folder", "-o", help="Directory to save fragment lists"
+    ),
+    page_id: str | None = typer.Option(None, help="Process a single page ID"),
+):
+    """Convert article JSON files ({id: text}) into fragment lists."""
+    os.makedirs(output_folder, exist_ok=True)
+    count = 0
+    files = sorted(os.listdir(input_folder))
+    if page_id:
+        files = [f for f in files if f.startswith(page_id)]
+    for fname in files:
+        if not fname.endswith(".json"):
+            continue
+        in_path = os.path.join(input_folder, fname)
+        out_path = os.path.join(output_folder, fname)
+
+        fragments = load_article_json(in_path)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(fragments, f, indent=2, ensure_ascii=False)
+        count += 1
+    typer.echo(f"Converted {count} files to {output_folder}")
 
 
 @app.command()
@@ -218,9 +247,6 @@ def cluster(
         None, envvar="LLM_PROVIDER", help="Provider name (e.g. create, openrouter)"
     ),
     timeout: float = typer.Option(300.0, help="API timeout in seconds"),
-    sort_fragments_flag: bool = typer.Option(
-        False, "--sort-fragments", help="Sort fragments spatially before clustering"
-    ),
     sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
     seed: int = typer.Option(42, help="Random seed for sampling"),
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
@@ -261,9 +287,6 @@ def cluster(
 
         with open(in_path, encoding="utf-8") as f:
             fragments = json.load(f)
-
-        if sort_fragments_flag:
-            fragments = sort_fragments(fragments)
 
         prompt_out_path = None
         if save_prompts:
