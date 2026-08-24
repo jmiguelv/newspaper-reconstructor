@@ -733,6 +733,14 @@
                     </template>
                 </select>
 
+                <label for="dataset-filter" style="white-space: nowrap;">Dataset</label>
+                <select id="dataset-filter" x-model="filterDataset" style="font-size: var(--step--1); padding: 0.2em 0.5em; border: 1px solid var(--rule); border-radius: 0.25rem; background: var(--surface); color: var(--ink); cursor: pointer;">
+                    <option value="">All datasets</option>
+                    <template x-for="d in datasetOptions" :key="d">
+                        <option :value="d" x-text="d"></option>
+                    </template>
+                </select>
+
                 <label for="sample-filter" style="white-space: nowrap;">Sample size</label>
                 <select id="sample-filter" x-model="filterSampleSize" style="font-size: var(--step--1); padding: 0.2em 0.5em; border: 1px solid var(--rule); border-radius: 0.25rem; background: var(--surface); color: var(--ink); cursor: pointer;">
                     <option value="">All sizes</option>
@@ -765,6 +773,7 @@
                     <thead>
                         <tr>
                             <th @click="sortClassification('timestamp')">Date <span x-show="classifSortKey==='timestamp'" x-text="classifSortDir==='asc'?'↑':'↓'"></span></th>
+                            <th @click="sortClassification('config.dataset')">Dataset <span x-show="classifSortKey==='config.dataset'" x-text="classifSortDir==='asc'?'↑':'↓'"></span></th>
                             <th @click="sortClassification('config.model')">Model <span x-show="classifSortKey==='config.model'" x-text="classifSortDir==='asc'?'↑':'↓'"></span></th>
                             <th @click="sortClassification('config.prompt_name')">Prompt <span x-show="classifSortKey==='config.prompt_name'" x-text="classifSortDir==='asc'?'↑':'↓'"></span></th>
                             <th @click="sortClassification('config.sample_size')">Sample <span x-show="classifSortKey==='config.sample_size'" x-text="classifSortDir==='asc'?'↑':'↓'"></span></th>
@@ -780,6 +789,7 @@
                         <template x-for="experiment in sortedClassificationExperiments" :key="experiment.experiment_id">
                             <tr @click="toggleExperiment(experiment.experiment_id)" :data-active="expandedExperiment === experiment.experiment_id">
                                 <td style="white-space: nowrap; font-size: var(--step--2); color: var(--ink-light);" x-text="experiment.timestamp ? new Date(experiment.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"></td>
+                                <td style="font-size: var(--step--2);" x-text="experiment.config.dataset || '—'"></td>
                                 <td x-text="experiment.config.model"></td>
                                 <td x-text="experiment.config.prompt_name"></td>
                                 <td x-text="experiment.config.sample_size || 'all'"></td>
@@ -980,6 +990,7 @@
                     <thead>
                         <tr>
                             <th @click="sortReconstruction('timestamp')">Date <span x-show="reconSortKey==='timestamp'" x-text="reconSortDir==='asc'?'↑':'↓'"></span></th>
+                            <th @click="sortReconstruction('config.dataset')">Dataset <span x-show="reconSortKey==='config.dataset'" x-text="reconSortDir==='asc'?'↑':'↓'"></span></th>
                             <th @click="sortReconstruction('config.model')">Model <span x-show="reconSortKey==='config.model'" x-text="reconSortDir==='asc'?'↑':'↓'"></span></th>
                             <th @click="sortReconstruction('config.prompt_name')">Prompt <span x-show="reconSortKey==='config.prompt_name'" x-text="reconSortDir==='asc'?'↑':'↓'"></span></th>
                             <th @click="sortReconstruction('config.sample_size')">Sample <span x-show="reconSortKey==='config.sample_size'" x-text="reconSortDir==='asc'?'↑':'↓'"></span></th>
@@ -998,6 +1009,7 @@
                         <template x-for="experiment in sortedReconstructionExperiments" :key="experiment.experiment_id">
                             <tr @click="toggleExperiment(experiment.experiment_id)" :data-active="expandedExperiment === experiment.experiment_id">
                                 <td style="white-space: nowrap; font-size: var(--step--2); color: var(--ink-light);" x-text="experiment.timestamp ? new Date(experiment.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"></td>
+                                <td style="font-size: var(--step--2);" x-text="experiment.config.dataset || '—'"></td>
                                 <td x-text="experiment.config.model"></td>
                                 <td x-text="experiment.config.prompt_name"></td>
                                 <td x-text="experiment.config.sample_size || 'all'"></td>
@@ -1264,6 +1276,7 @@
                 minCompletionRatio: 0.5,
                 filterModel: '',
                 filterPrompt: '',
+                filterDataset: '',
                 filterSampleSize: '',
                 
                 async init() {
@@ -1277,12 +1290,20 @@
                     }
                 },
 
-                enrichRunConfig(experimentData) {
+                enrichRunConfig(experimentData, dataset) {
                     if (!experimentData.config) experimentData.config = {};
                     const runId = experimentData.experiment_id || '';
                     
+                    if (!experimentData.config.dataset) {
+                        if (dataset) {
+                            experimentData.config.dataset = dataset;
+                        } else {
+                            const m = runId.match(/^(ds-[^_]+)_/);
+                            if (m) experimentData.config.dataset = m[1];
+                        }
+                    }
                     if (!experimentData.config.model) {
-                        const m = runId.match(/^(?:create_|openai_)?(.+?)_c-/);
+                        const m = runId.match(/^(?:(?:ds-[^_]+)_)?(?:create_|openai_)?(.+?)_c-/);
                         experimentData.config.model = m ? m[1] : (runId.length > 20 ? runId.substring(0, 20) + '...' : runId);
                     }
                     if (!experimentData.config.prompt_name) {
@@ -1339,7 +1360,9 @@
                             const res = await fetch(filePath);
                             if (res.ok) {
                                 const experimentData = await res.json();
-                                this.enrichRunConfig(experimentData);
+                                const pathParts = filePath.split('/');
+                                const dataset = pathParts.length >= 3 ? pathParts[pathParts.length - 2] : null;
+                                this.enrichRunConfig(experimentData, dataset);
                                 experiments.push(experimentData);
                             }
                         }
@@ -1383,8 +1406,11 @@
                             const text = await file.text();
                             try {
                                 const experimentData = JSON.parse(text);
-                                if (!experimentData.experiment_id || !experimentData.aggregate) continue; // Skip invalid JSONs
-                                this.enrichRunConfig(experimentData);
+                                if (!experimentData.experiment_id || !experimentData.aggregate) continue;
+                                const pathParts = file.webkitRelativePath.split('/');
+                                const evalIdx = pathParts.indexOf('evaluations');
+                                const dataset = (evalIdx >= 0 && evalIdx + 1 < pathParts.length - 1) ? pathParts[evalIdx + 1] : null;
+                                this.enrichRunConfig(experimentData, dataset);
                                 parsedExperiments.push(experimentData);
                             } catch(e) { console.error("Failed to parse", file.name, e); }
                         }
@@ -1416,6 +1442,9 @@
                 },
                 get sampleSizeOptions() {
                     return [...new Set(this.experiments.map(r => r.config?.sample_size).filter(v => v != null))].sort((a, b) => a - b);
+                },
+                get datasetOptions() {
+                    return [...new Set(this.experiments.map(r => r.config?.dataset).filter(Boolean))].sort();
                 },
 
                 
@@ -1451,6 +1480,7 @@
                         if (sampleSize && totalPages < sampleSize * this.minCompletionRatio) return false;
                         if (this.filterModel && experiment.config?.model !== this.filterModel) return false;
                         if (this.filterPrompt && experiment.config?.prompt_name !== this.filterPrompt) return false;
+                        if (this.filterDataset && experiment.config?.dataset !== this.filterDataset) return false;
                         if (this.filterSampleSize !== '' && String(experiment.config?.sample_size ?? '') !== String(this.filterSampleSize)) return false;
                         return true;
                     });
