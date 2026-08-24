@@ -17,7 +17,20 @@ def _load_providers() -> dict:
     if not PROVIDERS_FILE.exists():
         return {}
     with open(PROVIDERS_FILE, encoding="utf-8") as f:
-        return json.load(f)
+        content = f.read()
+        content = os.path.expandvars(content)
+        data = json.loads(content)
+
+        # Clean up any unexpanded variables in headers
+        for provider in data.values():
+            if "default_headers" in provider:
+                headers = provider["default_headers"]
+                provider["default_headers"] = {
+                    k: v
+                    for k, v in headers.items()
+                    if not (isinstance(v, str) and ("$" in v))
+                }
+        return data
 
 
 class LLMClient:
