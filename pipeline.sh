@@ -12,6 +12,8 @@ DATASET=""
 PROVIDER=""
 SAVE_PROMPTS=""
 
+TIMEOUT="300"
+
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --model) MODEL="$2"; shift ;;
@@ -22,6 +24,7 @@ while [[ "$#" -gt 0 ]]; do
         --page-id) PAGE_ID="$2"; shift ;;
         --dataset) DATASET="$2"; shift ;;
         --provider) PROVIDER="$2"; shift ;;
+        --timeout) TIMEOUT="$2"; shift ;;
         --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
@@ -29,7 +32,7 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 if [ -z "$MODEL" ] || [ -z "$CLASSIFY_PROMPT_FILE" ] || [ -z "$CLUSTER_PROMPT_FILE" ] || [ -z "$DATASET" ]; then
-    echo "Usage: $0 --dataset <dataset_name> --model <model> --classify-prompt <file> --cluster-prompt <file> [--sample-size <N>] [--seed <S>] [--page-id <ID>]"
+    echo "Usage: $0 --dataset <dataset_name> --model <model> --classify-prompt <file> --cluster-prompt <file> [--sample-size <N>] [--seed <S>] [--page-id <ID>] [--timeout <T>]"
     exit 1
 fi
 
@@ -40,7 +43,6 @@ fi
 
 FRAGMENTS_DIR="data/1_interim/${DATASET}/fragments"
 EVAL_DIR="reports/evaluations/${DATASET}"
-TIMEOUT=60
 
 # Auto-detect dataset format
 if [ -d "data/0_external/${DATASET}/articles" ]; then
@@ -72,8 +74,8 @@ else
     cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
 
-safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':' '_')
-safe_cluster_experiment_id=$(echo "$cluster_experiment_id" | tr ':' '_')
+safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':|/' '_')
+safe_cluster_experiment_id=$(echo "$cluster_experiment_id" | tr ':|/' '_')
 
 classified_dir="data/1_interim/${DATASET}/classified/$safe_classify_experiment_id"
 reconstructions_dir="data/1_interim/${DATASET}/reconstructions/$safe_cluster_experiment_id"
@@ -105,7 +107,7 @@ if [ ! -d "$FRAGMENTS_DIR" ]; then
 fi
 
 # Step 2: Classify
-if [ ! -d "$classified_dir" ] || [ -z "$(ls -A "$classified_dir" 2>/dev/null)" ]; then
+if [ ! -d "$classified_dir" ] || [ "$(find "$classified_dir" -maxdepth 1 -name "*.json" ! -name "_*.json" 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]; then
     echo "Classifying..."
     uv run python main.py classify \
         -i "$FRAGMENTS_DIR" \

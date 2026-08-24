@@ -4,18 +4,20 @@ set -euo pipefail
 
 DATASET=""
 PROVIDER=""
+TIMEOUT="300"
 
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         --dataset) DATASET="$2"; shift ;;
         --provider) PROVIDER="$2"; shift ;;
+        --timeout) TIMEOUT="$2"; shift ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
 if [ -z "$DATASET" ]; then
-    echo "Usage: $0 --dataset <dataset_name>"
+    echo "Usage: $0 --dataset <dataset_name> [--provider <provider>] [--timeout <timeout>]"
     exit 1
 fi
 
@@ -66,6 +68,7 @@ for classify_prompt in "${CLASSIFY_PROMPTS[@]}"; do
             --cluster-prompt "$cluster_prompt" \
             --sample-size "$sample_size" \
             --seed "$SEED" \
+            --timeout "$TIMEOUT" \
             ${PROVIDER_ARG:+$PROVIDER_ARG}
       done
     done
