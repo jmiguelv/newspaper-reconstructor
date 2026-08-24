@@ -138,13 +138,6 @@ def reconstruct_articles(
 
 def _handle_api_error(e: Exception, attempt: int, max_retries: int) -> bool:
     """Handle API exceptions and return True if should retry."""
-    if isinstance(e, APITimeoutError) or "504" in str(e) or "Gateway Timeout" in str(e):
-        print(
-            f"  Gateway Timeout on attempt {attempt + 1}, giving up immediately",
-            file=sys.stderr,
-        )
-        return False
-
     if attempt < max_retries - 1:
         wait = 5 * (2**attempt)
         print(f"  API error: {e}. Retrying in {wait}s...", file=sys.stderr)
@@ -158,30 +151,30 @@ def _handle_api_error(e: Exception, attempt: int, max_retries: int) -> bool:
 def _parse_classification_response(raw: str) -> dict | None:
     """Extract and parse a JSON dict mapping IDs to classes."""
     text = raw.strip()
+    if "</think>" in text:
+        text = text.split("</think>")[-1].strip()
 
     # Extract from markdown fences if present
     fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
     if fence_match:
-        text = fence_match.group(1).strip()
-
-    try:
-        # Try direct parse
-        result = json.loads(text)
-        if isinstance(result, dict):
-            return result
-    except json.JSONDecodeError:
-        pass
-
-    # Try finding the first { to last }
-    start = text.find("{")
-    end = text.rfind("}")
-    if start != -1 and end != -1 and end > start:
         try:
-            result = json.loads(text[start : end + 1])
+            result = json.loads(fence_match.group(1).strip())
             if isinstance(result, dict):
                 return result
         except json.JSONDecodeError:
             pass
+
+    # Search backwards to find the last valid JSON dict
+    end = text.rfind("}")
+    if end != -1:
+        for start in range(end, -1, -1):
+            if text[start] == "{":
+                try:
+                    result = json.loads(text[start : end + 1])
+                    if isinstance(result, dict):
+                        return result
+                except json.JSONDecodeError:
+                    continue
 
     return None
 
@@ -195,17 +188,11 @@ def _validate_classification(classes: dict, fragments: list[dict]) -> dict:
 def _parse_json_response(raw: str) -> list[dict] | None:
     """Extract and parse a JSON array from an LLM response.
 
-    Handles markdown fences and surrounding text.
+    Handles markdown fences and surrounding text, ignoring <think> blocks.
     """
     text = raw.strip()
-
-    # Try direct parse first
-    try:
-        result = json.loads(text)
-        if isinstance(result, list):
-            return result
-    except json.JSONDecodeError:
-        pass
+    if "</think>" in text:
+        text = text.split("</think>")[-1].strip()
 
     # Try extracting from markdown fences
     fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", text, re.DOTALL)
@@ -217,16 +204,17 @@ def _parse_json_response(raw: str) -> list[dict] | None:
         except json.JSONDecodeError:
             pass
 
-    # Try finding the first [ to last ]
-    start = text.find("[")
+    # Search backwards to find the last valid JSON array
     end = text.rfind("]")
-    if start != -1 and end != -1 and end > start:
-        try:
-            result = json.loads(text[start : end + 1])
-            if isinstance(result, list):
-                return result
-        except json.JSONDecodeError:
-            pass
+    if end != -1:
+        for start in range(end, -1, -1):
+            if text[start] == "[":
+                try:
+                    result = json.loads(text[start : end + 1])
+                    if isinstance(result, list):
+                        return result
+                except json.JSONDecodeError:
+                    continue
 
     return None
 

@@ -178,6 +178,22 @@ class TestReconstructArticles:
         assert result[0]["fragment_ids"] == ["r_text1"]
         assert result[1]["class"] == "advertisement"
 
+    def test_parses_json_with_think_block(self):
+        client = MagicMock()
+        client.complete.return_value = """<think>
+        Hmm, this is an article.
+        [
+          {"fake": "data"}
+        ]
+        </think>
+        [{"fragment_ids": ["r_text1"], "title": "Greeting", "class": "article"}]"""
+        fragments = [{"id": "r_text1", "text": "Hello World"}]
+        result = reconstruct_articles(
+            fragments, client, TEST_SYSTEM_PROMPT, TEST_USER_PROMPT_TEMPLATE
+        )
+        assert len(result) == 1
+        assert result[0]["title"] == "Greeting"
+
     def test_parses_fenced_json(self):
         client = MagicMock()
         client.complete.return_value = FENCED_RESPONSE
@@ -329,12 +345,40 @@ class TestReconstructArticles:
             {"id": "r_text1", "text": "Hello World"},
             {"id": "r_text2", "text": "Ad text"},
         ]
-        result = reconstruct_articles(
-            fragments,
-            client,
-            TEST_SYSTEM_PROMPT,
-            TEST_USER_PROMPT_TEMPLATE,
-            max_retries=3,
-        )
+        with patch("src.newspaper_reconstructor.reconstruct.time.sleep"):
+            result = reconstruct_articles(
+                fragments,
+                client,
+                TEST_SYSTEM_PROMPT,
+                TEST_USER_PROMPT_TEMPLATE,
+                max_retries=3,
+            )
         assert result is None
-        assert client.complete.call_count == 1
+        assert client.complete.call_count == 3
+
+
+# ─── classify_fragments ───────────────────────────────────────────────────────
+
+from src.newspaper_reconstructor.reconstruct import classify_fragments
+
+
+class TestClassifyFragments:
+    def test_parses_valid_json(self):
+        client = MagicMock()
+        client.complete.return_value = '{"r_1": "article", "r_2": "advertisement"}'
+        fragments = [{"id": "r_1", "text": "a"}, {"id": "r_2", "text": "b"}]
+        result = classify_fragments(fragments, client, "sys", "user")
+        assert result == {"r_1": "article", "r_2": "advertisement"}
+
+    def test_parses_json_with_think_block(self):
+        client = MagicMock()
+        client.complete.return_value = """<think>
+        Hmm, this is an article.
+        {
+          "this": "is fake"
+        }
+        </think>
+        {"r_1": "article"}"""
+        fragments = [{"id": "r_1", "text": "a"}]
+        result = classify_fragments(fragments, client, "sys", "user")
+        assert result == {"r_1": "article"}
