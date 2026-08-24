@@ -156,7 +156,7 @@ if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
         -i "$classified_dir" \
         -g "$GROUND_TRUTH_DIR" \
         --eval-dir "$EVAL_DIR" \
-        --experiment-id "$classify_experiment_id" \
+        --experiment-id "$safe_classify_experiment_id" \
         --task classification \
         ${PAGE_ARG:+$PAGE_ARG}
 fi
@@ -182,7 +182,7 @@ uv run python main.py evaluate \
     -i "$reconstructions_dir" \
     -g "$GROUND_TRUTH_DIR" \
     --eval-dir "$EVAL_DIR" \
-    --experiment-id "$cluster_experiment_id" \
+    --experiment-id "$safe_cluster_experiment_id" \
     --task reconstruction \
     ${PAGE_ARG:+$PAGE_ARG}
 
