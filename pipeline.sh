@@ -65,11 +65,11 @@ if [ -n "$PROVIDER" ]; then
 fi
 
 if [ -n "$PAGE_ID" ]; then
-    classify_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_page_${PAGE_ID}"
-    cluster_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
+    classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_page_${PAGE_ID}"
+    cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
 else
-    classify_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
-    cluster_experiment_id="${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
 fi
 
 safe_classify_experiment_id=$(echo "$classify_experiment_id" | tr ':' '_')
