@@ -25,7 +25,7 @@ article-reconstruction/
 ├── dashboard.html          # Standalone Alpine.js HTML dashboard for evaluation logs
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for the network visualizer
 ├── pipeline.sh             # Single run evaluation orchestrator script
-├── run_experiments.sh      # Batch evaluation grid-search script
+├── experiments/            # Directory containing batch evaluation grid-search scripts
 ├── src/
 │   └── newspaper_reconstructor/
 │       ├── reconstruct.py  # Data parsing and LLM API mapping

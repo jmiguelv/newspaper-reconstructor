@@ -30,7 +30,7 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
 |-------------------------|---------------------------------------------------------|
 | `main.py`               | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest) |
 | `pipeline.sh`           | Bash script to run a single end-to-end evaluation pipeline |
-| `run_experiments.sh`    | Bash script to orchestrate multiple batched grid-search evaluations |
+| `experiments/*.sh`      | Bash scripts to orchestrate multiple batched grid-search evaluations |
 | `ingest.py`             | Load pre-extracted JSON articles into fragment lists |
 | `reconstruct.py`        | Data transformation, dict parsing, and mapping to LLM inputs |
 | `llm.py`                | LLM client wrapper (OpenAI-compatible API), client factory |

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run_experiments.sh: Orchestrates multiple evaluation runs across combinations of prompts, models, and sample sizes.
+# hf_without_classification_20260824.sh: Orchestrates multiple evaluation runs across combinations of prompts, models, and sample sizes.
 set -euo pipefail
 
 DATASET=""
