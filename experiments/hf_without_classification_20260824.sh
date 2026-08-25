@@ -37,10 +37,10 @@ CLUSTER_PROMPTS=(
 )
 
 MODELS=(
-  # "aisingapore/Qwen-SEA-LION-v4.5-27B-IT"
-  # "aisingapore/Gemma-SEA-LION-v4.5-E2B-IT"
+  "aisingapore/Qwen-SEA-LION-v4.5-27B-IT"
+  "aisingapore/Gemma-SEA-LION-v4.5-E2B-IT"
   "gemma4-31b-it-bnb"
-  # "aisingapore/Gemma-SEA-LION-v4-27B-IT"
+  "aisingapore/Gemma-SEA-LION-v4-27B-IT"
 )
 
 SAMPLE_SIZES=(
