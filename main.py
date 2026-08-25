@@ -175,6 +175,11 @@ def classify(
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, fname)
 
+        if os.path.exists(out_path):
+            typer.echo(f"Skipping {fname}, already classified.")
+            success += 1
+            continue
+
         with open(in_path, encoding="utf-8") as f:
             fragments = json.load(f)
 
@@ -284,6 +289,11 @@ def cluster(
     for fname in files:
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, fname)
+
+        if os.path.exists(out_path):
+            typer.echo(f"Skipping {fname}, already clustered.")
+            success += 1
+            continue
 
         with open(in_path, encoding="utf-8") as f:
             fragments = json.load(f)
