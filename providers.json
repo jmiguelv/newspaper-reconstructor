@@ -1,6 +1,6 @@
 {
   "create": {
-    "base_url": "https://ai.create.kcl.ac.uk/api/"
+    "base_url": "https://api.ai.create.kcl.ac.uk/"
   },
   "openrouter": {
     "base_url": "https://openrouter.ai/api/v1",
@@ -10,7 +10,7 @@
     }
   },
   "huggingface": {
-    "base_url": "https://zy5cnyt4l0cgvzm9.us-east-1.aws.endpoints.huggingface.cloud/v1/",
+    "base_url": "https://act7mkb6g0nsgipl.us-east-1.aws.endpoints.huggingface.cloud/v1/",
     "default_headers": {
       "X-HF-Bill-To": "${LLM_HF_BILL_TO}"
     }

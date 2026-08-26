@@ -24,6 +24,7 @@ pythonpath = ["."]
 name = "cz_conventional_commits"
 version = "0.9.0"
 version_files = [
-    "pyproject.toml:version"
+    "pyproject.toml:version",
+    "dashboard.html"
 ]
 update_changelog_on_bump = true
