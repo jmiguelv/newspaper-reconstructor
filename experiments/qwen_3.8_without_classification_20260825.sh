@@ -35,11 +35,12 @@ else
 fi
 
 CLUSTER_PROMPTS=(
-  "prompts/v01.01.md"
   "prompts/v05.md"
+  "prompts/v01.01.01.md"
 )
 
 MODELS=(
+  "arc:nano"
   "arc:lite"
   "arc:nexus"
 )

@@ -12,6 +12,8 @@ DATASET=""
 PROVIDER=""
 SAVE_PROMPTS=""
 SKIP_CLASSIFICATION=0
+MODEL_KWARGS=""
+TAG=""
 
 TIMEOUT="300"
 
@@ -26,6 +28,8 @@ while [[ "$#" -gt 0 ]]; do
         --dataset) DATASET="$2"; shift ;;
         --provider) PROVIDER="$2"; shift ;;
         --timeout) TIMEOUT="$2"; shift ;;
+        --model-kwargs) MODEL_KWARGS="$2"; shift ;;
+        --tag) TAG="$2"; shift ;;
         --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
         --skip-classification) SKIP_CLASSIFICATION=1 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -75,6 +79,9 @@ MODEL_PREFIX="${MODEL}"
 if [ -n "$PROVIDER" ]; then
     MODEL_PREFIX="${PROVIDER}_${MODEL}"
 fi
+if [ -n "$TAG" ]; then
+    MODEL_PREFIX="${MODEL_PREFIX}_${TAG}"
+fi
 
 if [ -n "$PAGE_ID" ]; then
     if [ "$SKIP_CLASSIFICATION" -eq 1 ]; then
@@ -119,6 +126,14 @@ PROVIDER_ARG=""
 if [ -n "$PROVIDER" ]; then
     PROVIDER_ARG="--provider $PROVIDER"
 fi
+MODEL_KWARGS_ARG=""
+if [ -n "$MODEL_KWARGS" ]; then
+    MODEL_KWARGS_ARG="--model-kwargs '$MODEL_KWARGS'"
+fi
+TAG_ARG=""
+if [ -n "$TAG" ]; then
+    TAG_ARG="--tag $TAG"
+fi
 
 # Step 1: Extract fragments (if not already done)
 if [ ! -d "$FRAGMENTS_DIR" ]; then
@@ -135,17 +150,19 @@ fi
 if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
     if [ ! -d "$classified_dir" ] || [ "$(find "$classified_dir" -maxdepth 1 -name "*.json" ! -name "_*.json" 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]; then
         echo "Classifying..."
-        uv run python main.py classify \
-            -i "$FRAGMENTS_DIR" \
-            -p "$CLASSIFY_PROMPT_FILE" \
-            -o "$classified_dir" \
-            --model "$MODEL" \
-            --seed "$SEED" \
-            --timeout "$TIMEOUT" \
+        eval "uv run python main.py classify \
+            -i \"$FRAGMENTS_DIR\" \
+            -p \"$CLASSIFY_PROMPT_FILE\" \
+            -o \"$classified_dir\" \
+            --model \"$MODEL\" \
+            --seed \"$SEED\" \
+            --timeout \"$TIMEOUT\" \
             ${SAMPLE_ARG:+$SAMPLE_ARG} \
             ${PAGE_ARG:+$PAGE_ARG} \
             ${PROVIDER_ARG:+$PROVIDER_ARG} \
-            ${SAVE_PROMPTS:+$SAVE_PROMPTS}
+            ${TAG_ARG:+$TAG_ARG} \
+            ${MODEL_KWARGS_ARG:+$MODEL_KWARGS_ARG} \
+            ${SAVE_PROMPTS:+$SAVE_PROMPTS}"
     else
         echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
     fi
@@ -164,17 +181,19 @@ fi
 
 # Step 3: Cluster
 echo "Clustering..."
-uv run python main.py cluster \
-    -i "$cluster_input_dir" \
-    -o "$reconstructions_dir" \
-    -p "$CLUSTER_PROMPT_FILE" \
-    --model "$MODEL" \
-    --seed "$SEED" \
-    --timeout "$TIMEOUT" \
+eval "uv run python main.py cluster \
+    -i \"$cluster_input_dir\" \
+    -o \"$reconstructions_dir\" \
+    -p \"$CLUSTER_PROMPT_FILE\" \
+    --model \"$MODEL\" \
+    --seed \"$SEED\" \
+    --timeout \"$TIMEOUT\" \
     ${SAMPLE_ARG:+$SAMPLE_ARG} \
     ${PAGE_ARG:+$PAGE_ARG} \
     ${PROVIDER_ARG:+$PROVIDER_ARG} \
-    ${SAVE_PROMPTS:+$SAVE_PROMPTS}
+    ${TAG_ARG:+$TAG_ARG} \
+    ${MODEL_KWARGS_ARG:+$MODEL_KWARGS_ARG} \
+    ${SAVE_PROMPTS:+$SAVE_PROMPTS}"
 
 # Step 4: Evaluate
 echo "Evaluating..."

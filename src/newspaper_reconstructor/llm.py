@@ -43,6 +43,7 @@ class LLMClient:
         base_url: str | None = None,
         timeout: float = 300.0,
         default_headers: dict[str, str] | None = None,
+        model_kwargs: dict | None = None,
     ):
         kwargs = {"api_key": api_key, "max_retries": 0, "timeout": timeout}
         if base_url:
@@ -52,6 +53,7 @@ class LLMClient:
         self.client = OpenAI(**kwargs)
         self.model = model
         self.base_url = base_url
+        self.model_kwargs = model_kwargs or {}
 
     def complete(self, system: str, user: str) -> str:
         try:
@@ -62,6 +64,7 @@ class LLMClient:
                     {"role": "user", "content": user},
                 ],
                 temperature=0,
+                **self.model_kwargs,
             )
         except json.JSONDecodeError as e:
             raise APIError(
@@ -92,6 +95,7 @@ def make_client(
     model: str | None = None,
     timeout: float = 300.0,
     provider: str | None = None,
+    model_kwargs: dict | None = None,
 ) -> LLMClient:
     """Create an LLM client. Reads from env if args not provided.
 
@@ -127,4 +131,5 @@ def make_client(
         base_url=base_url,
         timeout=timeout,
         default_headers=default_headers,
+        model_kwargs=model_kwargs,
     )

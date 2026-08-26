@@ -143,15 +143,31 @@ def classify(
     save_prompts: bool = typer.Option(
         False, "--save-prompts", help="Save individual prompts sent to the LLM"
     ),
+    tag: str | None = typer.Option(
+        None, "--tag", help="Optional tag for this run (e.g., think_high)"
+    ),
+    model_kwargs: str | None = typer.Option(
+        None, "--model-kwargs", help="JSON string for extra model arguments"
+    ),
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     os.makedirs(output_folder, exist_ok=True)
+
+    parsed_model_kwargs = None
+    if model_kwargs:
+        try:
+            parsed_model_kwargs = json.loads(model_kwargs)
+        except json.JSONDecodeError as e:
+            typer.echo(f"Error parsing --model-kwargs as JSON: {e}", err=True)
+            raise typer.Exit(1)
+
     client = make_client(
         model=model,
         base_url=base_url,
         api_key=api_key,
         timeout=timeout,
         provider=provider,
+        model_kwargs=parsed_model_kwargs,
     )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
@@ -219,6 +235,8 @@ def classify(
                 "prompt_name": prompt_name,
                 "sample_size": sample_size,
                 "provider": provider,
+                "tag": tag,
+                "model_kwargs": parsed_model_kwargs,
             },
             f,
             indent=2,
@@ -258,15 +276,31 @@ def cluster(
     save_prompts: bool = typer.Option(
         False, "--save-prompts", help="Save individual prompts sent to the LLM"
     ),
+    tag: str | None = typer.Option(
+        None, "--tag", help="Optional tag for this run (e.g., think_high)"
+    ),
+    model_kwargs: str | None = typer.Option(
+        None, "--model-kwargs", help="JSON string for extra model arguments"
+    ),
 ):
     """Cluster fragments into articles using an LLM."""
     os.makedirs(output_folder, exist_ok=True)
+
+    parsed_model_kwargs = None
+    if model_kwargs:
+        try:
+            parsed_model_kwargs = json.loads(model_kwargs)
+        except json.JSONDecodeError as e:
+            typer.echo(f"Error parsing --model-kwargs as JSON: {e}", err=True)
+            raise typer.Exit(1)
+
     client = make_client(
         model=model,
         base_url=base_url,
         api_key=api_key,
         timeout=timeout,
         provider=provider,
+        model_kwargs=parsed_model_kwargs,
     )
     sys_prompt, user_prompt = _load_prompt(prompt_file)
 
@@ -329,6 +363,8 @@ def cluster(
                 "prompt_name": prompt_name,
                 "sample_size": sample_size,
                 "provider": provider,
+                "tag": tag,
+                "model_kwargs": parsed_model_kwargs,
             },
             f,
             indent=2,
@@ -449,10 +485,24 @@ def suggest(
     focus: str = typer.Option(
         "clustering", help="Focus of the analysis: clustering, classification, or both"
     ),
+    tag: str | None = typer.Option(
+        None, "--tag", help="Optional tag for this run (e.g., think_high)"
+    ),
+    model_kwargs: str | None = typer.Option(
+        None, "--model-kwargs", help="JSON string for extra model arguments"
+    ),
 ):
     """Analyze evaluation logs and suggest improvements using LLM judge."""
     from src.newspaper_reconstructor.llm import make_client
     from src.newspaper_reconstructor.suggest import generate_suggestions
+
+    parsed_model_kwargs = None
+    if model_kwargs:
+        try:
+            parsed_model_kwargs = json.loads(model_kwargs)
+        except json.JSONDecodeError as e:
+            typer.echo(f"Error parsing --model-kwargs as JSON: {e}", err=True)
+            raise typer.Exit(1)
 
     eval_dir = os.path.join("reports", "evaluations")
     client = make_client(
@@ -460,6 +510,7 @@ def suggest(
         base_url=base_url,
         api_key=api_key,
         provider=provider,
+        model_kwargs=parsed_model_kwargs,
     )
 
     sys.exit(generate_suggestions(experiment_id, eval_dir, client, model, focus))
