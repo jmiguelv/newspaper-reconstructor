@@ -1,3 +1,22 @@
+## 0.10.0 (2026-08-26)
+
+### Feat
+
+- add thinking toggle to GLM-4 experiment script
+- add new experiment scripts and prompt templates
+- add dynamic model kwargs and run tagging
+- make parallel execution optional to avoid inference endpoint timeouts
+- skip existing files during classification and clustering to support resuming interrupted runs
+- **pipeline**: add --skip-classification flag
+- **prompts**: add v05.md cluster prompt provided by pi
+- **llm**: add huggingface provider and support env var resolution in headers
+
+### Fix
+
+- **pipeline**: use safe experiment ids for evaluate step
+- **reconstruct**: make json extraction robust against <think> blocks and fix timeout retries
+- **pipeline**: add customizable timeout and fix classification skip logic
+
 ## 0.9.0 (2026-08-24)
 
 ### Feat
