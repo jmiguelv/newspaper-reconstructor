@@ -17,6 +17,14 @@ from openai import APIError, APITimeoutError
 
 from .llm import LLMClient
 
+LLM_AND_IO_ERRORS = (
+    APIError,
+    APITimeoutError,
+    OSError,
+    json.JSONDecodeError,
+    ValueError,
+)
+
 ALTO_NS = "http://www.loc.gov/standards/alto/ns-v4#"
 
 
