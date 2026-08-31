@@ -578,5 +578,59 @@ def suggest(
     sys.exit(generate_suggestions(experiment_id, eval_dir, client, model, focus))
 
 
+@app.command()
+def plan(
+    input_folder: str = typer.Option(
+        ..., "-i", "--input", help="Folder containing input fragment JSONs"
+    ),
+):
+    """Estimate hardware requirements and token usage based on raw input fragments."""
+    import json
+    from pathlib import Path
+
+    input_path = Path(input_folder)
+    if not input_path.exists() or not input_path.is_dir():
+        typer.echo(
+            f"Error: Input folder {input_folder} does not exist or is not a directory.",
+            err=True,
+        )
+        raise typer.Exit(1)
+
+    total_pages = 0
+    total_fragments = 0
+    total_chars = 0
+
+    for file_path in input_path.glob("*.json"):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, list):
+                    total_pages += 1
+                    total_fragments += len(data)
+                    for item in data:
+                        total_chars += len(item.get("text", ""))
+        except (OSError, json.JSONDecodeError) as e:
+            typer.echo(f"Warning: Failed to process {file_path.name}: {e}", err=True)
+
+    if total_pages == 0:
+        typer.echo("No valid fragment JSONs found in the input folder.")
+        raise typer.Exit(1)
+
+    avg_fragments = total_fragments / total_pages
+    avg_chars = total_chars / total_pages
+    avg_tokens = avg_chars / 2.5
+
+    typer.echo(f"Analyzed {total_pages} pages in '{input_folder}'.")
+    typer.echo(f"Average fragments per page: {avg_fragments:.1f}")
+    typer.echo(f"Average characters per page: {avg_chars:.1f}")
+    typer.echo(
+        f"Estimated input tokens per page: {avg_tokens:,.0f} (assuming ~2.5 chars/token)"
+    )
+    typer.echo("")
+    typer.echo(
+        "To estimate precise VRAM requirements for a 16K output budget, visit: https://vramcalculator.com/"
+    )
+
+
 if __name__ == "__main__":
     app()

@@ -23,7 +23,7 @@ flowchart LR
 
 ```
 newspaper-reconstructor/
-├── main.py                 # Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest)
+├── main.py                 # Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan)
 ├── dashboard.html          # Standalone Alpine.js evaluation dashboard
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for network visualizer
 ├── pipeline.sh             # Single end-to-end evaluation orchestrator
@@ -83,6 +83,15 @@ Named providers with custom `base_url` and `default_headers` can be defined in `
 ## Usage
 
 The CLI is built with `typer` and uses subcommands to execute discrete pipeline steps.
+
+### 0. Hardware Planning — Estimate tokens and VRAM
+
+Estimate context length requirements before running experiments. Point this at your raw input fragments to calculate the average number of fragments and characters per page, and estimate the input tokens required (using a ~2.5 Jawi chars/token ratio).
+
+```bash
+uv run python main.py plan \
+  -i data/1_interim/ds-articlereconstruction-20260821/fragments
+```
 
 ### 1a. ETL — JSON articles to fragments (new format)
 

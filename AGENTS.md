@@ -28,7 +28,7 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
 
 | Module                                        | Responsibility                                                    |
 |-----------------------------------------------|-------------------------------------------------------------------|
-| `main.py`                                     | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest) |
+| `main.py`                                     | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan) |
 | `pipeline.sh`                                 | Bash script to run a single end-to-end evaluation pipeline        |
 | `experiments/*.sh`                            | Bash scripts to orchestrate multiple batched grid-search evaluations |
 | `src/newspaper_reconstructor/ingest.py`       | Load pre-extracted JSON articles into fragment lists              |
