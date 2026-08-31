@@ -14,6 +14,9 @@ SAVE_PROMPTS=""
 SKIP_CLASSIFICATION=0
 MODEL_KWARGS=""
 TAG=""
+MAX_WORKERS=""
+MAX_TOKENS=""
+FREQUENCY_PENALTY=""
 
 TIMEOUT="300"
 
@@ -30,6 +33,9 @@ while [[ "$#" -gt 0 ]]; do
         --timeout) TIMEOUT="$2"; shift ;;
         --model-kwargs) MODEL_KWARGS="$2"; shift ;;
         --tag) TAG="$2"; shift ;;
+        --max-workers) MAX_WORKERS="$2"; shift ;;
+        --max-tokens) MAX_TOKENS="$2"; shift ;;
+        --frequency-penalty) FREQUENCY_PENALTY="$2"; shift ;;
         --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
         --skip-classification) SKIP_CLASSIFICATION=1 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -90,12 +96,19 @@ if [ -n "$PAGE_ID" ]; then
         classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_page_${PAGE_ID}"
         cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_page_${PAGE_ID}"
     fi
-else
+elif [ -n "$SAMPLE_SIZE" ]; then
     if [ "$SKIP_CLASSIFICATION" -eq 1 ]; then
         cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
     else
         classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
         cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}_sample${SAMPLE_SIZE}_seed${SEED}"
+    fi
+else
+    if [ "$SKIP_CLASSIFICATION" -eq 1 ]; then
+        cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_r-${cluster_prompt_name}"
+    else
+        classify_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}"
+        cluster_experiment_id="${DATASET}_${MODEL_PREFIX}_c-${classify_prompt_name}_r-${cluster_prompt_name}"
     fi
 fi
 
@@ -134,6 +147,18 @@ TAG_ARG=""
 if [ -n "$TAG" ]; then
     TAG_ARG="--tag $TAG"
 fi
+MAX_WORKERS_ARG=""
+if [ -n "$MAX_WORKERS" ]; then
+    MAX_WORKERS_ARG="--max-workers $MAX_WORKERS"
+fi
+MAX_TOKENS_ARG=""
+if [ -n "$MAX_TOKENS" ]; then
+    MAX_TOKENS_ARG="--max-tokens $MAX_TOKENS"
+fi
+FREQUENCY_PENALTY_ARG=""
+if [ -n "$FREQUENCY_PENALTY" ]; then
+    FREQUENCY_PENALTY_ARG="--frequency-penalty $FREQUENCY_PENALTY"
+fi
 
 # Step 1: Extract fragments (if not already done)
 if [ ! -d "$FRAGMENTS_DIR" ]; then
@@ -162,6 +187,9 @@ if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
             ${PROVIDER_ARG:+$PROVIDER_ARG} \
             ${TAG_ARG:+$TAG_ARG} \
             ${MODEL_KWARGS_ARG:+$MODEL_KWARGS_ARG} \
+            ${MAX_WORKERS_ARG:+$MAX_WORKERS_ARG} \
+            ${MAX_TOKENS_ARG:+$MAX_TOKENS_ARG} \
+            ${FREQUENCY_PENALTY_ARG:+$FREQUENCY_PENALTY_ARG} \
             ${SAVE_PROMPTS:+$SAVE_PROMPTS}"
     else
         echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
@@ -193,6 +221,9 @@ eval "uv run python main.py cluster \
     ${PROVIDER_ARG:+$PROVIDER_ARG} \
     ${TAG_ARG:+$TAG_ARG} \
     ${MODEL_KWARGS_ARG:+$MODEL_KWARGS_ARG} \
+    ${MAX_WORKERS_ARG:+$MAX_WORKERS_ARG} \
+    ${MAX_TOKENS_ARG:+$MAX_TOKENS_ARG} \
+    ${FREQUENCY_PENALTY_ARG:+$FREQUENCY_PENALTY_ARG} \
     ${SAVE_PROMPTS:+$SAVE_PROMPTS}"
 
 # Step 4: Evaluate
