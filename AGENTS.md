@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Article reconstruction tool that processes OCR text fragments from Jawi Malay newspapers, sends them to an LLM to reconstruct complete articles, and evaluates results against ground truth using pairwise clustering F1, class accuracy, and coverage metrics.
+Article reconstruction tool that processes OCR text fragments from Jawi Malay newspapers, sends them to an LLM to reconstruct complete articles, and evaluates results against ground truth using pairwise clustering F1, B-Cubed F1, Adjusted Rand Index (ARI), class accuracy, and coverage metrics.
 
 ## Commands
 
@@ -26,17 +26,18 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
 
 ### Module roles
 
-| Module                  | Responsibility                                          |
-|-------------------------|---------------------------------------------------------|
-| `main.py`               | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest) |
-| `pipeline.sh`           | Bash script to run a single end-to-end evaluation pipeline |
-| `experiments/*.sh`      | Bash scripts to orchestrate multiple batched grid-search evaluations |
-| `ingest.py`             | Load pre-extracted JSON articles into fragment lists |
-| `reconstruct.py`        | Data transformation, dict parsing, and mapping to LLM inputs |
-| `llm.py`                | LLM client wrapper (OpenAI-compatible API), client factory |
-| `evaluate.py`           | Ground truth parsing, clustering F1, class accuracy, coverage |
-| `dashboard.html`        | Interactive Alpine.js HTML dashboard to visualize JSON eval logs |
-| `generate_network.py`   | Exports evaluation JSON to nodes/edges CSV for network visualizer |
+| Module                                        | Responsibility                                                    |
+|-----------------------------------------------|-------------------------------------------------------------------|
+| `main.py`                                     | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest) |
+| `pipeline.sh`                                 | Bash script to run a single end-to-end evaluation pipeline        |
+| `experiments/*.sh`                            | Bash scripts to orchestrate multiple batched grid-search evaluations |
+| `src/newspaper_reconstructor/ingest.py`       | Load pre-extracted JSON articles into fragment lists              |
+| `src/newspaper_reconstructor/reconstruct.py`  | Data transformation, dict parsing, and mapping to LLM inputs     |
+| `src/newspaper_reconstructor/llm.py`          | LLM client wrapper (OpenAI-compatible API), client factory        |
+| `src/newspaper_reconstructor/evaluate.py`     | Ground truth parsing, clustering F1, ARI, B³ F1, class accuracy, coverage |
+| `src/newspaper_reconstructor/suggest.py`      | LLM judge for offline analysis and improvement suggestions        |
+| `dashboard.html`                              | Interactive Alpine.js HTML dashboard to visualize JSON eval logs  |
+| `generate_network.py`                         | Exports evaluation JSON to nodes/edges CSV for network visualizer |
 
 ## Code Conventions
 
@@ -65,6 +66,7 @@ data/
         ├── fragments/        # Parsed JSON fragments [{id, text}]
         ├── classified/       # JSON fragments enriched with 'predicted_class'
         └── reconstructions/  # LLM clustered articles (organized by experiment_id)
+
 reports/
 ├── evaluations/          # Evaluation logs
 ├── networks/             # Exported nodes/edges CSV for the network visualizer
