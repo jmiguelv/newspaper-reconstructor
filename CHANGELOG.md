@@ -1,3 +1,17 @@
+## 0.11.0 (2026-08-31)
+
+### Feat
+
+- support whole-dataset runs and parallel options in pipeline
+
+### Fix
+
+- export LLM_AND_IO_ERRORS tuple from reconstruct module
+
+### Refactor
+
+- extract _build_model_kwargs and _run_batch helpers
+
 ## 0.10.0 (2026-08-26)
 
 ### Feat
