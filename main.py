@@ -2,7 +2,10 @@ import json
 import os
 import random
 import sys
+import threading
 import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import typer
 from dotenv import load_dotenv
@@ -18,6 +21,7 @@ from src.newspaper_reconstructor.evaluate import (
 from src.newspaper_reconstructor.ingest import load_article_json
 from src.newspaper_reconstructor.llm import make_client
 from src.newspaper_reconstructor.reconstruct import (
+    LLM_AND_IO_ERRORS,
     alto_to_json,
     classify_fragments,
     reconstruct_articles,
@@ -57,6 +61,48 @@ def _load_prompt(prompt_file: str) -> tuple[str, str]:
         return _parse_md_prompt(content)
     else:
         return content, ""
+
+
+def _build_model_kwargs(
+    model_kwargs: str | None,
+    max_tokens: int | None,
+    frequency_penalty: float | None,
+) -> dict:
+    parsed: dict = {}
+    if model_kwargs:
+        try:
+            parsed = json.loads(model_kwargs)
+        except json.JSONDecodeError as e:
+            typer.echo(f"Error parsing --model-kwargs as JSON: {e}", err=True)
+            raise typer.Exit(1)
+    if max_tokens is not None:
+        parsed["max_tokens"] = max_tokens
+    if frequency_penalty is not None:
+        parsed["frequency_penalty"] = frequency_penalty
+    return parsed
+
+
+def _run_batch(
+    files: list[str],
+    process_fn: "Callable[[str], bool]",
+    max_workers: int,
+) -> int:
+    lock = threading.Lock()
+    success = 0
+
+    def _wrapped(fname: str) -> bool:
+        return process_fn(fname, lock)
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_wrapped, fname): fname for fname in files}
+        for future in as_completed(futures):
+            try:
+                if future.result():
+                    success += 1
+            except LLM_AND_IO_ERRORS as e:
+                fname = futures[future]
+                typer.echo(f"Error processing {fname}: {e}", err=True)
+    return success
 
 
 @app.command()
@@ -149,18 +195,24 @@ def classify(
     model_kwargs: str | None = typer.Option(
         None, "--model-kwargs", help="JSON string for extra model arguments"
     ),
+    max_workers: int = typer.Option(
+        1, "--max-workers", "-w", help="Max concurrent workers for batch processing"
+    ),
+    max_tokens: int | None = typer.Option(
+        None,
+        "--max-tokens",
+        help="Maximum tokens to generate (prevents infinite loops)",
+    ),
+    frequency_penalty: float | None = typer.Option(
+        None, "--frequency-penalty", help="Frequency penalty to reduce repetition"
+    ),
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     os.makedirs(output_folder, exist_ok=True)
 
-    parsed_model_kwargs = None
-    if model_kwargs:
-        try:
-            parsed_model_kwargs = json.loads(model_kwargs)
-        except json.JSONDecodeError as e:
-            typer.echo(f"Error parsing --model-kwargs as JSON: {e}", err=True)
-            raise typer.Exit(1)
-
+    parsed_model_kwargs = _build_model_kwargs(
+        model_kwargs, max_tokens, frequency_penalty
+    )
     client = make_client(
         model=model,
         base_url=base_url,
@@ -182,19 +234,16 @@ def classify(
         random.seed(seed)
         files = random.sample(files, sample_size)
 
-    import time
-
     start_time = time.time()
 
-    success = 0
-    for fname in files:
+    def process_file(fname: str, lock: threading.Lock) -> bool:
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, fname)
 
         if os.path.exists(out_path):
-            typer.echo(f"Skipping {fname}, already classified.")
-            success += 1
-            continue
+            with lock:
+                typer.echo(f"Skipping {fname}, already classified.")
+            return True
 
         with open(in_path, encoding="utf-8") as f:
             fragments = json.load(f)
@@ -205,22 +254,26 @@ def classify(
                 output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
             )
 
-        typer.echo(f"Classifying {fname}...")
+        with lock:
+            typer.echo(f"Classifying {fname}...")
+
         classes = classify_fragments(
             fragments, client, sys_prompt, user_prompt, prompt_out_path=prompt_out_path
         )
 
         if classes:
-            # Enrich fragments
             for frag in fragments:
                 if frag["id"] in classes:
                     frag["predicted_class"] = classes[frag["id"]]
-
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(fragments, f, indent=2, ensure_ascii=False)
-            success += 1
+            return True
         else:
-            typer.echo(f"Failed to classify {fname}", err=True)
+            with lock:
+                typer.echo(f"Failed to classify {fname}", err=True)
+            return False
+
+    success = _run_batch(files, process_file, max_workers)
 
     execution_time_seconds = time.time() - start_time
 
@@ -282,18 +335,24 @@ def cluster(
     model_kwargs: str | None = typer.Option(
         None, "--model-kwargs", help="JSON string for extra model arguments"
     ),
+    max_workers: int = typer.Option(
+        1, "--max-workers", "-w", help="Max concurrent workers for batch processing"
+    ),
+    max_tokens: int | None = typer.Option(
+        None,
+        "--max-tokens",
+        help="Maximum tokens to generate (prevents infinite loops)",
+    ),
+    frequency_penalty: float | None = typer.Option(
+        None, "--frequency-penalty", help="Frequency penalty to reduce repetition"
+    ),
 ):
     """Cluster fragments into articles using an LLM."""
     os.makedirs(output_folder, exist_ok=True)
 
-    parsed_model_kwargs = None
-    if model_kwargs:
-        try:
-            parsed_model_kwargs = json.loads(model_kwargs)
-        except json.JSONDecodeError as e:
-            typer.echo(f"Error parsing --model-kwargs as JSON: {e}", err=True)
-            raise typer.Exit(1)
-
+    parsed_model_kwargs = _build_model_kwargs(
+        model_kwargs, max_tokens, frequency_penalty
+    )
     client = make_client(
         model=model,
         base_url=base_url,
@@ -315,19 +374,16 @@ def cluster(
         random.seed(seed)
         files = random.sample(files, sample_size)
 
-    import time
-
     start_time = time.time()
 
-    success = 0
-    for fname in files:
+    def process_file(fname: str, lock: threading.Lock) -> bool:
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, fname)
 
         if os.path.exists(out_path):
-            typer.echo(f"Skipping {fname}, already clustered.")
-            success += 1
-            continue
+            with lock:
+                typer.echo(f"Skipping {fname}, already clustered.")
+            return True
 
         with open(in_path, encoding="utf-8") as f:
             fragments = json.load(f)
@@ -338,7 +394,9 @@ def cluster(
                 output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
             )
 
-        typer.echo(f"Clustering {fname}...")
+        with lock:
+            typer.echo(f"Clustering {fname}...")
+
         articles = reconstruct_articles(
             fragments, client, sys_prompt, user_prompt, prompt_out_path=prompt_out_path
         )
@@ -346,9 +404,13 @@ def cluster(
         if articles is not None:
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(articles, f, indent=2, ensure_ascii=False)
-            success += 1
+            return True
         else:
-            typer.echo(f"Failed to cluster {fname}", err=True)
+            with lock:
+                typer.echo(f"Failed to cluster {fname}", err=True)
+            return False
+
+    success = _run_batch(files, process_file, max_workers)
 
     execution_time_seconds = time.time() - start_time
 
