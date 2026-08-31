@@ -1034,6 +1034,19 @@
                             </tr>
                         </template>
                     </tbody>
+                    <tfoot x-show="reconTableAverages">
+                        <tr style="border-top: 2px solid var(--rule); background: var(--surface-2);">
+                            <td colspan="6" style="color: var(--ink-faint); font-size: var(--step--2); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500;">Avg (<span x-text="reconTableAverages?.n"></span>)</td>
+                            <td></td>
+                            <td :class="metricClass(reconTableAverages?.f1)"        x-text="fmt(reconTableAverages?.f1)"></td>
+                            <td :class="metricClass(reconTableAverages?.ari)"       x-text="fmt(reconTableAverages?.ari)"></td>
+                            <td :class="metricClass(reconTableAverages?.bcubed_f1)" x-text="fmt(reconTableAverages?.bcubed_f1)"></td>
+                            <td :class="metricClass(reconTableAverages?.precision)" x-text="fmt(reconTableAverages?.precision)"></td>
+                            <td :class="metricClass(reconTableAverages?.recall)"    x-text="fmt(reconTableAverages?.recall)"></td>
+                            <td x-text="reconTableAverages?.time != null ? reconTableAverages.time.toFixed(3) + 's' : '—'"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
                 </table>
                 </div>
 
@@ -1522,6 +1535,24 @@
                     if (!exps.length) return null;
                     return [...exps].sort((a, b) => (b.aggregate?.mean_bcubed_f1 || 0) - (a.aggregate?.mean_bcubed_f1 || 0))[0];
                 },
+                get reconTableAverages() {
+                    const exps = this.filteredReconstructionExperiments;
+                    if (!exps.length) return null;
+                    const avg = key => {
+                        const vals = exps.map(e => this.getNested(e, key)).filter(v => v != null);
+                        return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+                    };
+                    return {
+                        f1:        avg('aggregate.mean_clustering_f1'),
+                        ari:       avg('aggregate.mean_ari'),
+                        bcubed_f1: avg('aggregate.mean_bcubed_f1'),
+                        precision: avg('aggregate.mean_clustering_precision'),
+                        recall:    avg('aggregate.mean_clustering_recall'),
+                        time:      avg('config.execution_time_seconds'),
+                        n:         exps.length,
+                    };
+                },
+
                 get bestCovRun() {
                     const exps = this.filteredReconstructionExperiments;
                     if (!exps.length) return null;
