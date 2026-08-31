@@ -272,7 +272,9 @@ class TestE2ECluster:
             )
         assert result.exit_code == 0
 
-        output_files = [f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"]
+        output_files = [
+            f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"
+        ]
         assert len(output_files) == 4
         for f in output_files:
             assert len(json.loads(f.read_text())) == 1
@@ -309,7 +311,9 @@ class TestE2ECluster:
             )
         assert result.exit_code == 0
 
-        output_files = [f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"]
+        output_files = [
+            f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"
+        ]
         assert len(output_files) == 4
         for f in output_files:
             frags = json.loads(f.read_text())
