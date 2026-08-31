@@ -24,6 +24,8 @@ wheels/
 Thumbs.db
 
 # Generated data
+generate_payload.py
+payload_dump.json
 data/1_interim/
 data/3_networks/
 reports/evaluations/*
