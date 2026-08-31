@@ -244,6 +244,77 @@ class TestE2ECluster:
             data1 = json.load(f)
             assert len(data1) == 1
 
+    def test_cluster_parallel(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        data = [{"id": "r_1", "text": "hello"}]
+        for i in range(4):
+            (d / f"page{i}.json").write_text(json.dumps(data), encoding="utf-8")
+        out_dir = tmp_path / "reconstructions"
+        prompt_file = _make_prompt_file(tmp_path)
+
+        with patch("main.make_client", return_value=_mock_client()):
+            result = runner.invoke(
+                app,
+                [
+                    "cluster",
+                    "-i",
+                    str(d),
+                    "-o",
+                    str(out_dir),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                    "--max-workers",
+                    "4",
+                ],
+            )
+        assert result.exit_code == 0
+
+        output_files = [f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"]
+        assert len(output_files) == 4
+        for f in output_files:
+            assert len(json.loads(f.read_text())) == 1
+
+    def test_classify_parallel(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        data = [{"id": "r_1", "text": "hello"}]
+        for i in range(4):
+            (d / f"page{i}.json").write_text(json.dumps(data), encoding="utf-8")
+        out_dir = tmp_path / "classified"
+        prompt_file = _make_prompt_file(tmp_path)
+
+        mock_classify_response = json.dumps({"r_1": "article"})
+        mock_client = MagicMock()
+        mock_client.complete.return_value = mock_classify_response
+
+        with patch("main.make_client", return_value=mock_client):
+            result = runner.invoke(
+                app,
+                [
+                    "classify",
+                    "-i",
+                    str(d),
+                    "-o",
+                    str(out_dir),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                    "--max-workers",
+                    "4",
+                ],
+            )
+        assert result.exit_code == 0
+
+        output_files = [f for f in sorted(out_dir.glob("*.json")) if f.name != "_metadata.json"]
+        assert len(output_files) == 4
+        for f in output_files:
+            frags = json.loads(f.read_text())
+            assert frags[0]["predicted_class"] == "article"
+
 
 # ─── Evaluate single page ────────────────────────────────────────────────────
 
