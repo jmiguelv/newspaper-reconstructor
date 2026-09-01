@@ -1,6 +1,6 @@
 [project]
 name = "article-reconstruction"
-version = "0.11.0"
+version = "0.12.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -22,7 +22,7 @@ pythonpath = ["."]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.11.0"
+version = "0.12.0"
 version_files = [
     "pyproject.toml:version",
     "dashboard.html"

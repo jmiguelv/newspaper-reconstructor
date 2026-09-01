@@ -1,3 +1,16 @@
+## 0.12.0 (2026-09-01)
+
+### Feat
+
+- **cli**: add plan subcommand to estimate token and hardware requirements
+- **dashboard**: add avg row to reconstruction table
+
+### Refactor
+
+- **dashboard**: rework experiments controls and unify header actions
+- **dashboard**: extract inline styles to css classes
+- **dashboard**: simplify component logic and fix versioning inconsistency
+
 ## 0.11.0 (2026-08-31)
 
 ### Feat
