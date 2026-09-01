@@ -781,53 +781,366 @@
           break-inside: avoid;
         }
       }
-    </style>
-  </head>
-  <body x-data="dashboard()" x-cloak>
-    <header
-      role="banner"
-      style="
+
+      /* ── Cleaned Styles ───────────────────────────────────── */
+      .site-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        flex-wrap: wrap;
+        gap: var(--space-m);
+      }
+      .header-actions {
+        text-align: right;
+        flex-shrink: 0;
+      }
+      .button {
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5em;
+        background: var(--surface-2);
+        border: 1px solid var(--rule);
+        padding: 0.5em 1em;
+        border-radius: 0.25rem;
+        font-weight: 500;
+        transition: background 0.2s;
+      }
+      .button:hover {
+        background: var(--surface-3);
+      }
+      .hidden {
+        display: none !important;
+      }
+      .title-main {
+        margin-bottom: var(--space-3xs);
+      }
+      .subtitle {
+        max-width: 60ch;
+        color: var(--ink-light);
+        font-size: var(--step--1);
+      }
+      .upload-hint {
+        margin-top: var(--space-3xs);
+        font-size: var(--step--2);
+      }
+      .prompts-info {
+        margin-bottom: var(--space-s);
+      }
+      .prompts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+        gap: var(--space-s);
+        margin-top: var(--space-s);
+      }
+      .prompt-name {
+        color: var(--ink);
+      }
+      .prompt-content {
+        font-size: 0.75rem;
+        color: var(--ink-light);
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .filters-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-m);
+        align-items: flex-end;
+        background: var(--surface-2);
+        padding: var(--space-m);
+        border-radius: 0.5rem;
+        margin-bottom: var(--space-l);
+      }
+      .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+      .filter-group.slider-group {
+        flex: 1;
+        min-width: 15rem;
+      }
+      .filter-group label {
+        white-space: nowrap;
+      }
+      .filter-group select {
+        width: 100%;
+        min-width: 10rem;
+        padding: 0.3em;
+        font-family: inherit;
+      }
+      .range-input {
+        flex: 1;
+        max-width: 12rem;
+        accent-color: var(--ink);
+      }
+      .range-value {
+        min-width: 3rem;
+      }
+      .text-muted {
+        color: var(--ink-muted);
+      }
+      .sort-icon {
+        color: var(--ink);
+      }
+      .mb-m {
+        margin-bottom: var(--space-m);
+      }
+      .mt-m {
+        margin-top: var(--space-m);
+      }
+      .mt-xs {
+        margin-top: var(--space-xs);
+      }
+      .avg-row {
+        border-top: 2px solid var(--rule);
+        background: var(--surface-2);
+      }
+      .avg-label {
+        color: var(--ink-faint);
+        font-size: var(--step--2);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: 500;
+      }
+      .cell-nowrap {
+        white-space: nowrap;
+      }
+      .cell-small {
+        font-size: var(--step--2);
+      }
+      .detail-view {
+        margin-top: var(--space-m);
+      }
+      .selectable-code {
+        user-select: all;
+      }
+      .stat-bar-inner {
+        display: flex;
+        gap: var(--space-xs);
+        width: 100%;
+      }
+      .mono-text {
+        font-family: var(--font-mono);
+      }
+      .full-width {
+        grid-column: 1 / -1;
+      }
+      .comparison-header {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-l);
+      }
+      .comparison-header h5 {
+        margin: 0;
+      }
+      .comparison-row {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-l);
+        margin-bottom: var(--space-xs);
+      }
+      .item-card.no-margin {
+        margin-bottom: 0;
+      }
+      .item-card.ghost {
+        border: 1px dashed var(--rule);
+        background: transparent;
+        opacity: 0.5;
+      }
+      .break-all {
+        word-break: break-all;
+      }
+      .empty-state {
+        text-align: center;
+        margin: var(--space-xl) 0;
+      }
+      .ink-faint {
+        color: var(--ink-faint);
+      }
+      .ink {
+        color: var(--ink);
+      }
+
+      .site-header-2 {
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
         gap: var(--space-l);
         flex-wrap: wrap;
         margin-bottom: var(--space-xl);
-      "
-    >
+      }
+      .subtitle-2 {
+        margin-top: var(--space-s);
+        max-width: 72ch;
+        font-size: var(--step--1);
+      }
+      .upload-btn:hover {
+        opacity: 0.8;
+      }
+      .upload-btn {
+        cursor: pointer;
+        display: inline-block;
+        background: var(--blue-bg);
+        color: var(--blue);
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 500;
+        font-size: var(--step--1);
+        border: 1px solid var(--blue);
+        transition: opacity 0.2s;
+      }
+      .prompts-list {
+        padding: var(--space-s);
+        background: var(--surface-2);
+        border-radius: 0.5rem;
+        border: 1px solid var(--rule);
+        margin-top: var(--space-s);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-s);
+      }
+      .prompt-details {
+        margin-top: var(--space-2xs);
+        padding: var(--space-s);
+        background: var(--surface-3);
+        border: 1px solid var(--rule);
+        border-radius: 0.25rem;
+        font-size: var(--step--2);
+        overflow-x: auto;
+        white-space: pre-wrap;
+      }
+      .results-header {
+        background: var(--surface-2);
+        padding: var(--space-2xs) var(--space-s);
+        border-radius: 0.5rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: var(--space-m);
+      }
+      .results-summary {
+        display: flex;
+        gap: var(--space-m);
+        flex-wrap: wrap;
+      }
+      .text-strong {
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .text-small-faint {
+        margin-left: 0.5em;
+        font-size: var(--step--2);
+        color: var(--ink-faint);
+      }
+      .flex-wrap-xs {
+        display: flex;
+        gap: var(--space-xs);
+        flex-wrap: wrap;
+      }
+      .border-top-m {
+        border-top: 1px solid var(--rule);
+        padding-top: var(--space-m);
+      }
+      .grid-2-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--space-l);
+      }
+
+      .filters-wrapper {
+        display: flex;
+        align-items: center;
+        gap: var(--space-s);
+        margin-bottom: var(--space-m);
+        flex-wrap: wrap;
+        font-size: var(--step--1);
+        color: var(--ink-light);
+      }
+      .filter-select {
+        font-size: var(--step--1);
+        padding: 0.2em 0.5em;
+        border: 1px solid var(--rule);
+        border-radius: 0.25rem;
+        background: var(--surface);
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .best-run-info {
+        margin-bottom: var(--space-m);
+        font-size: var(--step--1);
+        color: var(--ink-light);
+        max-width: 80ch;
+      }
+      .timestamp-cell {
+        white-space: nowrap;
+        font-size: var(--step--2);
+        color: var(--ink-light);
+      }
+      .link-chip {
+        display: inline-block;
+        font-size: var(--step--2);
+        font-family: var(--font-mono);
+        background: var(--blue-bg);
+        color: var(--blue);
+        padding: 0.1em 0.4em;
+        border-radius: 0.2rem;
+        margin: 0.1rem;
+      }
+      .link-list {
+        list-style-type: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .item-text-rtl {
+        font-size: var(--step--1);
+        line-height: 1.5;
+        color: var(--ink);
+        margin-bottom: var(--space-s);
+      }
+      .best-run-flex {
+        margin-bottom: var(--space-m);
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-xs) var(--space-m);
+        align-items: baseline;
+        font-size: var(--step--1);
+      }
+      .chip-selected {
+        background-color: var(--ink) !important;
+        color: var(--surface) !important;
+        border-color: var(--ink) !important;
+      }
+      .link-chip-green {
+        display: inline-block;
+        font-size: var(--step--2);
+        font-family: var(--font-mono);
+        background: var(--green-bg);
+        color: var(--green);
+        padding: 0.1em 0.4em;
+        border-radius: 0.2rem;
+      }
+    </style>
+  </head>
+  <body x-data="dashboard()" x-cloak>
+    <header role="banner" class="site-header-2">
       <div>
-        <h1 style="margin-bottom: var(--space-3xs)">Evaluation Dashboard</h1>
+        <h1 class="title-main">Evaluation Dashboard</h1>
         <p x-text="experiments.length + ' experiments loaded'">…</p>
-        <p
-          style="
-            margin-top: var(--space-s);
-            max-width: 72ch;
-            font-size: var(--step--1);
-          "
-        >
+        <p class="subtitle-2">
           Evaluation dashboard for Jawi Malay newspaper article reconstruction.
           Compares LLM classification and reconstruction experiments against
           ground truth.
         </p>
       </div>
-      <div style="text-align: right; flex-shrink: 0">
-        <label
-          class="button"
-          style="
-            cursor: pointer;
-            display: inline-block;
-            background: var(--blue-bg);
-            color: var(--blue);
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            font-size: var(--step--1);
-            border: 1px solid var(--blue);
-            transition: opacity 0.2s;
-          "
-          onmouseover="this.style.opacity = '0.8'"
-          onmouseout="this.style.opacity = '1'"
-        >
+      <div class="header-actions">
+        <label class="button" class="upload-btn">
           <span
             x-text="experiments.length === 0 ? 'Select Project Folder' : 'Switch Project Folder'"
             >Select Project Folder</span
@@ -838,56 +1151,28 @@
             directory
             multiple
             @change="handleFilesSelected"
-            style="display: none"
+            class="hidden"
           />
         </label>
-        <p
-          class="muted"
-          style="margin-top: var(--space-3xs); font-size: var(--step--2)"
-        >
-          Select root folder
-        </p>
+        <p class="muted" class="upload-hint">Select root folder</p>
       </div>
     </header>
 
     <main>
       <!-- ── Reference Section ────────────────────────────────────── -->
-      <section style="margin-bottom: var(--space-xl)">
+      <section>
         <h2>Reference</h2>
 
         <!-- ── Prompts Info ────────────────────────────────────── -->
-        <details class="prompts-info" style="margin-bottom: var(--space-s)">
+        <details class="prompts-info">
           <summary>Prompts reference</summary>
-          <div
-            style="
-              padding: var(--space-s);
-              background: var(--surface-2);
-              border-radius: 0.5rem;
-              border: 1px solid var(--rule);
-              margin-top: var(--space-s);
-              display: flex;
-              flex-direction: column;
-              gap: var(--space-s);
-            "
-          >
+          <div class="prompts-list">
             <template x-for="p in prompts" :key="p.name">
               <details>
                 <summary>
-                  <strong style="color: var(--ink)" x-text="p.name"></strong>
+                  <strong class="prompt-name" x-text="p.name"></strong>
                 </summary>
-                <pre
-                  style="
-                    margin-top: var(--space-2xs);
-                    padding: var(--space-s);
-                    background: var(--surface-3);
-                    border: 1px solid var(--rule);
-                    border-radius: 0.25rem;
-                    font-size: var(--step--2);
-                    overflow-x: auto;
-                    white-space: pre-wrap;
-                  "
-                  x-text="p.content"
-                ></pre>
+                <pre class="prompt-details" x-text="p.content"></pre>
               </details>
             </template>
             <p x-show="prompts.length === 0" class="muted">
@@ -983,50 +1268,20 @@
       <section>
         <h2>Experiments</h2>
 
-        <div
-          style="
-            display: flex;
-            align-items: center;
-            gap: var(--space-s);
-            margin-bottom: var(--space-m);
-            flex-wrap: wrap;
-            font-size: var(--step--1);
-            color: var(--ink-light);
-          "
-        >
-          <label for="model-filter" style="white-space: nowrap">Model</label>
-          <select
-            id="model-filter"
-            x-model="filterModel"
-            style="
-              font-size: var(--step--1);
-              padding: 0.2em 0.5em;
-              border: 1px solid var(--rule);
-              border-radius: 0.25rem;
-              background: var(--surface);
-              color: var(--ink);
-              cursor: pointer;
-            "
-          >
+        <div class="filters-wrapper">
+          <label for="model-filter">Model</label>
+          <select id="model-filter" x-model="filterModel" class="filter-select">
             <option value="">All models</option>
             <template x-for="m in modelOptions" :key="m">
               <option :value="m" x-text="m"></option>
             </template>
           </select>
 
-          <label for="prompt-filter" style="white-space: nowrap">Prompt</label>
+          <label for="prompt-filter">Prompt</label>
           <select
             id="prompt-filter"
             x-model="filterPrompt"
-            style="
-              font-size: var(--step--1);
-              padding: 0.2em 0.5em;
-              border: 1px solid var(--rule);
-              border-radius: 0.25rem;
-              background: var(--surface);
-              color: var(--ink);
-              cursor: pointer;
-            "
+            class="filter-select"
           >
             <option value="">All prompts</option>
             <template x-for="p in promptOptions" :key="p">
@@ -1034,21 +1289,11 @@
             </template>
           </select>
 
-          <label for="dataset-filter" style="white-space: nowrap"
-            >Dataset</label
-          >
+          <label for="dataset-filter">Dataset</label>
           <select
             id="dataset-filter"
             x-model="filterDataset"
-            style="
-              font-size: var(--step--1);
-              padding: 0.2em 0.5em;
-              border: 1px solid var(--rule);
-              border-radius: 0.25rem;
-              background: var(--surface);
-              color: var(--ink);
-              cursor: pointer;
-            "
+            class="filter-select"
           >
             <option value="">All datasets</option>
             <template x-for="d in datasetOptions" :key="d">
@@ -1056,21 +1301,11 @@
             </template>
           </select>
 
-          <label for="sample-filter" style="white-space: nowrap"
-            >Sample size</label
-          >
+          <label for="sample-filter">Sample size</label>
           <select
             id="sample-filter"
             x-model="filterSampleSize"
-            style="
-              font-size: var(--step--1);
-              padding: 0.2em 0.5em;
-              border: 1px solid var(--rule);
-              border-radius: 0.25rem;
-              background: var(--surface);
-              color: var(--ink);
-              cursor: pointer;
-            "
+            class="filter-select"
           >
             <option value="">All sizes</option>
             <template x-for="s in sampleSizeOptions" :key="s">
@@ -1078,9 +1313,7 @@
             </template>
           </select>
 
-          <label for="completion-filter" style="white-space: nowrap"
-            >Min. completion</label
-          >
+          <label for="completion-filter">Min. completion</label>
           <input
             id="completion-filter"
             type="range"
@@ -1088,13 +1321,13 @@
             max="1"
             step="0.05"
             x-model.number="minCompletionRatio"
-            style="flex: 1; max-width: 12rem; accent-color: var(--ink)"
+            class="range-input"
           />
           <span
             x-text="Math.round(minCompletionRatio * 100) + '%'"
-            style="min-width: 3rem"
+            class="range-value"
           ></span>
-          <span style="color: var(--ink-muted)"
+          <span class="text-muted"
             >(<span x-text="filteredExperiments.length"></span> of
             <span x-text="experiments.length"></span> experiments)</span
           >
@@ -1106,14 +1339,7 @@
           <h3>Classification</h3>
 
           <template x-if="bestClassificationF1Run">
-            <p
-              style="
-                margin-bottom: var(--space-m);
-                font-size: var(--step--1);
-                color: var(--ink-light);
-                max-width: 80ch;
-              "
-            >
+            <p class="best-run-info">
               Best F1:
               <strong
                 x-text="fmt(bestClassificationF1Run.aggregate.mean_weighted_f1)"
@@ -1121,7 +1347,7 @@
               by
               <strong
                 x-text="bestClassificationF1Run.config.model"
-                style="color: var(--ink)"
+                class="sort-icon"
               ></strong>
               using
               <code x-text="bestClassificationF1Run.config.prompt_name"></code>
@@ -1132,7 +1358,7 @@
           <p
             x-show="filteredClassificationExperiments.length === 0"
             class="muted"
-            style="margin-bottom: var(--space-m)"
+            class="mb-m"
           >
             No classification experiments match the current filters.
           </p>
@@ -1240,21 +1466,17 @@
                     :data-active="expandedExperiment === experiment.experiment_id"
                   >
                     <td
-                      style="
-                        white-space: nowrap;
-                        font-size: var(--step--2);
-                        color: var(--ink-light);
-                      "
+                      class="timestamp-cell"
                       x-text="experiment.timestamp ? new Date(experiment.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"
                     ></td>
                     <td
-                      style="font-size: var(--step--2)"
+                      class="cell-small"
                       x-text="experiment.config.dataset || '—'"
                     ></td>
                     <td x-text="experiment.config.model"></td>
                     <td x-text="experiment.config.prompt_name"></td>
                     <td
-                      style="font-size: var(--step--2)"
+                      class="cell-small"
                       x-text="experiment.config.tag || '—'"
                     ></td>
                     <td x-text="experiment.config.sample_size || 'all'"></td>
@@ -1274,7 +1496,7 @@
                     <td
                       x-text="experiment.config.execution_time_seconds ? experiment.config.execution_time_seconds.toFixed(3) + 's' : '—'"
                     ></td>
-                    <td @click.stop style="white-space: nowrap">
+                    <td @click.stop class="cell-nowrap">
                       <template
                         x-for="rec in getLinkedReconstructions(experiment.experiment_id)"
                         :key="rec.experiment_id"
@@ -1282,16 +1504,7 @@
                         <a
                           href="#reconstruction-section"
                           @click.prevent="expandedExperiment = rec.experiment_id; setTimeout(() => document.getElementById('reconstruction-section').scrollIntoView({behavior:'smooth'}), 100);"
-                          style="
-                            display: inline-block;
-                            font-size: var(--step--2);
-                            font-family: var(--font-mono);
-                            background: var(--blue-bg);
-                            color: var(--blue);
-                            padding: 0.1em 0.4em;
-                            border-radius: 0.2rem;
-                            margin: 0.1rem;
-                          "
+                          class="link-chip"
                           x-text="rec.config.prompt_name || rec.experiment_id"
                           >↗</a
                         >
@@ -1299,7 +1512,7 @@
                       <span
                         x-show="getLinkedReconstructions(experiment.experiment_id).length === 0"
                         class="muted"
-                        style="font-size: var(--step--2)"
+                        class="cell-small"
                         >—</span
                       >
                     </td>
@@ -1313,7 +1526,7 @@
           <template
             x-if="activeExperiment && activeExperiment.config.task === 'classification'"
           >
-            <div style="margin-top: var(--space-m)">
+            <div class="detail-view">
               <h4
                 x-text="activeExperiment.config.model + ' / ' + activeExperiment.config.prompt_name"
               ></h4>
@@ -1321,7 +1534,7 @@
                 Experiment ID:
                 <code
                   x-text="activeExperiment.experiment_id"
-                  style="user-select: all"
+                  class="selectable-code"
                   title="Click to select for --experiment-id"
                 ></code>
                 ·
@@ -1335,7 +1548,7 @@
               </p>
 
               <nav class="stat-bar" aria-label="Aggregate metrics">
-                <div style="display: flex; gap: var(--space-xs); width: 100%">
+                <div class="stat-bar-inner">
                   <figure>
                     <span
                       class="stat-value"
@@ -1377,25 +1590,16 @@
                     <dt>Experiment ID</dt>
                     <dd
                       x-text="activeExperiment.experiment_id"
-                      style="font-family: var(--font-mono)"
+                      class="mono-text"
                     ></dd>
                   </div>
                   <template
                     x-if="getLinkedReconstructions(activeExperiment.experiment_id).length > 0"
                   >
-                    <div style="grid-column: 1 / -1">
+                    <div class="full-width">
                       <dt>Linked Reconstructions</dt>
                       <dd>
-                        <ul
-                          style="
-                            list-style-type: none;
-                            padding: 0;
-                            margin: 0;
-                            display: flex;
-                            flex-direction: column;
-                            gap: 4px;
-                          "
-                        >
+                        <ul class="link-list">
                           <template
                             x-for="rec in getLinkedReconstructions(activeExperiment.experiment_id)"
                             :key="rec.experiment_id"
@@ -1405,7 +1609,7 @@
                                 href="#"
                                 @click.prevent="filterModel = ''; filterPrompt = ''; filterSampleSize = ''; expandedExperiment = rec.experiment_id; setTimeout(() => document.getElementById('reconstruction-section').scrollIntoView({behavior: 'smooth'}), 100);"
                                 x-text="rec.experiment_id"
-                                style="font-family: var(--font-mono)"
+                                class="mono-text"
                               ></a>
                             </li>
                           </template>
@@ -1456,7 +1660,7 @@
                     </div>
                   </template>
                   <template x-if="!activeExperiment.config.system_prompt">
-                    <div style="grid-column: 1 / -1">
+                    <div class="full-width">
                       <dt>Prompt Content</dt>
                       <dd
                         x-text="truncate(prompts.find(p => p.name === activeExperiment.config.prompt_name)?.content || 'Prompt not found in loaded files.', 500)"
@@ -1565,38 +1769,22 @@
                               ></span>
                             </div>
 
-                            <div
-                              class="comparison-grid"
-                              style="margin-top: var(--space-m)"
-                            >
-                              <div
-                                style="
-                                  grid-column: 1 / -1;
-                                  display: grid;
-                                  grid-template-columns: 1fr 1fr;
-                                  gap: var(--space-l);
-                                "
-                              >
-                                <h5 style="margin: 0">
+                            <div class="comparison-grid" class="mt-m">
+                              <div class="comparison-header">
+                                <h5>
                                   Predicted
                                   <small
                                     x-text="'(' + (page.predicted_items || []).length + ')'"
                                   ></small>
                                 </h5>
-                                <h5 style="margin: 0">Ground truth</h5>
+                                <h5>Ground truth</h5>
                               </div>
                               <template
                                 x-for="item in page.predicted_items || []"
                                 :key="item.id"
                               >
                                 <div
-                                  style="
-                                    grid-column: 1 / -1;
-                                    display: grid;
-                                    grid-template-columns: 1fr 1fr;
-                                    gap: var(--space-l);
-                                    margin-bottom: var(--space-xs);
-                                  "
+                                  class="comparison-row"
                                   x-data="{ 
                                                                  gtItem: (page.ground_truth_items || []).find(g => (g.fragment_ids || []).includes(item.id)),
                                                                  get expectedClass() { return this.gtItem ? this.gtItem.class : 'unknown'; }
@@ -1606,7 +1794,7 @@
                                   <article
                                     class="item-card"
                                     :class="item.predicted_class === expectedClass ? 'match' : 'mismatch'"
-                                    style="margin-bottom: 0"
+                                    class="no-margin"
                                   >
                                     <div class="item-card-header">
                                       <span
@@ -1620,12 +1808,7 @@
                                       ></span>
                                     </div>
                                     <div
-                                      style="
-                                        font-size: var(--step--1);
-                                        line-height: 1.5;
-                                        color: var(--ink);
-                                        margin-bottom: var(--space-s);
-                                      "
+                                      class="item-text-rtl"
                                       x-text="item.text"
                                       dir="rtl"
                                     ></div>
@@ -1642,7 +1825,7 @@
                                     <article
                                       class="item-card"
                                       :class="item.predicted_class === expectedClass ? 'match' : 'mismatch'"
-                                      style="margin-bottom: 0"
+                                      class="no-margin"
                                     >
                                       <div class="item-card-header">
                                         <span
@@ -1657,19 +1840,16 @@
                                       </div>
                                       <code
                                         x-text="gtItem.uuid"
-                                        style="word-break: break-all"
+                                        class="break-all"
                                       ></code>
-                                      <div
-                                        class="chips"
-                                        style="margin-top: var(--space-xs)"
-                                      >
+                                      <div class="chips" class="mt-xs">
                                         <template
                                           x-for="fid in gtItem.fragment_ids"
                                           :key="fid"
                                         >
                                           <span
                                             class="chip"
-                                            :style="fid === item.id ? 'background-color: var(--ink); color: var(--surface); border-color: var(--ink);' : ''"
+                                            :class="fid === item.id ? 'chip-selected' : ''"
                                             x-text="fid"
                                           ></span>
                                         </template>
@@ -1677,9 +1857,7 @@
                                       <template
                                         x-if="gtItem.topics && gtItem.topics.length"
                                       >
-                                        <div
-                                          style="margin-top: var(--space-xs)"
-                                        >
+                                        <div class="mt-xs">
                                           <template
                                             x-for="topic in gtItem.topics"
                                             :key="topic"
@@ -1696,11 +1874,7 @@
                                   <template x-if="!gtItem">
                                     <div
                                       class="item-card"
-                                      style="
-                                        border: 1px dashed var(--rule);
-                                        background: transparent;
-                                        opacity: 0.5;
-                                      "
+                                      class="item-card ghost"
                                     ></div>
                                   </template>
                                 </div>
@@ -1723,16 +1897,7 @@
           <h3>Reconstructions</h3>
 
           <template x-if="bestF1Run">
-            <div
-              style="
-                margin-bottom: var(--space-m);
-                display: flex;
-                flex-wrap: wrap;
-                gap: var(--space-xs) var(--space-m);
-                align-items: baseline;
-                font-size: var(--step--1);
-              "
-            >
+            <div class="best-run-flex">
               <span
                 >F1
                 <strong
@@ -1740,7 +1905,7 @@
                   x-text="fmt(bestF1Run.aggregate.mean_clustering_f1)"
                 ></strong>
                 <span
-                  style="font-size: var(--step--2); color: var(--ink-faint)"
+                  class="cell-small ink-faint"
                   x-text="bestF1Run.config.model"
                 ></span
               ></span>
@@ -1751,7 +1916,7 @@
                   x-text="fmt(bestAriRun.aggregate.mean_ari)"
                 ></strong>
                 <span
-                  style="font-size: var(--step--2); color: var(--ink-faint)"
+                  class="cell-small ink-faint"
                   x-text="bestAriRun.config.model"
                 ></span
               ></span>
@@ -1762,7 +1927,7 @@
                   x-text="fmt(bestB3Run.aggregate.mean_bcubed_f1)"
                 ></strong>
                 <span
-                  style="font-size: var(--step--2); color: var(--ink-faint)"
+                  class="cell-small ink-faint"
                   x-text="bestB3Run.config.model"
                 ></span
               ></span>
@@ -1773,11 +1938,11 @@
                   x-text="fmt(bestCovRun.aggregate.mean_coverage)"
                 ></strong>
                 <span
-                  style="font-size: var(--step--2); color: var(--ink-faint)"
+                  class="cell-small ink-faint"
                   x-text="bestCovRun.config.model"
                 ></span
               ></span>
-              <span class="muted" style="font-size: var(--step--2)"
+              <span class="muted" class="cell-small"
                 >(<span
                   x-text="filteredReconstructionExperiments.length"
                 ></span>
@@ -1788,7 +1953,7 @@
           <p
             x-show="filteredReconstructionExperiments.length === 0"
             class="muted"
-            style="margin-bottom: var(--space-m)"
+            class="mb-m"
           >
             No reconstruction experiments match the current filters.
           </p>
@@ -1912,21 +2077,17 @@
                     :data-active="expandedExperiment === experiment.experiment_id"
                   >
                     <td
-                      style="
-                        white-space: nowrap;
-                        font-size: var(--step--2);
-                        color: var(--ink-light);
-                      "
+                      class="timestamp-cell"
                       x-text="experiment.timestamp ? new Date(experiment.timestamp).toLocaleString(undefined, {dateStyle:'short', timeStyle:'short'}) : '—'"
                     ></td>
                     <td
-                      style="font-size: var(--step--2)"
+                      class="cell-small"
                       x-text="experiment.config.dataset || '—'"
                     ></td>
                     <td x-text="experiment.config.model"></td>
                     <td x-text="experiment.config.prompt_name"></td>
                     <td
-                      style="font-size: var(--step--2)"
+                      class="cell-small"
                       x-text="experiment.config.tag || '—'"
                     ></td>
                     <td x-text="experiment.config.sample_size || 'all'"></td>
@@ -1954,22 +2115,14 @@
                     <td
                       x-text="experiment.config.execution_time_seconds ? experiment.config.execution_time_seconds.toFixed(3) + 's' : '—'"
                     ></td>
-                    <td @click.stop style="white-space: nowrap">
+                    <td @click.stop class="cell-nowrap">
                       <template
                         x-if="getLinkedClassification(experiment.experiment_id)"
                       >
                         <a
                           href="#classification-section"
                           @click.prevent="expandedExperiment = getLinkedClassification(experiment.experiment_id).experiment_id; setTimeout(() => document.getElementById('classification-section').scrollIntoView({behavior:'smooth'}), 100);"
-                          style="
-                            display: inline-block;
-                            font-size: var(--step--2);
-                            font-family: var(--font-mono);
-                            background: var(--green-bg);
-                            color: var(--green);
-                            padding: 0.1em 0.4em;
-                            border-radius: 0.2rem;
-                          "
+                          class="link-chip-green"
                           x-text="getLinkedClassification(experiment.experiment_id).config.prompt_name || getLinkedClassification(experiment.experiment_id).experiment_id"
                           >↖</a
                         >
@@ -1977,7 +2130,7 @@
                       <span
                         x-show="!getLinkedClassification(experiment.experiment_id)"
                         class="muted"
-                        style="font-size: var(--step--2)"
+                        class="cell-small"
                         >—</span
                       >
                     </td>
@@ -1985,22 +2138,8 @@
                 </template>
               </tbody>
               <tfoot x-show="reconTableAverages">
-                <tr
-                  style="
-                    border-top: 2px solid var(--rule);
-                    background: var(--surface-2);
-                  "
-                >
-                  <td
-                    colspan="6"
-                    style="
-                      color: var(--ink-faint);
-                      font-size: var(--step--2);
-                      text-transform: uppercase;
-                      letter-spacing: 0.06em;
-                      font-weight: 500;
-                    "
-                  >
+                <tr class="avg-row">
+                  <td colspan="6" class="avg-label">
                     Avg (<span x-text="reconTableAverages?.n"></span>)
                   </td>
                   <td></td>
@@ -2037,7 +2176,7 @@
           <template
             x-if="activeExperiment && activeExperiment.config.task !== 'classification'"
           >
-            <div style="margin-top: var(--space-m)">
+            <div class="detail-view">
               <h4
                 x-text="activeExperiment.config.model + ' / ' + activeExperiment.config.prompt_name"
               ></h4>
@@ -2045,7 +2184,7 @@
                 Experiment ID:
                 <code
                   x-text="activeExperiment.experiment_id"
-                  style="user-select: all"
+                  class="selectable-code"
                   title="Click to select for --experiment-id"
                 ></code>
                 ·
@@ -2059,7 +2198,7 @@
               </p>
 
               <nav class="stat-bar" aria-label="Aggregate metrics">
-                <div style="display: flex; gap: var(--space-xs); width: 100%">
+                <div class="stat-bar-inner">
                   <figure>
                     <span
                       class="stat-value"
@@ -2125,20 +2264,20 @@
                     <dt>Experiment ID</dt>
                     <dd
                       x-text="activeExperiment.experiment_id"
-                      style="font-family: var(--font-mono)"
+                      class="mono-text"
                     ></dd>
                   </div>
                   <template
                     x-if="getLinkedClassification(activeExperiment.experiment_id)"
                   >
-                    <div style="grid-column: 1 / -1">
+                    <div class="full-width">
                       <dt>Linked Classification</dt>
                       <dd>
                         <a
                           href="#"
                           @click.prevent="filterModel = ''; filterPrompt = ''; filterSampleSize = ''; expandedExperiment = getLinkedClassification(activeExperiment.experiment_id).experiment_id; setTimeout(() => document.getElementById('classification-section').scrollIntoView({behavior: 'smooth'}), 100);"
                           x-text="getLinkedClassification(activeExperiment.experiment_id).experiment_id"
-                          style="font-family: var(--font-mono)"
+                          class="mono-text"
                         ></a>
                       </dd>
                     </div>
@@ -2186,7 +2325,7 @@
                     </div>
                   </template>
                   <template x-if="!activeExperiment.config.system_prompt">
-                    <div style="grid-column: 1 / -1">
+                    <div class="full-width">
                       <dt>Prompt Content</dt>
                       <dd
                         x-text="truncate(prompts.find(p => p.name === activeExperiment.config.prompt_name)?.content || 'Prompt not found in loaded files.', 500)"
@@ -2387,21 +2526,14 @@
                             </div>
 
                             <div class="comparison-grid">
-                              <div
-                                style="
-                                  grid-column: 1 / -1;
-                                  display: grid;
-                                  grid-template-columns: 1fr 1fr;
-                                  gap: var(--space-l);
-                                "
-                              >
-                                <h5 style="margin: 0">
+                              <div class="comparison-header">
+                                <h5>
                                   Predicted
                                   <small
                                     x-text="'(' + page.predicted_items.length + ')'"
                                   ></small>
                                 </h5>
-                                <h5 style="margin: 0">
+                                <h5>
                                   Ground truth
                                   <small
                                     x-text="'(' + (page.ground_truth_items || []).length + ')'"
@@ -2412,21 +2544,13 @@
                                 x-for="(pair, idx) in getAlignedItems(page)"
                                 :key="idx"
                               >
-                                <div
-                                  style="
-                                    grid-column: 1 / -1;
-                                    display: grid;
-                                    grid-template-columns: 1fr 1fr;
-                                    gap: var(--space-l);
-                                    margin-bottom: var(--space-xs);
-                                  "
-                                >
+                                <div class="comparison-row">
                                   <!-- Predicted side -->
                                   <template x-if="pair.pred">
                                     <article
                                       class="item-card"
                                       :class="predMatchLevel(page, pair.pred)"
-                                      style="margin-bottom: 0"
+                                      class="no-margin"
                                     >
                                       <div class="item-card-header">
                                         <span
@@ -2457,11 +2581,7 @@
                                   <template x-if="!pair.pred">
                                     <div
                                       class="item-card"
-                                      style="
-                                        border: 1px dashed var(--rule);
-                                        background: transparent;
-                                        opacity: 0.5;
-                                      "
+                                      class="item-card ghost"
                                     ></div>
                                   </template>
 
@@ -2470,7 +2590,7 @@
                                     <article
                                       class="item-card"
                                       :class="truthMatchLevel(page, pair.truth)"
-                                      style="margin-bottom: 0"
+                                      class="no-margin"
                                     >
                                       <div class="item-card-header">
                                         <span
@@ -2516,11 +2636,7 @@
                                   <template x-if="!pair.truth">
                                     <div
                                       class="item-card"
-                                      style="
-                                        border: 1px dashed var(--rule);
-                                        background: transparent;
-                                        opacity: 0.5;
-                                      "
+                                      class="item-card ghost"
                                     ></div>
                                   </template>
                                 </div>
@@ -2607,13 +2723,9 @@
         </section>
       </section>
 
-      <div
-        x-show="experiments.length === 0"
-        style="text-align: center; margin: var(--space-xl) 0"
-      >
+      <div x-show="experiments.length === 0" class="empty-state">
         <p
-          class="muted"
-          style="margin-bottom: var(--space-m)"
+          class="muted mb-m"
           x-text="isLoading ? 'Loading...' : 'No evaluation files found. Select the project folder to load data.'"
         ></p>
       </div>
