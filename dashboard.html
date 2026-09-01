@@ -784,13 +784,6 @@
             }
 
             /* ── Cleaned Styles ───────────────────────────────────── */
-            .site-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-end;
-                flex-wrap: wrap;
-                gap: var(--space-m);
-            }
             .button {
                 cursor: pointer;
                 display: inline-flex;
@@ -815,60 +808,11 @@
             .title-main {
                 margin-bottom: var(--space-3xs);
             }
-            .subtitle {
-                max-width: 60ch;
-                color: var(--ink-light);
-                font-size: var(--step--1);
-            }
-            .upload-hint {
-                margin-top: var(--space-3xs);
-                font-size: var(--step--2);
-            }
             .prompts-info {
                 margin-bottom: var(--space-s);
             }
-            .prompts-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
-                gap: var(--space-s);
-                margin-top: var(--space-s);
-            }
             .prompt-name {
                 color: var(--ink);
-            }
-            .prompt-content {
-                font-size: 0.75rem;
-                color: var(--ink-light);
-                white-space: pre-wrap;
-                word-break: break-word;
-            }
-            .filters-bar {
-                display: flex;
-                flex-wrap: wrap;
-                gap: var(--space-m);
-                align-items: flex-end;
-                background: var(--surface-2);
-                padding: var(--space-m);
-                border-radius: 0.5rem;
-                margin-bottom: var(--space-l);
-            }
-            .filter-group {
-                display: flex;
-                flex-direction: column;
-                gap: 0.25rem;
-            }
-            .filter-group.slider-group {
-                flex: 1;
-                min-width: 15rem;
-            }
-            .filter-group label {
-                white-space: nowrap;
-            }
-            .filter-group select {
-                width: 100%;
-                min-width: 10rem;
-                padding: 0.3em;
-                font-family: inherit;
             }
             .range-input {
                 flex: 1;
@@ -877,9 +821,6 @@
             }
             .range-value {
                 min-width: 3rem;
-            }
-            .text-muted {
-                color: var(--ink-muted);
             }
             .sort-icon {
                 color: var(--ink);
@@ -961,10 +902,6 @@
             .ink-faint {
                 color: var(--ink-faint);
             }
-            .ink {
-                color: var(--ink);
-            }
-
             .site-header-2 {
                 display: flex;
                 justify-content: space-between;
@@ -1034,44 +971,6 @@
                 overflow-x: auto;
                 white-space: pre-wrap;
             }
-            .results-header {
-                background: var(--surface-2);
-                padding: var(--space-2xs) var(--space-s);
-                border-radius: 0.5rem;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: var(--space-m);
-            }
-            .results-summary {
-                display: flex;
-                gap: var(--space-m);
-                flex-wrap: wrap;
-            }
-            .text-strong {
-                font-weight: 600;
-                color: var(--ink);
-            }
-            .text-small-faint {
-                margin-left: 0.5em;
-                font-size: var(--step--2);
-                color: var(--ink-faint);
-            }
-            .flex-wrap-xs {
-                display: flex;
-                gap: var(--space-xs);
-                flex-wrap: wrap;
-            }
-            .border-top-m {
-                border-top: 1px solid var(--rule);
-                padding-top: var(--space-m);
-            }
-            .grid-2-col {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: var(--space-l);
-            }
-
             .filters-wrapper {
                 display: flex;
                 align-items: flex-end;
