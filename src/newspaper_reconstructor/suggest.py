@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+from pathlib import Path
 
 
 def load_run_data(experiment_id: str, eval_dir: str) -> dict:
@@ -16,24 +17,24 @@ def load_run_data(experiment_id: str, eval_dir: str) -> dict:
         return json.load(f)
 
 
+def _derive_fragments_dir(run_data: dict) -> str | None:
+    """Infer the dataset fragments dir from the eval log's input_folder.
+
+    Works for both data/1_interim/<dataset>/<stage>/<exp> and the legacy
+    data/1_interim/<stage>/<exp> layouts. Returns None if input_folder is
+    absent from the config.
+    """
+    input_folder = run_data.get("config", {}).get("input_folder")
+    if not input_folder:
+        return None
+    return str(Path(input_folder).parent.parent / "fragments")
+
+
 def identify_worst_pages(
     run_data: dict, top_k: int = 3, focus: str = "clustering"
 ) -> list:
     """Identify the worst performing pages based on focus metric."""
     pages = run_data.get("pages", [])
-    if not pages and "items" in run_data:
-        pages = [run_data]
-
-    # Handle batch evaluate vs single evaluate structures
-    # Batch evaluate puts pages array at root or wraps them in an array?
-    # Oh wait, evaluate.py logs paged_results array.
-    if isinstance(run_data, list):
-        pages = run_data
-    elif isinstance(run_data, dict):
-        if "page_id" in run_data:
-            pages = [run_data]
-        elif "pages" in run_data:
-            pages = run_data["pages"]
 
     # Filter out pages that failed reconstruction or don't have metrics
     valid_pages = [p for p in pages if p.get("metrics")]
@@ -59,7 +60,10 @@ def identify_worst_pages(
 
 
 def build_judge_prompt(
-    run_data: dict, worst_pages: list, focus: str = "clustering"
+    run_data: dict,
+    worst_pages: list,
+    focus: str = "clustering",
+    fragments_dir: str | None = None,
 ) -> str:
     """Construct the prompt for the LLM Judge."""
 
@@ -108,11 +112,13 @@ We recently ran an evaluation and some pages performed poorly. I need you to {pr
             f1 = page["metrics"].get("clustering_f1", 0)
             prompt += f"\n#### Page: {page_id} (Clustering F1: {f1:.3f})\n"
 
-        # Load fragments from interim cache to get the text
-        interim_path = os.path.join("data", "1_interim", "fragments", f"{page_id}.json")
+        # Load fragments from the dataset cache to get the text
         fragment_texts = {}
-        if os.path.exists(interim_path):
-            with open(interim_path, "r", encoding="utf-8") as f:
+        fragments_path = (
+            os.path.join(fragments_dir, f"{page_id}.json") if fragments_dir else None
+        )
+        if fragments_path and os.path.exists(fragments_path):
+            with open(fragments_path, "r", encoding="utf-8") as f:
                 fragments = json.load(f)
                 for frag in fragments:
                     fragment_texts[frag["id"]] = frag.get("text", "")
@@ -176,7 +182,16 @@ def generate_suggestions(
         f"Identified {len(worst_pages)} worst performing pages. Building prompt...",
         file=sys.stderr,
     )
-    judge_prompt = build_judge_prompt(run_data, worst_pages, focus=focus)
+    fragments_dir = _derive_fragments_dir(run_data)
+    if fragments_dir is None:
+        print(
+            "Warning: eval log has no input_folder; fragment text will be unavailable.",
+            file=sys.stderr,
+        )
+
+    judge_prompt = build_judge_prompt(
+        run_data, worst_pages, focus=focus, fragments_dir=fragments_dir
+    )
 
     print(f"Sending prompt to LLM Judge ({model})...", file=sys.stderr)
     try:
