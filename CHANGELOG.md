@@ -1,3 +1,16 @@
+## 0.12.1 (2026-09-02)
+
+### Fix
+
+- **generate-network**: stop derive_eval_name mutating caller config
+- **pipeline**: replace eval command building with argument arrays
+- **suggest**: derive fragments dir from eval log input_folder
+
+### Refactor
+
+- **main**: extract shared stage runner for classify/cluster
+- **dashboard**: remove dead css classes
+
 ## 0.12.0 (2026-09-01)
 
 ### Feat
