@@ -127,38 +127,49 @@ fi
 
 echo "=== Running Pipeline for: $cluster_experiment_id (Dataset: $DATASET, Format: $INPUT_FORMAT) ==="
 
-PAGE_ARG=""
-if [ -n "$PAGE_ID" ]; then
-    PAGE_ARG="--page-id $PAGE_ID"
-fi
-SAMPLE_ARG=""
+COMMON_ARGS=(--seed "$SEED" --timeout "$TIMEOUT")
 if [ -n "$SAMPLE_SIZE" ]; then
-    SAMPLE_ARG="--sample-size $SAMPLE_SIZE"
+    COMMON_ARGS+=(--sample-size "$SAMPLE_SIZE")
 fi
-PROVIDER_ARG=""
+if [ -n "$PAGE_ID" ]; then
+    COMMON_ARGS+=(--page-id "$PAGE_ID")
+fi
 if [ -n "$PROVIDER" ]; then
-    PROVIDER_ARG="--provider $PROVIDER"
+    COMMON_ARGS+=(--provider "$PROVIDER")
 fi
-MODEL_KWARGS_ARG=""
-if [ -n "$MODEL_KWARGS" ]; then
-    MODEL_KWARGS_ARG="--model-kwargs '$MODEL_KWARGS'"
-fi
-TAG_ARG=""
 if [ -n "$TAG" ]; then
-    TAG_ARG="--tag $TAG"
+    COMMON_ARGS+=(--tag "$TAG")
 fi
-MAX_WORKERS_ARG=""
+if [ -n "$MODEL_KWARGS" ]; then
+    COMMON_ARGS+=(--model-kwargs "$MODEL_KWARGS")
+fi
 if [ -n "$MAX_WORKERS" ]; then
-    MAX_WORKERS_ARG="--max-workers $MAX_WORKERS"
+    COMMON_ARGS+=(--max-workers "$MAX_WORKERS")
 fi
-MAX_TOKENS_ARG=""
 if [ -n "$MAX_TOKENS" ]; then
-    MAX_TOKENS_ARG="--max-tokens $MAX_TOKENS"
+    COMMON_ARGS+=(--max-tokens "$MAX_TOKENS")
 fi
-FREQUENCY_PENALTY_ARG=""
 if [ -n "$FREQUENCY_PENALTY" ]; then
-    FREQUENCY_PENALTY_ARG="--frequency-penalty $FREQUENCY_PENALTY"
+    COMMON_ARGS+=(--frequency-penalty "$FREQUENCY_PENALTY")
 fi
+if [ -n "$SAVE_PROMPTS" ]; then
+    COMMON_ARGS+=("$SAVE_PROMPTS")
+fi
+
+run_evaluate() {
+    local input_dir="$1" experiment_id="$2" task="$3"
+    local args=(
+        -i "$input_dir"
+        -g "$GROUND_TRUTH_DIR"
+        --eval-dir "$EVAL_DIR"
+        --experiment-id "$experiment_id"
+        --task "$task"
+    )
+    if [ -n "$PAGE_ID" ]; then
+        args+=(--page-id "$PAGE_ID")
+    fi
+    uv run python main.py evaluate "${args[@]}"
+}
 
 # Step 1: Extract fragments (if not already done)
 if [ ! -d "$FRAGMENTS_DIR" ]; then
@@ -175,66 +186,34 @@ fi
 if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
     if [ ! -d "$classified_dir" ] || [ "$(find "$classified_dir" -maxdepth 1 -name "*.json" ! -name "_*.json" 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]; then
         echo "Classifying..."
-        eval "uv run python main.py classify \
-            -i \"$FRAGMENTS_DIR\" \
-            -p \"$CLASSIFY_PROMPT_FILE\" \
-            -o \"$classified_dir\" \
-            --model \"$MODEL\" \
-            --seed \"$SEED\" \
-            --timeout \"$TIMEOUT\" \
-            ${SAMPLE_ARG:+$SAMPLE_ARG} \
-            ${PAGE_ARG:+$PAGE_ARG} \
-            ${PROVIDER_ARG:+$PROVIDER_ARG} \
-            ${TAG_ARG:+$TAG_ARG} \
-            ${MODEL_KWARGS_ARG:+$MODEL_KWARGS_ARG} \
-            ${MAX_WORKERS_ARG:+$MAX_WORKERS_ARG} \
-            ${MAX_TOKENS_ARG:+$MAX_TOKENS_ARG} \
-            ${FREQUENCY_PENALTY_ARG:+$FREQUENCY_PENALTY_ARG} \
-            ${SAVE_PROMPTS:+$SAVE_PROMPTS}"
+        uv run python main.py classify \
+            -i "$FRAGMENTS_DIR" \
+            -p "$CLASSIFY_PROMPT_FILE" \
+            -o "$classified_dir" \
+            --model "$MODEL" \
+            "${COMMON_ARGS[@]}"
     else
         echo "Classification for $safe_classify_experiment_id already exists. Skipping classification."
     fi
 
     # Step 2.5: Evaluate Classification
     echo "Evaluating Classification..."
-    uv run python main.py evaluate \
-        -i "$classified_dir" \
-        -g "$GROUND_TRUTH_DIR" \
-        --eval-dir "$EVAL_DIR" \
-        --experiment-id "$safe_classify_experiment_id" \
-        --task classification \
-        ${PAGE_ARG:+$PAGE_ARG}
+    run_evaluate "$classified_dir" "$safe_classify_experiment_id" classification
 fi
 
 
 # Step 3: Cluster
 echo "Clustering..."
-eval "uv run python main.py cluster \
-    -i \"$cluster_input_dir\" \
-    -o \"$reconstructions_dir\" \
-    -p \"$CLUSTER_PROMPT_FILE\" \
-    --model \"$MODEL\" \
-    --seed \"$SEED\" \
-    --timeout \"$TIMEOUT\" \
-    ${SAMPLE_ARG:+$SAMPLE_ARG} \
-    ${PAGE_ARG:+$PAGE_ARG} \
-    ${PROVIDER_ARG:+$PROVIDER_ARG} \
-    ${TAG_ARG:+$TAG_ARG} \
-    ${MODEL_KWARGS_ARG:+$MODEL_KWARGS_ARG} \
-    ${MAX_WORKERS_ARG:+$MAX_WORKERS_ARG} \
-    ${MAX_TOKENS_ARG:+$MAX_TOKENS_ARG} \
-    ${FREQUENCY_PENALTY_ARG:+$FREQUENCY_PENALTY_ARG} \
-    ${SAVE_PROMPTS:+$SAVE_PROMPTS}"
+uv run python main.py cluster \
+    -i "$cluster_input_dir" \
+    -o "$reconstructions_dir" \
+    -p "$CLUSTER_PROMPT_FILE" \
+    --model "$MODEL" \
+    "${COMMON_ARGS[@]}"
 
 # Step 4: Evaluate
 echo "Evaluating..."
-uv run python main.py evaluate \
-    -i "$reconstructions_dir" \
-    -g "$GROUND_TRUTH_DIR" \
-    --eval-dir "$EVAL_DIR" \
-    --experiment-id "$safe_cluster_experiment_id" \
-    --task reconstruction \
-    ${PAGE_ARG:+$PAGE_ARG}
+run_evaluate "$reconstructions_dir" "$safe_cluster_experiment_id" reconstruction
 
 echo "Pipeline complete!"
 echo "----------------------------------------"
