@@ -319,6 +319,64 @@ class TestE2ECluster:
             frags = json.loads(f.read_text())
             assert frags[0]["predicted_class"] == "article"
 
+    def test_classify_unknown_provider_clean_error(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps([{"id": "r_1", "text": "hello"}]), encoding="utf-8"
+        )
+        prompt_file = _make_prompt_file(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "classify",
+                "-i",
+                str(d),
+                "-o",
+                str(tmp_path / "classified"),
+                "--model",
+                "test-model",
+                "-p",
+                prompt_file,
+                "--provider",
+                "no-such-provider",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "Unknown provider" in result.output
+        assert not isinstance(result.exception, ValueError)
+
+
+class TestE2EClusterUnknownProvider:
+    def test_cluster_unknown_provider_clean_error(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps([{"id": "r_1", "text": "hello"}]), encoding="utf-8"
+        )
+        prompt_file = _make_prompt_file(tmp_path)
+
+        result = runner.invoke(
+            app,
+            [
+                "cluster",
+                "-i",
+                str(d),
+                "-o",
+                str(tmp_path / "reconstructions"),
+                "--model",
+                "test-model",
+                "-p",
+                prompt_file,
+                "--provider",
+                "no-such-provider",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "Unknown provider" in result.output
+        assert not isinstance(result.exception, ValueError)
+
 
 # ─── Evaluate single page ────────────────────────────────────────────────────
 
@@ -360,6 +418,143 @@ class TestE2EEvaluate:
             log = json.load(f)
             assert log["pages"][0]["page_id"] == "test_page"
             assert log["aggregate"]["mean_clustering_f1"] == 1.0
+
+
+# ─── Plan ────────────────────────────────────────────────────────────────────
+
+
+class TestE2EPlan:
+    def test_plan_reports_stats(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps(
+                [
+                    {"id": "r_1", "text": "hello world"},
+                    {"id": "r_2", "text": "foo"},
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = runner.invoke(app, ["plan", "-i", str(d)])
+        assert result.exit_code == 0
+        assert "Analyzed 1 pages" in result.output
+        assert "Average fragments per page: 2.0" in result.output
+
+    def test_plan_skips_invalid_json(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "good.json").write_text(
+            json.dumps([{"id": "r_1", "text": "hello"}]), encoding="utf-8"
+        )
+        (d / "bad.json").write_text("{not json", encoding="utf-8")
+
+        result = runner.invoke(app, ["plan", "-i", str(d)])
+        assert result.exit_code == 0
+        assert "Analyzed 1 pages" in result.output
+        assert "Warning: Failed to process bad.json" in result.output
+
+    def test_plan_missing_folder(self, tmp_path):
+        result = runner.invoke(app, ["plan", "-i", str(tmp_path / "nope")])
+        assert result.exit_code == 1
+        assert "does not exist or is not a directory" in result.output
+
+    def test_plan_empty_folder(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        result = runner.invoke(app, ["plan", "-i", str(d)])
+        assert result.exit_code == 1
+
+
+# ─── Suggest (mocked LLM judge) ──────────────────────────────────────────────
+
+
+class TestE2ESuggest:
+    def _write_eval_log(self, tmp_path):
+        """Create an eval log plus the fragments dir it points at."""
+        eval_dir = tmp_path / "reports" / "evaluations"
+        eval_dir.mkdir(parents=True, exist_ok=True)
+        fragments_dir = tmp_path / "data" / "1_interim" / "ds" / "fragments"
+        fragments_dir.mkdir(parents=True, exist_ok=True)
+        (fragments_dir / "page1.json").write_text(
+            json.dumps([{"id": "r_1", "text": "hello"}]), encoding="utf-8"
+        )
+
+        log = {
+            "config": {
+                "input_folder": "data/1_interim/ds/reconstructions/exp1",
+                "system_prompt": "sys prompt",
+                "user_prompt_template": "user prompt {fragments}",
+            },
+            "pages": [
+                {
+                    "page_id": "page1",
+                    "metrics": {"clustering_f1": 0.5},
+                    "predicted_items": [{"fragment_ids": ["r_1"], "class": "article"}],
+                    "ground_truth_items": [
+                        {
+                            "fragment_ids": ["r_1"],
+                            "class": "article",
+                            "uuid": "u1",
+                        }
+                    ],
+                }
+            ],
+        }
+        (eval_dir / "exp1.json").write_text(json.dumps(log), encoding="utf-8")
+
+    def test_suggest_writes_prompt_and_suggestions(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        self._write_eval_log(tmp_path)
+
+        mock_client = MagicMock()
+        mock_client.complete.return_value = "## Suggestions\nUse better prompts."
+
+        with patch("main.make_client", return_value=mock_client):
+            result = runner.invoke(
+                app,
+                ["suggest", "--experiment-id", "exp1", "--model", "test-model"],
+            )
+
+        assert result.exit_code == 0
+        out_dir = tmp_path / "reports" / "suggestions"
+        suggestions = (out_dir / "exp1_suggestions.md").read_text()
+        assert "## Suggestions" in suggestions
+        assert "Use better prompts." in suggestions
+
+        judge_prompt = (out_dir / "exp1_prompt.md").read_text()
+        assert "sys prompt" in judge_prompt
+        assert "hello" in judge_prompt  # fragment text included
+
+    def test_suggest_missing_log(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "reports" / "evaluations").mkdir(parents=True)
+
+        result = runner.invoke(
+            app,
+            ["suggest", "--experiment-id", "missing", "--model", "test-model"],
+        )
+        assert result.exit_code == 1
+        assert "Evaluation log not found" in result.output
+
+    def test_suggest_unknown_provider_clean_error(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        result = runner.invoke(
+            app,
+            [
+                "suggest",
+                "--experiment-id",
+                "exp1",
+                "--model",
+                "test-model",
+                "--provider",
+                "no-such-provider",
+            ],
+        )
+        assert result.exit_code == 1
+        assert "Unknown provider" in result.output
+        assert not isinstance(result.exception, ValueError)
 
 
 # ─── Real data smoke tests ───────────────────────────────────────────────────
