@@ -18,6 +18,7 @@ import csv
 import itertools
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -65,8 +66,7 @@ def derive_eval_name(config: dict, override: str | None = None) -> str:
         return override
 
     # Parse missing configuration fields from experiment_id (since they were decoupled)
-    import re
-
+    config = dict(config)
     experiment_id = config.get("experiment_id", "")
     if "model" not in config and "_c-" in experiment_id:
         m = re.search(r"^(?:create_|openai_)?(.+?)_c-", experiment_id)

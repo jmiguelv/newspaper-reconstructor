@@ -126,6 +126,12 @@ class TestDeriveEvalName:
         config = {}
         assert derive_eval_name(config) == "unknown_unknown"
 
+    def test_does_not_mutate_config(self):
+        experiment_id = "ds_model_c-v01_r-v03_sample16_seed42"
+        config = {"experiment_id": experiment_id}
+        derive_eval_name(config)
+        assert config == {"experiment_id": experiment_id}
+
 
 # ─── build_segment_maps ─────────────────────────────────────────────────────
 
