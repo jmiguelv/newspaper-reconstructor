@@ -6,6 +6,8 @@ import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from pathlib import Path
 
 import typer
 from dotenv import load_dotenv
@@ -19,13 +21,14 @@ from src.newspaper_reconstructor.evaluate import (
     log_evaluation_experiment,
 )
 from src.newspaper_reconstructor.ingest import load_article_json
-from src.newspaper_reconstructor.llm import make_client
+from src.newspaper_reconstructor.llm import LLMClient, make_client
 from src.newspaper_reconstructor.reconstruct import (
     LLM_AND_IO_ERRORS,
     alto_to_json,
     classify_fragments,
     reconstruct_articles,
 )
+from src.newspaper_reconstructor.suggest import generate_suggestions
 
 _MD_SYSTEM_HEADING = "# System Prompt"
 _MD_USER_HEADING = "# User Prompt Template"
@@ -82,16 +85,29 @@ def _build_model_kwargs(
     return parsed
 
 
+@dataclass
+class StageContext:
+    """Shared context passed to a per-file stage processor."""
+
+    client: LLMClient
+    sys_prompt: str
+    user_prompt: str
+    input_folder: str
+    output_folder: str
+    save_prompts: bool
+
+
 def _run_batch(
     files: list[str],
-    process_fn: "Callable[[str], bool]",
+    process_fn: "Callable[[str, threading.Lock, StageContext], bool]",
     max_workers: int,
+    ctx: StageContext,
 ) -> int:
     lock = threading.Lock()
     success = 0
 
     def _wrapped(fname: str) -> bool:
-        return process_fn(fname, lock)
+        return process_fn(fname, lock, ctx)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = {executor.submit(_wrapped, fname): fname for fname in files}
@@ -103,6 +119,216 @@ def _run_batch(
                 fname = futures[future]
                 typer.echo(f"Error processing {fname}: {e}", err=True)
     return success
+
+
+def _iter_input_files(input_folder: str, page_id: str | None, ext: str) -> list[str]:
+    """List files in input_folder matching ext, optionally filtered by page_id."""
+    files = [f for f in sorted(os.listdir(input_folder)) if f.endswith(ext)]
+    if page_id:
+        files = [f for f in files if f.startswith(page_id)]
+    return files
+
+
+def _list_stage_files(
+    input_folder: str,
+    page_id: str | None,
+    sample_size: int | None,
+    seed: int,
+) -> list[str]:
+    """List JSON fragments for an LLM stage, optionally sampled."""
+    files = [
+        f
+        for f in _iter_input_files(input_folder, page_id, ".json")
+        if not f.startswith("_")
+    ]
+    if sample_size and sample_size < len(files):
+        random.seed(seed)
+        files = random.sample(files, sample_size)
+    return files
+
+
+def _save_stage_metadata(
+    output_folder: str,
+    model: str,
+    prompt_file: str,
+    sample_size: int | None,
+    provider: str | None,
+    tag: str | None,
+    parsed_model_kwargs: dict,
+    execution_time_seconds: float,
+) -> None:
+    prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
+    metadata_path = os.path.join(output_folder, "_metadata.json")
+    with open(metadata_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {
+                "execution_time_seconds": execution_time_seconds,
+                "model": model,
+                "prompt_name": prompt_name,
+                "sample_size": sample_size,
+                "provider": provider,
+                "tag": tag,
+                "model_kwargs": parsed_model_kwargs,
+            },
+            f,
+            indent=2,
+        )
+
+
+def _prompt_out_path(output_folder: str, fname: str) -> str:
+    return os.path.join(
+        output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
+    )
+
+
+def _run_llm_stage(
+    *,
+    input_folder: str,
+    output_folder: str,
+    prompt_file: str,
+    model: str,
+    base_url: str | None,
+    api_key: str | None,
+    provider: str | None,
+    timeout: float,
+    sample_size: int | None,
+    seed: int,
+    page_id: str | None,
+    save_prompts: bool,
+    tag: str | None,
+    model_kwargs: str | None,
+    max_workers: int,
+    max_tokens: int | None,
+    frequency_penalty: float | None,
+    process_fn: "Callable[[str, threading.Lock, StageContext], bool]",
+    action_past: str,
+) -> None:
+    """Shared runner for classify/cluster: client, batching, and metadata."""
+    os.makedirs(output_folder, exist_ok=True)
+
+    parsed_model_kwargs = _build_model_kwargs(
+        model_kwargs, max_tokens, frequency_penalty
+    )
+    try:
+        client = make_client(
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            timeout=timeout,
+            provider=provider,
+            model_kwargs=parsed_model_kwargs,
+        )
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    sys_prompt, user_prompt = _load_prompt(prompt_file)
+    files = _list_stage_files(input_folder, page_id, sample_size, seed)
+
+    ctx = StageContext(
+        client=client,
+        sys_prompt=sys_prompt,
+        user_prompt=user_prompt,
+        input_folder=input_folder,
+        output_folder=output_folder,
+        save_prompts=save_prompts,
+    )
+
+    start_time = time.time()
+    success = _run_batch(files, process_fn, max_workers, ctx)
+    execution_time_seconds = time.time() - start_time
+
+    _save_stage_metadata(
+        output_folder,
+        model,
+        prompt_file,
+        sample_size,
+        provider,
+        tag,
+        parsed_model_kwargs,
+        execution_time_seconds,
+    )
+
+    typer.echo(
+        f"{action_past} {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s"
+    )
+
+
+def _classify_process(fname: str, lock: threading.Lock, ctx: StageContext) -> bool:
+    in_path = os.path.join(ctx.input_folder, fname)
+    out_path = os.path.join(ctx.output_folder, fname)
+
+    if os.path.exists(out_path):
+        with lock:
+            typer.echo(f"Skipping {fname}, already classified.")
+        return True
+
+    with open(in_path, encoding="utf-8") as f:
+        fragments = json.load(f)
+
+    prompt_out_path = (
+        _prompt_out_path(ctx.output_folder, fname) if ctx.save_prompts else None
+    )
+
+    with lock:
+        typer.echo(f"Classifying {fname}...")
+
+    classes = classify_fragments(
+        fragments,
+        ctx.client,
+        ctx.sys_prompt,
+        ctx.user_prompt,
+        prompt_out_path=prompt_out_path,
+    )
+
+    if classes:
+        for frag in fragments:
+            if frag["id"] in classes:
+                frag["predicted_class"] = classes[frag["id"]]
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(fragments, f, indent=2, ensure_ascii=False)
+        return True
+
+    with lock:
+        typer.echo(f"Failed to classify {fname}", err=True)
+    return False
+
+
+def _cluster_process(fname: str, lock: threading.Lock, ctx: StageContext) -> bool:
+    in_path = os.path.join(ctx.input_folder, fname)
+    out_path = os.path.join(ctx.output_folder, fname)
+
+    if os.path.exists(out_path):
+        with lock:
+            typer.echo(f"Skipping {fname}, already clustered.")
+        return True
+
+    with open(in_path, encoding="utf-8") as f:
+        fragments = json.load(f)
+
+    prompt_out_path = (
+        _prompt_out_path(ctx.output_folder, fname) if ctx.save_prompts else None
+    )
+
+    with lock:
+        typer.echo(f"Clustering {fname}...")
+
+    articles = reconstruct_articles(
+        fragments,
+        ctx.client,
+        ctx.sys_prompt,
+        ctx.user_prompt,
+        prompt_out_path=prompt_out_path,
+    )
+
+    if articles is not None:
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(articles, f, indent=2, ensure_ascii=False)
+        return True
+
+    with lock:
+        typer.echo(f"Failed to cluster {fname}", err=True)
+    return False
 
 
 @app.command()
@@ -118,12 +344,7 @@ def parse(
     """Parse ALTO XML files into JSON fragment lists."""
     os.makedirs(output_folder, exist_ok=True)
     count = 0
-    files = sorted(os.listdir(input_folder))
-    if page_id:
-        files = [f for f in files if f.startswith(page_id)]
-    for fname in files:
-        if not fname.endswith(".xml"):
-            continue
+    for fname in _iter_input_files(input_folder, page_id, ".xml"):
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, f"{os.path.splitext(fname)[0]}.json")
 
@@ -147,12 +368,7 @@ def etl(
     """Convert article JSON files ({id: text}) into fragment lists."""
     os.makedirs(output_folder, exist_ok=True)
     count = 0
-    files = sorted(os.listdir(input_folder))
-    if page_id:
-        files = [f for f in files if f.startswith(page_id)]
-    for fname in files:
-        if not fname.endswith(".json"):
-            continue
+    for fname in _iter_input_files(input_folder, page_id, ".json"):
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, fname)
 
@@ -208,95 +424,26 @@ def classify(
     ),
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
-    os.makedirs(output_folder, exist_ok=True)
-
-    parsed_model_kwargs = _build_model_kwargs(
-        model_kwargs, max_tokens, frequency_penalty
-    )
-    client = make_client(
+    _run_llm_stage(
+        input_folder=input_folder,
+        output_folder=output_folder,
+        prompt_file=prompt_file,
         model=model,
         base_url=base_url,
         api_key=api_key,
-        timeout=timeout,
         provider=provider,
-        model_kwargs=parsed_model_kwargs,
-    )
-    sys_prompt, user_prompt = _load_prompt(prompt_file)
-
-    files = [
-        f
-        for f in sorted(os.listdir(input_folder))
-        if f.endswith(".json") and not f.startswith("_")
-    ]
-    if page_id:
-        files = [f for f in files if f.startswith(page_id)]
-    if sample_size and sample_size < len(files):
-        random.seed(seed)
-        files = random.sample(files, sample_size)
-
-    start_time = time.time()
-
-    def process_file(fname: str, lock: threading.Lock) -> bool:
-        in_path = os.path.join(input_folder, fname)
-        out_path = os.path.join(output_folder, fname)
-
-        if os.path.exists(out_path):
-            with lock:
-                typer.echo(f"Skipping {fname}, already classified.")
-            return True
-
-        with open(in_path, encoding="utf-8") as f:
-            fragments = json.load(f)
-
-        prompt_out_path = None
-        if save_prompts:
-            prompt_out_path = os.path.join(
-                output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
-            )
-
-        with lock:
-            typer.echo(f"Classifying {fname}...")
-
-        classes = classify_fragments(
-            fragments, client, sys_prompt, user_prompt, prompt_out_path=prompt_out_path
-        )
-
-        if classes:
-            for frag in fragments:
-                if frag["id"] in classes:
-                    frag["predicted_class"] = classes[frag["id"]]
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(fragments, f, indent=2, ensure_ascii=False)
-            return True
-        else:
-            with lock:
-                typer.echo(f"Failed to classify {fname}", err=True)
-            return False
-
-    success = _run_batch(files, process_file, max_workers)
-
-    execution_time_seconds = time.time() - start_time
-
-    # Save metadata for evaluation dashboard
-    prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
-    metadata_path = os.path.join(output_folder, "_metadata.json")
-    with open(metadata_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "execution_time_seconds": execution_time_seconds,
-                "model": model,
-                "prompt_name": prompt_name,
-                "sample_size": sample_size,
-                "provider": provider,
-                "tag": tag,
-                "model_kwargs": parsed_model_kwargs,
-            },
-            f,
-            indent=2,
-        )
-
-    typer.echo(
-        f"Classified {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s"
+        timeout=timeout,
+        sample_size=sample_size,
+        seed=seed,
+        page_id=page_id,
+        save_prompts=save_prompts,
+        tag=tag,
+        model_kwargs=model_kwargs,
+        max_workers=max_workers,
+        max_tokens=max_tokens,
+        frequency_penalty=frequency_penalty,
+        process_fn=_classify_process,
+        action_past="Classified",
     )
 
 
@@ -348,92 +495,26 @@ def cluster(
     ),
 ):
     """Cluster fragments into articles using an LLM."""
-    os.makedirs(output_folder, exist_ok=True)
-
-    parsed_model_kwargs = _build_model_kwargs(
-        model_kwargs, max_tokens, frequency_penalty
-    )
-    client = make_client(
+    _run_llm_stage(
+        input_folder=input_folder,
+        output_folder=output_folder,
+        prompt_file=prompt_file,
         model=model,
         base_url=base_url,
         api_key=api_key,
-        timeout=timeout,
         provider=provider,
-        model_kwargs=parsed_model_kwargs,
-    )
-    sys_prompt, user_prompt = _load_prompt(prompt_file)
-
-    files = [
-        f
-        for f in sorted(os.listdir(input_folder))
-        if f.endswith(".json") and not f.startswith("_")
-    ]
-    if page_id:
-        files = [f for f in files if f.startswith(page_id)]
-    if sample_size and sample_size < len(files):
-        random.seed(seed)
-        files = random.sample(files, sample_size)
-
-    start_time = time.time()
-
-    def process_file(fname: str, lock: threading.Lock) -> bool:
-        in_path = os.path.join(input_folder, fname)
-        out_path = os.path.join(output_folder, fname)
-
-        if os.path.exists(out_path):
-            with lock:
-                typer.echo(f"Skipping {fname}, already clustered.")
-            return True
-
-        with open(in_path, encoding="utf-8") as f:
-            fragments = json.load(f)
-
-        prompt_out_path = None
-        if save_prompts:
-            prompt_out_path = os.path.join(
-                output_folder, "prompts", f"{os.path.splitext(fname)[0]}.prompt.txt"
-            )
-
-        with lock:
-            typer.echo(f"Clustering {fname}...")
-
-        articles = reconstruct_articles(
-            fragments, client, sys_prompt, user_prompt, prompt_out_path=prompt_out_path
-        )
-
-        if articles is not None:
-            with open(out_path, "w", encoding="utf-8") as f:
-                json.dump(articles, f, indent=2, ensure_ascii=False)
-            return True
-        else:
-            with lock:
-                typer.echo(f"Failed to cluster {fname}", err=True)
-            return False
-
-    success = _run_batch(files, process_file, max_workers)
-
-    execution_time_seconds = time.time() - start_time
-
-    # Save metadata for evaluation dashboard
-    prompt_name = os.path.splitext(os.path.basename(prompt_file))[0]
-    metadata_path = os.path.join(output_folder, "_metadata.json")
-    with open(metadata_path, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "execution_time_seconds": execution_time_seconds,
-                "model": model,
-                "prompt_name": prompt_name,
-                "sample_size": sample_size,
-                "provider": provider,
-                "tag": tag,
-                "model_kwargs": parsed_model_kwargs,
-            },
-            f,
-            indent=2,
-        )
-
-    typer.echo(
-        f"Clustered {success}/{len(files)} files to {output_folder} in {execution_time_seconds:.1f}s"
+        timeout=timeout,
+        sample_size=sample_size,
+        seed=seed,
+        page_id=page_id,
+        save_prompts=save_prompts,
+        tag=tag,
+        model_kwargs=model_kwargs,
+        max_workers=max_workers,
+        max_tokens=max_tokens,
+        frequency_penalty=frequency_penalty,
+        process_fn=_cluster_process,
+        action_past="Clustered",
     )
 
 
@@ -544,6 +625,7 @@ def suggest(
     provider: str | None = typer.Option(
         None, envvar="LLM_PROVIDER", help="Provider name (e.g. create, openrouter)"
     ),
+    timeout: float = typer.Option(300.0, help="API timeout in seconds"),
     focus: str = typer.Option(
         "clustering", help="Focus of the analysis: clustering, classification, or both"
     ),
@@ -555,9 +637,6 @@ def suggest(
     ),
 ):
     """Analyze evaluation logs and suggest improvements using LLM judge."""
-    from src.newspaper_reconstructor.llm import make_client
-    from src.newspaper_reconstructor.suggest import generate_suggestions
-
     parsed_model_kwargs = None
     if model_kwargs:
         try:
@@ -567,13 +646,18 @@ def suggest(
             raise typer.Exit(1)
 
     eval_dir = os.path.join("reports", "evaluations")
-    client = make_client(
-        model=model,
-        base_url=base_url,
-        api_key=api_key,
-        provider=provider,
-        model_kwargs=parsed_model_kwargs,
-    )
+    try:
+        client = make_client(
+            model=model,
+            base_url=base_url,
+            api_key=api_key,
+            timeout=timeout,
+            provider=provider,
+            model_kwargs=parsed_model_kwargs,
+        )
+    except ValueError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
 
     sys.exit(generate_suggestions(experiment_id, eval_dir, client, model, focus))
 
@@ -585,9 +669,6 @@ def plan(
     ),
 ):
     """Estimate hardware requirements and token usage based on raw input fragments."""
-    import json
-    from pathlib import Path
-
     input_path = Path(input_folder)
     if not input_path.exists() or not input_path.is_dir():
         typer.echo(
