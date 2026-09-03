@@ -236,7 +236,7 @@ uv run python pipeline_main.py bulk-process \
 | `max_workers` | Concurrent pages in `bulk-process` | `1` |
 | `article_id_prefix` | Prefix for generated `ArticleId`s | `article_` |
 
-Text regions are converted to fragments (joined line OCR text + bbox geometry); image and empty-text regions are skipped. A failed page raises in `process` and yields `None` in `bulk-process` (the framework CLI marks that file failed and keeps the checkpoint). Article IDs are sequential per page (`article_1`, …); titles/classes are not part of the pipeline contract and remain available via `main.py cluster`.
+Text regions are converted to fragments (joined line OCR text + bbox geometry); image and empty-text regions are skipped. A failed page raises in `process` and yields `None` in `bulk-process` (the framework CLI marks that file failed and keeps the checkpoint). Each article maps to an `Article` carrying its `region_ids` plus the LLM's `title` and `item_class` (and `title_en` when the prompt provides it); article IDs are sequential per page (`article_1`, …).
 
 ## pipeline.sh
 

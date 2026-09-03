@@ -201,7 +201,12 @@ class TestProcess:
             make_text_region("r_3", ["c"]),
         ]
         out = module.process(make_input(regions))
-        assert out.articles == {"article_1": ["r_1", "r_2"], "article_2": ["r_3"]}
+        assert list(out.articles) == ["article_1", "article_2"]
+        assert out.articles["article_1"].region_ids == ["r_1", "r_2"]
+        assert out.articles["article_1"].title == "t"
+        assert out.articles["article_1"].item_class == "article"
+        assert out.articles["article_1"].title_en is None
+        assert out.articles["article_2"].region_ids == ["r_3"]
 
     def test_empty_llm_items_yield_empty_articles(self, tmp_path):
         client = MagicMock()
@@ -224,7 +229,18 @@ class TestProcess:
         )
         module = self.make_module(client, self.make_prompt_file(tmp_path))
         out = module.process(make_input([make_text_region("r_1", ["a"])]))
-        assert out.articles == {"article_1": ["r_1"]}
+        assert out.articles["article_1"].region_ids == ["r_1"]
+
+    def test_title_en_mapped_when_present(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = (
+            '[{"fragment_ids": ["r_1"], "title": "Laporan", '
+            '"title_en": "Report", "class": "article"}]'
+        )
+        module = self.make_module(client, self.make_prompt_file(tmp_path))
+        out = module.process(make_input([make_text_region("r_1", ["a"])]))
+        assert out.articles["article_1"].title == "Laporan"
+        assert out.articles["article_1"].title_en == "Report"
 
     def test_llm_failure_raises_with_page_id(self, tmp_path):
         from openai import APIError
@@ -258,7 +274,8 @@ class TestProcess:
         ):
             module = ArticleReconstructionModule(config=config)
         out = module.process(make_input([make_text_region("r_1", ["a"])]))
-        assert out.articles == {"art_1": ["r_1"]}
+        assert list(out.articles) == ["art_1"]
+        assert out.articles["art_1"].region_ids == ["r_1"]
 
     def test_prompt_sent_to_client(self, tmp_path):
         client = MagicMock()
@@ -332,7 +349,7 @@ class TestBulkProcess:
             make_input([make_text_region("r_p3", ["c"])], pid="p3"),
         ]
         results = list(module.bulk_process(pages))
-        assert [r.articles["article_1"] for r in results] == [
+        assert [r.articles["article_1"].region_ids for r in results] == [
             ["r_p1"],
             ["r_p2"],
             ["r_p3"],
@@ -362,7 +379,8 @@ class TestBulkProcess:
             make_input([make_text_region("r_ok", ["c"])], pid="p3"),
         ]
         results = list(module.bulk_process(pages))
-        assert results[0] is not None and results[0].articles == {"article_1": ["r_ok"]}
+        assert results[0] is not None
+        assert results[0].articles["article_1"].region_ids == ["r_ok"]
         assert results[1] is None
         assert results[2] is not None
         assert "p2" in capsys.readouterr().err
@@ -436,7 +454,12 @@ class TestCli:
                 ],
             )
         assert result.exit_code == 0, result.output
-        assert json.loads(output_file.read_text())["articles"] == {"article_1": ["r_1"]}
+        assert json.loads(output_file.read_text())["articles"]["article_1"] == {
+            "region_ids": ["r_1"],
+            "title": "t",
+            "title_en": None,
+            "item_class": "article",
+        }
 
     def test_bulk_process_command_writes_outputs_and_checkpoint(self, tmp_path):
         prompt = TestProcess.make_prompt_file(tmp_path)

@@ -13,6 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from jawi_pipeline import Config, InputRow, Module
 from jawi_pipeline.types import (
+    Article,
     ArticleReconstructionInput,
     ArticleReconstructionOutput,
     ImageRegion,
@@ -104,7 +105,12 @@ class ArticleReconstructionModule(
         if items is None:
             raise RuntimeError(f"LLM reconstruction failed for page {data.page.id}")
         articles = {
-            f"{self.config.article_id_prefix}{i}": item["fragment_ids"]
+            f"{self.config.article_id_prefix}{i}": Article(
+                region_ids=item["fragment_ids"],
+                title=item.get("title"),
+                title_en=item.get("title_en"),
+                item_class=item.get("class"),
+            )
             for i, item in enumerate(items, start=1)
         }
         return ArticleReconstructionOutput(articles=articles)

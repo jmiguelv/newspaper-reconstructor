@@ -25,7 +25,7 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
 
 jawi-pipeline OcrOutput (page + regions with line OCR)
              → pipeline_main.py process/bulk-process (ArticleReconstructionModule)
-             → ArticleReconstructionOutput ({articles: {article_id: [region_ids]}})
+             → ArticleReconstructionOutput ({articles: {article_id: Article(region_ids, title, title_en, item_class)}})
 ```
 
 ### Module roles
