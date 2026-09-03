@@ -60,11 +60,13 @@ newspaper-reconstructor/
 
 ## Installation
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync
 ```
+
+The project depends on the [jawi-pipeline](../pipeline) framework via a local path source (`[tool.uv.sources]` in `pyproject.toml`); the sibling checkout must exist next to this repo.
 
 ## Configuration
 
@@ -207,6 +209,34 @@ uv run python main.py suggest \
 | `--provider` | Named provider from `providers.json` |
 | `--tag` | Label for this run |
 | `--model-kwargs` | JSON string of extra model arguments |
+
+### 6. jawi-pipeline integration
+
+This repo also ships as a plug-in module for the [jawi-pipeline](../pipeline) framework, implementing `Module[ArticleReconstructionInput, ArticleReconstructionOutput]`: page OCR output (`OcrOutput`: page + regions with per-line OCR) in, article grouping (`{articles: dict[ArticleId, list[RegionId]]}`) out.
+
+```bash
+# single page file
+uv run python pipeline_main.py process \
+  --input page.json --output out.json \
+  --config '{"model": "gpt-5", "provider": "openrouter"}'
+
+# directory of pages, chunked with checkpoint/resume
+uv run python pipeline_main.py bulk-process \
+  --input pages_dir --output out_dir \
+  --config '@config.json'
+```
+
+`--config` is inline JSON or `@path/to/config.json` (curl-style). Module settings:
+
+| Setting | Description | Default |
+|---|---|---|
+| `model` / `base_url` / `api_key` / `provider` / `timeout` | LLM settings; fall back to `LLM_*` env vars | `None` (env) |
+| `prompt_file` | Clustering prompt (`.md`/`.json`/plain) | `prompts/v01.md` |
+| `max_retries` | LLM call retries per page | `3` |
+| `max_workers` | Concurrent pages in `bulk-process` | `1` |
+| `article_id_prefix` | Prefix for generated `ArticleId`s | `article_` |
+
+Text regions are converted to fragments (joined line OCR text + bbox geometry); image and empty-text regions are skipped. A failed page raises in `process` and yields `None` in `bulk-process` (the framework CLI marks that file failed and keeps the checkpoint). Article IDs are sequential per page (`article_1`, …); titles/classes are not part of the pipeline contract and remain available via `main.py cluster`.
 
 ## pipeline.sh
 

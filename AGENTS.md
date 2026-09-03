@@ -22,6 +22,10 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
              → main.py cluster (reconstruct JSON fragments into articles via LLM)
              → main.py evaluate (compare against ground truth article XML)
              → dashboard.html (visualize eval logs as HTML)
+
+jawi-pipeline OcrOutput (page + regions with line OCR)
+             → pipeline_main.py process/bulk-process (ArticleReconstructionModule)
+             → ArticleReconstructionOutput ({articles: {article_id: [region_ids]}})
 ```
 
 ### Module roles
@@ -29,9 +33,12 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
 | Module                                        | Responsibility                                                    |
 |-----------------------------------------------|-------------------------------------------------------------------|
 | `main.py`                                     | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan) |
+| `pipeline_main.py`                           | jawi-pipeline `Module` CLI entry (process / bulk-process)         |
 | `pipeline.sh`                                 | Bash script to run a single end-to-end evaluation pipeline        |
 | `experiments/*.sh`                            | Bash scripts to orchestrate multiple batched grid-search evaluations |
 | `src/newspaper_reconstructor/ingest.py`       | Load pre-extracted JSON articles into fragment lists              |
+| `src/newspaper_reconstructor/prompts.py`     | Shared prompt file loading (.md / .json / plain text)             |
+| `src/newspaper_reconstructor/module.py`      | `ArticleReconstructionModule` — jawi-pipeline stage (regions → fragments → articles) |
 | `src/newspaper_reconstructor/reconstruct.py`  | Data transformation, dict parsing, and mapping to LLM inputs     |
 | `src/newspaper_reconstructor/llm.py`          | LLM client wrapper (OpenAI-compatible API), client factory        |
 | `src/newspaper_reconstructor/evaluate.py`     | Ground truth parsing, clustering F1, ARI, B³ F1, class accuracy, coverage |
@@ -42,11 +49,12 @@ ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
 ## Code Conventions
 
 - **CRITICAL RULE**: ALWAYS run `uv run ruff check . --fix && uv run ruff format .` after making any Python code changes.
-- Python 3.12+
+- Python 3.13+
 - `ruff` for lint and format (no separate formatter)
 - TDD: tests in `tests/` mirror module names (`test_reconstruct.py`, `test_evaluate.py`, `test_e2e.py`, `test_ingest.py`)
 - No comments unless explicitly requested
 - Environment variables use `LLM_*` prefix (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`), not `OPENAI_*`
+- `jawi-pipeline` is a local path dependency (`../pipeline`) — the sibling checkout must exist
 - API key defaults to `"none"` (local servers ignore it); model is required
 - Pipeline inputs/outputs explicitly pass directories (e.g. `-i input_folder -o output_folder`)
 
