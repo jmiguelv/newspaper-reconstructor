@@ -3,8 +3,9 @@ name = "article-reconstruction"
 version = "0.12.1"
 description = "Reconstruct complete articles from Jawi Malay newspaper OCR fragments using LLM pipelines"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
+    "jawi-pipeline",
     "openai>=2.53.0",
     "python-dotenv>=1.2.2",
     "scikit-learn>=1.5.0",
@@ -28,3 +29,7 @@ version_files = [
     "dashboard.html"
 ]
 update_changelog_on_bump = true
+
+[tool.uv.sources]
+# Local sibling checkout for dev; switch to a git/source pin once the framework is released.
+jawi-pipeline = { path = "../pipeline" }
