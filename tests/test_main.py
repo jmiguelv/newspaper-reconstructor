@@ -1,6 +1,6 @@
 """Unit tests for main.py helpers."""
 
-from main import _parse_md_prompt
+from src.newspaper_reconstructor.prompts import parse_md_prompt as _parse_md_prompt
 
 
 class TestParseMdPrompt:

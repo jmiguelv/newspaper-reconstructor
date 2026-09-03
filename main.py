@@ -22,6 +22,7 @@ from src.newspaper_reconstructor.evaluate import (
 )
 from src.newspaper_reconstructor.ingest import load_article_json
 from src.newspaper_reconstructor.llm import LLMClient, make_client
+from src.newspaper_reconstructor.prompts import load_prompt
 from src.newspaper_reconstructor.reconstruct import (
     LLM_AND_IO_ERRORS,
     alto_to_json,
@@ -30,40 +31,10 @@ from src.newspaper_reconstructor.reconstruct import (
 )
 from src.newspaper_reconstructor.suggest import generate_suggestions
 
-_MD_SYSTEM_HEADING = "# System Prompt"
-_MD_USER_HEADING = "# User Prompt Template"
-
 app = typer.Typer(
     help="Reconstruct articles from newspaper text fragments using LLM pipelines.",
     no_args_is_help=True,
 )
-
-
-def _parse_md_prompt(content: str) -> tuple[str, str]:
-    lines = content.splitlines()
-    sections: dict[str, list[str]] = {}
-    current: str | None = None
-    for line in lines:
-        if line.strip() in (_MD_SYSTEM_HEADING, _MD_USER_HEADING):
-            current = line.strip()
-            sections[current] = []
-        elif current is not None:
-            sections[current].append(line)
-    system_prompt = "\n".join(sections.get(_MD_SYSTEM_HEADING, [])).strip()
-    user_prompt_template = "\n".join(sections.get(_MD_USER_HEADING, [])).strip()
-    return system_prompt, user_prompt_template
-
-
-def _load_prompt(prompt_file: str) -> tuple[str, str]:
-    with open(prompt_file, encoding="utf-8") as f:
-        content = f.read()
-    if prompt_file.endswith(".json"):
-        data = json.loads(content)
-        return data["system_prompt"], data.get("user_prompt_template", "")
-    elif prompt_file.endswith(".md"):
-        return _parse_md_prompt(content)
-    else:
-        return content, ""
 
 
 def _build_model_kwargs(
@@ -222,7 +193,7 @@ def _run_llm_stage(
         typer.echo(f"Error: {e}", err=True)
         raise typer.Exit(1)
 
-    sys_prompt, user_prompt = _load_prompt(prompt_file)
+    sys_prompt, user_prompt = load_prompt(prompt_file)
     files = _list_stage_files(input_folder, page_id, sample_size, seed)
 
     ctx = StageContext(
