@@ -1,5 +1,6 @@
 """Tests for the jawi-pipeline module: adapter, process, bulk_process, CLI."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -389,3 +390,112 @@ class TestBulkProcess:
         ):
             module = ArticleReconstructionModule(config=self.make_config(prompt))
         assert list(module.bulk_process([])) == []
+
+
+class TestCli:
+    @staticmethod
+    def invoke(app, args):
+        from typer.testing import CliRunner
+
+        return CliRunner().invoke(app, args)
+
+    @staticmethod
+    def write_page(path, regions, pid):
+        page = make_input(regions, pid=pid)
+        path.write_text(page.model_dump_json(indent=2))
+
+    @staticmethod
+    def cli_config(prompt_file, **overrides):
+        payload = {"model": "test-model", "prompt_file": str(prompt_file)}
+        payload.update(overrides)
+        return json.dumps(payload)
+
+    def test_process_command_writes_output(self, tmp_path):
+        prompt = TestProcess.make_prompt_file(tmp_path)
+        input_file = tmp_path / "page.json"
+        self.write_page(input_file, [make_text_region("r_1", ["a"])], "p1")
+        output_file = tmp_path / "out.json"
+        client = MagicMock()
+        client.complete.return_value = (
+            '[{"fragment_ids": ["r_1"], "title": "t", "class": "article"}]'
+        )
+        app = ArticleReconstructionModule.make_cli()
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            result = self.invoke(
+                app,
+                [
+                    "process",
+                    "--input",
+                    str(input_file),
+                    "--output",
+                    str(output_file),
+                    "--config",
+                    self.cli_config(prompt),
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        assert json.loads(output_file.read_text())["articles"] == {"article_1": ["r_1"]}
+
+    def test_bulk_process_command_writes_outputs_and_checkpoint(self, tmp_path):
+        prompt = TestProcess.make_prompt_file(tmp_path)
+        input_dir = tmp_path / "pages"
+        input_dir.mkdir()
+        self.write_page(
+            input_dir / "page1.json", [make_text_region("r_1", ["a"])], "p1"
+        )
+        self.write_page(
+            input_dir / "page2.json", [make_text_region("r_2", ["b"])], "p2"
+        )
+        output_dir = tmp_path / "out"
+        client = MagicMock()
+        client.complete.return_value = "[]"
+        app = ArticleReconstructionModule.make_cli()
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            result = self.invoke(
+                app,
+                [
+                    "bulk-process",
+                    "--input",
+                    str(input_dir),
+                    "--output",
+                    str(output_dir),
+                    "--config",
+                    self.cli_config(prompt),
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        assert json.loads((output_dir / "page1.json").read_text())["articles"] == {}
+        assert json.loads((output_dir / "page2.json").read_text())["articles"] == {}
+        checkpoint = json.loads((output_dir / ".checkpoint.json").read_text())
+        assert checkpoint["completed_files"] == ["page1.json", "page2.json"]
+
+    def test_missing_model_fails_fast(self, tmp_path, monkeypatch):
+        for var in ("LLM_MODEL", "LLM_BASE_URL", "LLM_PROVIDER", "LLM_API_KEY"):
+            monkeypatch.delenv(var, raising=False)
+        input_file = tmp_path / "page.json"
+        self.write_page(input_file, [make_text_region("r_1", ["a"])], "p1")
+        app = ArticleReconstructionModule.make_cli()
+        result = self.invoke(
+            app,
+            [
+                "process",
+                "--input",
+                str(input_file),
+                "--output",
+                str(tmp_path / "out.json"),
+                "--config",
+                "{}",
+            ],
+        )
+        assert result.exit_code != 0
+        assert isinstance(result.exception, ValueError)
+
+    def test_help_lists_framework_commands(self):
+        app = ArticleReconstructionModule.make_cli()
+        result = self.invoke(app, ["--help"])
+        assert "process" in result.output
+        assert "bulk-process" in result.output
