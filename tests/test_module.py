@@ -1,5 +1,8 @@
 """Tests for the jawi-pipeline module: adapter, process, bulk_process, CLI."""
 
+from unittest.mock import MagicMock, patch
+
+import pytest
 from jawi_pipeline.types import (
     ArticleReconstructionInput,
     BBox,
@@ -14,7 +17,11 @@ from jawi_pipeline.types import (
 )
 from jawi_pipeline.types.module import BaseLine
 
-from src.newspaper_reconstructor.module import input_to_fragments
+from src.newspaper_reconstructor.module import (
+    ArticleReconstructionConfig,
+    ArticleReconstructionModule,
+    input_to_fragments,
+)
 
 
 def make_bbox(x=10.0, y=20.0, w=200.0, h=100.0) -> BBox:
@@ -153,3 +160,138 @@ class TestInputToFragments:
     def test_no_text_regions_yields_empty_list(self):
         regions = [make_image_region("r_img")]
         assert input_to_fragments(make_input(regions)) == []
+
+
+class TestProcess:
+    @staticmethod
+    def make_prompt_file(tmp_path):
+        prompt = tmp_path / "prompt.md"
+        prompt.write_text(
+            "# System Prompt\n\nsys prompt\n\n"
+            "# User Prompt Template\n\nFragments:\n\n{fragments}\n"
+        )
+        return str(prompt)
+
+    @staticmethod
+    def make_module(client, prompt_file):
+        from src.newspaper_reconstructor.module import (
+            ArticleReconstructionConfig,
+            ArticleReconstructionModule,
+        )
+
+        config = ArticleReconstructionConfig(
+            prompt_file=prompt_file, model="test-model"
+        )
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            return ArticleReconstructionModule(config=config)
+
+    def test_returns_articles_with_sequential_ids(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = (
+            '[{"fragment_ids": ["r_1", "r_2"], "title": "t", "class": "article"},'
+            ' {"fragment_ids": ["r_3"], "title": "u", "class": "advertisement"}]'
+        )
+        module = self.make_module(client, self.make_prompt_file(tmp_path))
+        regions = [
+            make_text_region("r_1", ["a"]),
+            make_text_region("r_2", ["b"]),
+            make_text_region("r_3", ["c"]),
+        ]
+        out = module.process(make_input(regions))
+        assert out.articles == {"article_1": ["r_1", "r_2"], "article_2": ["r_3"]}
+
+    def test_empty_llm_items_yield_empty_articles(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = "[]"
+        module = self.make_module(client, self.make_prompt_file(tmp_path))
+        out = module.process(make_input([make_text_region("r_1", ["a"])]))
+        assert out.articles == {}
+
+    def test_page_without_text_regions_skips_llm(self, tmp_path):
+        client = MagicMock()
+        module = self.make_module(client, self.make_prompt_file(tmp_path))
+        out = module.process(make_input([make_image_region("r_img")]))
+        assert out.articles == {}
+        client.complete.assert_not_called()
+
+    def test_unknown_fragment_ids_filtered(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = (
+            '[{"fragment_ids": ["r_1", "r_unknown"], "title": "t", "class": "article"}]'
+        )
+        module = self.make_module(client, self.make_prompt_file(tmp_path))
+        out = module.process(make_input([make_text_region("r_1", ["a"])]))
+        assert out.articles == {"article_1": ["r_1"]}
+
+    def test_llm_failure_raises_with_page_id(self, tmp_path):
+        from openai import APIError
+
+        client = MagicMock()
+        client.complete.side_effect = APIError("boom", request=None, body=None)
+        config = ArticleReconstructionConfig(
+            prompt_file=self.make_prompt_file(tmp_path),
+            model="test-model",
+            max_retries=1,
+        )
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            module = ArticleReconstructionModule(config=config)
+        with pytest.raises(RuntimeError, match="p1"):
+            module.process(make_input([make_text_region("r_1", ["a"])]))
+
+    def test_article_id_prefix_config(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = (
+            '[{"fragment_ids": ["r_1"], "title": "t", "class": "article"}]'
+        )
+        config = ArticleReconstructionConfig(
+            prompt_file=self.make_prompt_file(tmp_path),
+            model="test-model",
+            article_id_prefix="art_",
+        )
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            module = ArticleReconstructionModule(config=config)
+        out = module.process(make_input([make_text_region("r_1", ["a"])]))
+        assert out.articles == {"art_1": ["r_1"]}
+
+    def test_prompt_sent_to_client(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = "[]"
+        module = self.make_module(client, self.make_prompt_file(tmp_path))
+        module.process(make_input([make_text_region("r_1", ["a"])]))
+        args, _ = client.complete.call_args
+        assert args[0] == "sys prompt"
+        assert "Fragments:" in args[1]
+        assert '"id": "r_1"' in args[1]
+
+
+class TestModuleContract:
+    def test_config_defaults(self):
+        config = ArticleReconstructionConfig()
+        assert config.model is None
+        assert config.base_url is None
+        assert config.api_key is None
+        assert config.provider is None
+        assert config.timeout == 300.0
+        assert config.prompt_file == "prompts/v01.md"
+        assert config.max_retries == 3
+        assert config.max_workers == 1
+        assert config.article_id_prefix == "article_"
+
+    def test_input_rows_placeholder_empty(self, tmp_path):
+        client = MagicMock()
+        module = TestProcess.make_module(client, TestProcess.make_prompt_file(tmp_path))
+        assert list(module._input_rows()) == []
+
+    def test_resolve_input_type(self):
+        from jawi_pipeline.cli import resolve_input_type
+
+        assert (
+            resolve_input_type(ArticleReconstructionModule)
+            is ArticleReconstructionInput
+        )
