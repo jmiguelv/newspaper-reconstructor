@@ -295,3 +295,97 @@ class TestModuleContract:
             resolve_input_type(ArticleReconstructionModule)
             is ArticleReconstructionInput
         )
+
+
+class TestBulkProcess:
+    @staticmethod
+    def make_config(prompt_file, **overrides):
+        return ArticleReconstructionConfig(
+            prompt_file=prompt_file, model="test-model", **overrides
+        )
+
+    @staticmethod
+    def page_complete(system, user):
+        import re
+        import time
+
+        match = re.search(r'"id": "(r_\w+)"', user)
+        rid = match.group(1)
+        if rid == "r_p1":
+            time.sleep(0.15)
+        return f'[{{"fragment_ids": ["{rid}"], "title": "t", "class": "article"}}]'
+
+    def test_preserves_input_order_with_concurrency(self, tmp_path):
+        client = MagicMock()
+        client.complete.side_effect = self.page_complete
+        prompt = TestProcess.make_prompt_file(tmp_path)
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            module = ArticleReconstructionModule(
+                config=self.make_config(prompt, max_workers=3)
+            )
+        pages = [
+            make_input([make_text_region("r_p1", ["a"])], pid="p1"),
+            make_input([make_text_region("r_p2", ["b"])], pid="p2"),
+            make_input([make_text_region("r_p3", ["c"])], pid="p3"),
+        ]
+        results = list(module.bulk_process(pages))
+        assert [r.articles["article_1"] for r in results] == [
+            ["r_p1"],
+            ["r_p2"],
+            ["r_p3"],
+        ]
+
+    def test_failed_page_yields_none_others_succeed(self, tmp_path, capsys):
+        from openai import APIError
+
+        client = MagicMock()
+
+        def complete(system, user):
+            if '"r_p2"' in user:
+                raise APIError("boom", request=None, body=None)
+            return '[{"fragment_ids": ["r_ok"], "title": "t", "class": "article"}]'
+
+        client.complete.side_effect = complete
+        prompt = TestProcess.make_prompt_file(tmp_path)
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            module = ArticleReconstructionModule(
+                config=self.make_config(prompt, max_retries=1)
+            )
+        pages = [
+            make_input([make_text_region("r_ok", ["a"])], pid="p1"),
+            make_input([make_text_region("r_p2", ["b"])], pid="p2"),
+            make_input([make_text_region("r_ok", ["c"])], pid="p3"),
+        ]
+        results = list(module.bulk_process(pages))
+        assert results[0] is not None and results[0].articles == {"article_1": ["r_ok"]}
+        assert results[1] is None
+        assert results[2] is not None
+        assert "p2" in capsys.readouterr().err
+
+    def test_sequential_with_default_max_workers(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = "[]"
+        prompt = TestProcess.make_prompt_file(tmp_path)
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            module = ArticleReconstructionModule(config=self.make_config(prompt))
+        pages = [
+            make_input([make_text_region("r_1", ["a"])], pid="p1"),
+            make_input([make_text_region("r_2", ["b"])], pid="p2"),
+        ]
+        results = list(module.bulk_process(pages))
+        assert all(r is not None and r.articles == {} for r in results)
+
+    def test_empty_input(self, tmp_path):
+        client = MagicMock()
+        prompt = TestProcess.make_prompt_file(tmp_path)
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ):
+            module = ArticleReconstructionModule(config=self.make_config(prompt))
+        assert list(module.bulk_process([])) == []

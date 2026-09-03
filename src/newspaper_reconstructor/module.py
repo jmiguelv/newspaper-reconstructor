@@ -7,7 +7,9 @@ pipeline's article contract.
 """
 
 import re
-from collections.abc import Iterable
+import sys
+from collections.abc import Iterable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 
 from jawi_pipeline import Config, InputRow, Module
 from jawi_pipeline.types import (
@@ -109,3 +111,24 @@ class ArticleReconstructionModule(
 
     def _input_rows(self) -> Iterable[InputRow]:
         return []
+
+    def bulk_process(
+        self, data: list[ArticleReconstructionInput]
+    ) -> Iterator[ArticleReconstructionOutput | None]:
+        """Process pages concurrently, in input order.
+
+        Failed pages yield None in their position: the framework's bulk CLI
+        treats None as a per-file failure and keeps processing the rest.
+        """
+
+        def _run(
+            page: ArticleReconstructionInput,
+        ) -> ArticleReconstructionOutput | None:
+            try:
+                return self.process(page)
+            except Exception as e:  # noqa: BLE001
+                print(f"Page {page.page.id} failed: {e}", file=sys.stderr)
+                return None
+
+        with ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
+            yield from executor.map(_run, data)
