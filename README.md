@@ -258,7 +258,7 @@ uv run python pipeline_main.py bulk-process \
 |---|---|---|
 | `model` / `base_url` / `api_key` / `provider` / `timeout` | LLM settings; fall back to `LLM_*` env vars | `None` (env) |
 | `backend` | LLM backend: `api` (default) or `local` (in-process transformers) | `None` (env) |
-| `prompt_file` | Clustering prompt (`.md`/`.json`/plain) | `prompts/v01.md` |
+| `prompt_file` | Clustering prompt (`.md`/`.json`/plain) | `prompts/v01.01.02.md` |
 | `max_retries` | LLM call retries per page | `3` |
 | `max_workers` | Concurrent pages in `bulk-process` | `1` |
 | `article_id_prefix` | Prefix for generated `ArticleId`s | `article_` |

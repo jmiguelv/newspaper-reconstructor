@@ -296,7 +296,7 @@ class TestModuleContract:
         assert config.api_key is None
         assert config.provider is None
         assert config.timeout == 300.0
-        assert config.prompt_file == "prompts/v01.md"
+        assert config.prompt_file == "prompts/v01.01.02.md"
         assert config.max_retries == 3
         assert config.max_workers == 1
         assert config.article_id_prefix == "article_"
