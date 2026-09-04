@@ -24,6 +24,8 @@ wheels/
 Thumbs.db
 
 # Generated data
+.smoke/
+tasks/
 generate_payload.py
 payload_dump.json
 data/1_interim/
