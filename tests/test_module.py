@@ -18,7 +18,7 @@ from jawi_pipeline.types import (
 )
 from jawi_pipeline.types.module import BaseLine
 
-from src.newspaper_reconstructor.module import (
+from newspaper_reconstructor.module import (
     ArticleReconstructionConfig,
     ArticleReconstructionModule,
     input_to_fragments,
@@ -175,7 +175,7 @@ class TestProcess:
 
     @staticmethod
     def make_module(client, prompt_file):
-        from src.newspaper_reconstructor.module import (
+        from newspaper_reconstructor.module import (
             ArticleReconstructionConfig,
             ArticleReconstructionModule,
         )
