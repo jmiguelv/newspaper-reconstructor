@@ -68,7 +68,7 @@ class ArticleReconstructionConfig(Config):
     provider: str | None = None
     backend: str | None = None
     timeout: float = 300.0
-    prompt_file: str = "prompts/v01.md"
+    prompt_file: str = "prompts/v01.01.02.md"
     max_retries: int = 3
     max_workers: int = 1
     article_id_prefix: str = "article_"
