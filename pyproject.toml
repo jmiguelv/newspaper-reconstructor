@@ -49,4 +49,4 @@ pre_bump_hooks = ["uv lock", "git add uv.lock"]
 
 [tool.uv.sources]
 # Local sibling checkout for dev; switch to a git/source pin once the framework is released.
-jawi-pipeline = { path = "../pipeline" }
+jawi-pipeline = { path = "../jawi-pipeline" }
