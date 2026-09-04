@@ -12,6 +12,9 @@ dependencies = [
     "typer>=0.27.1",
 ]
 
+[project.scripts]
+pl-article-reconstruction = "newspaper_reconstructor.pipeline_main:main"
+
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
@@ -35,6 +38,7 @@ version_files = [
     "dashboard.html"
 ]
 update_changelog_on_bump = true
+pre_bump_hooks = ["uv lock", "git add uv.lock"]
 
 [tool.uv.sources]
 # Local sibling checkout for dev; switch to a git/source pin once the framework is released.
