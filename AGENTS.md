@@ -8,6 +8,7 @@ Article reconstruction tool that processes OCR text fragments from Jawi Malay ne
 
 ```bash
 uv sync                  # install dependencies
+uv sync --group local    # opt-in: torch/transformers for the local backend
 uv run pytest           # run all tests
 uv run ruff check .     # lint
 uv run ruff format .    # format
@@ -40,7 +41,7 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 | `src/newspaper_reconstructor/prompts.py`     | Shared prompt file loading (.md / .json / plain text)             |
 | `src/newspaper_reconstructor/module.py`      | `ArticleReconstructionModule` — jawi-pipeline stage (regions → fragments → articles) |
 | `src/newspaper_reconstructor/reconstruct.py`  | Data transformation, dict parsing, and mapping to LLM inputs     |
-| `src/newspaper_reconstructor/llm.py`          | LLM client wrapper (OpenAI-compatible API), client factory        |
+| `src/newspaper_reconstructor/llm.py`          | LLM clients (OpenAI-compatible API + local transformers backend), `make_client` factory, `LLMError` |
 | `src/newspaper_reconstructor/evaluate.py`     | Ground truth parsing, clustering F1, ARI, B³ F1, class accuracy, coverage |
 | `src/newspaper_reconstructor/suggest.py`      | LLM judge for offline analysis and improvement suggestions        |
 | `dashboard.html`                              | Interactive Alpine.js HTML dashboard to visualize JSON eval logs  |
@@ -53,7 +54,7 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 - `ruff` for lint and format (no separate formatter)
 - TDD: tests in `tests/` mirror module names (`test_reconstruct.py`, `test_evaluate.py`, `test_e2e.py`, `test_ingest.py`)
 - No comments unless explicitly requested
-- Environment variables use `LLM_*` prefix (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`), not `OPENAI_*`
+- Environment variables use `LLM_*` prefix (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, `LLM_PROVIDER`, `LLM_BACKEND`), not `OPENAI_*`
 - `jawi-pipeline` is a local path dependency (`../pipeline`) — the sibling checkout must exist
 - API key defaults to `"none"` (local servers ignore it); model is required
 - Pipeline inputs/outputs explicitly pass directories (e.g. `-i input_folder -o output_folder`)

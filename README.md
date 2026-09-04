@@ -78,9 +78,33 @@ Set environment variables for the LLM API, or pass them as CLI options. Works wi
 | `LLM_MODEL`      | Model name                        | Required                                              |
 | `LLM_BASE_URL`   | Custom OpenAI-compatible endpoint | None                                                  |
 | `LLM_PROVIDER`   | Provider name in providers.json   | None                                                  |
+| `LLM_BACKEND`    | LLM backend: `api` (default) or `local` | None                                                  |
 | `IMAGE_BASE_URL` | Base URL for page scan images     | `https://jawi.sgp1.digitaloceanspaces.com/page_scans` |
 
 Named providers with custom `base_url` and `default_headers` can be defined in `providers.json` at the project root. When `LLM_PROVIDER` (or `--provider`) is passed, the CLI resolves the endpoint configuration from this file.
+
+### Local models (transformers)
+
+Instead of an API, the LLM can run in-process through the `transformers` package on the local torch device (MPS on Apple Silicon, CUDA, or CPU). The dependencies are opt-in (~2 GB):
+
+```bash
+uv sync --group local
+```
+
+Select the backend with `--backend local` (or `LLM_BACKEND=local`); `--model` / `LLM_MODEL` is then an HF hub id (e.g. `Qwen/Qwen2.5-0.5B-Instruct`) or a local model path. Provider, base URL, API key, and timeout do not apply to this backend.
+
+```bash
+uv run --group local python main.py cluster \
+  -i data/1_interim/<dataset>/fragments \
+  -p prompts/v01.md \
+  -o data/1_interim/<dataset>/reconstructions/local_run \
+  --backend local \
+  --model Qwen/Qwen2.5-0.5B-Instruct
+```
+
+Generation is greedy (`do_sample=False`, parity with `temperature=0`); `--max-tokens` caps generated tokens (remapped to `max_new_tokens`) and `--model-kwargs` passes extra `generate` arguments. One model instance is shared and calls are serialized, so `--max-workers` gives no speedup for the local backend; a failing page raises `LLMError`, which batch runs contain per file.
+
+For quantized models on Apple Silicon prefer GGUF runtimes (Ollama, LM Studio): they expose OpenAI-compatible endpoints that the default `api` backend already supports via `LLM_BASE_URL` — in-process quantization (bitsandbytes, GPTQ, AWQ) is CUDA-centric and not dependable on MPS. The local backend is covered end-to-end by an opt-in test: `LLM_LOCAL_E2E_MODEL=Qwen/Qwen2.5-0.5B-Instruct uv run --group local pytest tests/test_e2e.py::TestE2ELocalModel`.
 
 ## Usage
 
@@ -136,6 +160,7 @@ uv run python main.py classify \
 | `--provider` / `LLM_PROVIDER` | Named provider from `providers.json` |
 | `--base-url` / `LLM_BASE_URL` | Custom API endpoint |
 | `--api-key` / `LLM_API_KEY` | API key (default: `"none"`) |
+| `--backend` / `LLM_BACKEND` | LLM backend: `api` (default) or `local` (in-process transformers) |
 | `--sample-size` | Randomly sample N pages |
 | `--seed` | Random seed for sampling (default: 42) |
 | `--page-id` | Process a single page |
@@ -209,6 +234,7 @@ uv run python main.py suggest \
 | `--provider` | Named provider from `providers.json` |
 | `--tag` | Label for this run |
 | `--model-kwargs` | JSON string of extra model arguments |
+| `--backend` / `LLM_BACKEND` | LLM backend: `api` (default) or `local` (in-process transformers) |
 
 ### 6. jawi-pipeline integration
 
@@ -231,6 +257,7 @@ uv run python pipeline_main.py bulk-process \
 | Setting | Description | Default |
 |---|---|---|
 | `model` / `base_url` / `api_key` / `provider` / `timeout` | LLM settings; fall back to `LLM_*` env vars | `None` (env) |
+| `backend` | LLM backend: `api` (default) or `local` (in-process transformers) | `None` (env) |
 | `prompt_file` | Clustering prompt (`.md`/`.json`/plain) | `prompts/v01.md` |
 | `max_retries` | LLM call retries per page | `3` |
 | `max_workers` | Concurrent pages in `bulk-process` | `1` |
