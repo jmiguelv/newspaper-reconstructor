@@ -522,3 +522,46 @@ class TestCli:
         result = self.invoke(app, ["--help"])
         assert "process" in result.output
         assert "bulk-process" in result.output
+
+
+class TestModuleBackendConfig:
+    def make_prompt_file(self, tmp_path):
+        prompt = tmp_path / "p.md"
+        prompt.write_text(
+            "# System Prompt\n\nsys prompt\n\n"
+            "# User Prompt Template\n\nFragments:\n\n{fragments}\n"
+        )
+        return str(prompt)
+
+    def test_backend_forwarded_to_make_client(self, tmp_path):
+        client = MagicMock()
+        client.complete.return_value = (
+            '[{"fragment_ids": ["r_1"], "title": "t", "class": "article"}]'
+        )
+        config = ArticleReconstructionConfig(
+            prompt_file=self.make_prompt_file(tmp_path),
+            model="test-model",
+            backend="local",
+        )
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ) as mock_make:
+            module = ArticleReconstructionModule(config=config)
+
+        mock_make.assert_called_once()
+        assert mock_make.call_args.kwargs["backend"] == "local"
+
+        out = module.process(make_input([make_text_region("r_1", ["a"])]))
+        assert out.articles["article_1"].region_ids == ["r_1"]
+
+    def test_default_backend_is_none(self, tmp_path):
+        client = MagicMock()
+        config = ArticleReconstructionConfig(
+            prompt_file=self.make_prompt_file(tmp_path), model="test-model"
+        )
+        with patch(
+            "src.newspaper_reconstructor.module.make_client", return_value=client
+        ) as mock_make:
+            ArticleReconstructionModule(config=config)
+
+        assert mock_make.call_args.kwargs["backend"] is None

@@ -20,7 +20,7 @@ from jawi_pipeline.types import (
     RegionWithOcr,
 )
 
-from src.newspaper_reconstructor.llm import LLMClient, make_client
+from src.newspaper_reconstructor.llm import CompletionClient, make_client
 from src.newspaper_reconstructor.prompts import load_prompt
 from src.newspaper_reconstructor.reconstruct import reconstruct_articles
 
@@ -66,6 +66,7 @@ class ArticleReconstructionConfig(Config):
     base_url: str | None = None
     api_key: str | None = None
     provider: str | None = None
+    backend: str | None = None
     timeout: float = 300.0
     prompt_file: str = "prompts/v01.md"
     max_retries: int = 3
@@ -82,12 +83,13 @@ class ArticleReconstructionModule(
 
     def __init__(self, config: Config | None = None) -> None:
         super().__init__(config)
-        self.client: LLMClient = make_client(
+        self.client: CompletionClient = make_client(
             model=self.config.model,
             base_url=self.config.base_url,
             api_key=self.config.api_key,
             timeout=self.config.timeout,
             provider=self.config.provider,
+            backend=self.config.backend,
         )
         self.system_prompt, self.user_prompt = load_prompt(self.config.prompt_file)
 
