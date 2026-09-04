@@ -1,6 +1,6 @@
 [project]
 name = "article-reconstruction"
-version = "0.12.1"
+version = "0.13.0"
 description = "Reconstruct complete articles from Jawi Malay newspaper OCR fragments using LLM pipelines"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -29,7 +29,7 @@ pythonpath = ["."]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.12.1"
+version = "0.13.0"
 version_files = [
     "pyproject.toml:version",
     "dashboard.html"
