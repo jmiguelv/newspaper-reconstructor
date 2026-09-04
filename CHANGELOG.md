@@ -1,3 +1,23 @@
+## 0.13.0 (2026-09-04)
+
+### Feat
+
+- **experiments**: add local backend pipeline module experiment
+- **module**: add backend config for local models
+- **cli**: add --backend option to llm commands
+- **llm**: type stages with CompletionClient and contain LLMError
+- **llm**: add local transformers backend to client factory
+- **prompts**: add new version of prompt that asks for titles in Malay
+- **module**: carry title, title_en, item_class into pipeline output
+- **cli**: add pipeline_main entry for the framework cli
+- **module**: add concurrent bulk_process with per-page failure isolation
+- **module**: implement article reconstruction process
+- **module**: adapt pipeline ocr regions to fragment format
+
+### Refactor
+
+- extract prompt loaders to shared prompts module
+
 ## 0.12.1 (2026-09-02)
 
 ### Fix
