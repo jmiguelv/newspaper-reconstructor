@@ -604,3 +604,125 @@ class TestE2ERealDataNewFormat:
         data = json.loads((out_dir / "UM-1956-01-09-6.json").read_text())
         assert len(data) > 0
         assert all("id" in f and "text" in f for f in data)
+
+
+class TestBackendOption:
+    def test_classify_forwards_backend(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        prompt_file = _make_prompt_file(tmp_path)
+
+        with patch("main.make_client") as mock_make:
+            result = runner.invoke(
+                app,
+                [
+                    "classify",
+                    "-i",
+                    str(d),
+                    "-o",
+                    str(tmp_path / "out"),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                    "--backend",
+                    "local",
+                ],
+            )
+
+        assert result.exit_code == 0
+        mock_make.assert_called_once()
+        assert mock_make.call_args.kwargs["backend"] == "local"
+
+    def test_cluster_forwards_backend(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        prompt_file = _make_prompt_file(tmp_path)
+
+        with patch("main.make_client") as mock_make:
+            result = runner.invoke(
+                app,
+                [
+                    "cluster",
+                    "-i",
+                    str(d),
+                    "-o",
+                    str(tmp_path / "out"),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                    "--backend",
+                    "local",
+                ],
+            )
+
+        assert result.exit_code == 0
+        mock_make.assert_called_once()
+        assert mock_make.call_args.kwargs["backend"] == "local"
+
+    def test_suggest_forwards_backend(self):
+        with patch("main.make_client") as mock_make:
+            result = runner.invoke(
+                app,
+                [
+                    "suggest",
+                    "--experiment-id",
+                    "no-such-run",
+                    "--model",
+                    "test-model",
+                    "--backend",
+                    "local",
+                ],
+            )
+
+        mock_make.assert_called_once()
+        assert mock_make.call_args.kwargs["backend"] == "local"
+        assert result.exit_code == 1
+
+
+class TestE2ELocalModel:
+    def test_cluster_with_local_model(self, tmp_path):
+        pytest.importorskip("transformers")
+        model = os.environ.get("LLM_LOCAL_E2E_MODEL")
+        if not model:
+            pytest.skip("LLM_LOCAL_E2E_MODEL not set")
+
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps([{"id": "r_1", "text": "hello"}]), encoding="utf-8"
+        )
+        prompt = tmp_path / "p.md"
+        prompt.write_text(
+            "# System Prompt\n\n"
+            "You output only JSON arrays.\n\n"
+            "# User Prompt Template\n\n"
+            "Fragments:\n\n{fragments}\n\n"
+            'Return ONLY a JSON array like [{{"fragment_ids": ["r_1"]}}].\n',
+            encoding="utf-8",
+        )
+        out_dir = tmp_path / "out"
+
+        result = runner.invoke(
+            app,
+            [
+                "cluster",
+                "-i",
+                str(d),
+                "-o",
+                str(out_dir),
+                "--model",
+                model,
+                "-p",
+                str(prompt),
+                "--backend",
+                "local",
+                "--max-tokens",
+                "256",
+            ],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads((out_dir / "page1.json").read_text())
+        assert isinstance(data, list)

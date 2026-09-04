@@ -21,7 +21,7 @@ from src.newspaper_reconstructor.evaluate import (
     log_evaluation_experiment,
 )
 from src.newspaper_reconstructor.ingest import load_article_json
-from src.newspaper_reconstructor.llm import LLMClient, make_client
+from src.newspaper_reconstructor.llm import CompletionClient, make_client
 from src.newspaper_reconstructor.prompts import load_prompt
 from src.newspaper_reconstructor.reconstruct import (
     LLM_AND_IO_ERRORS,
@@ -60,7 +60,7 @@ def _build_model_kwargs(
 class StageContext:
     """Shared context passed to a per-file stage processor."""
 
-    client: LLMClient
+    client: CompletionClient
     sys_prompt: str
     user_prompt: str
     input_folder: str
@@ -161,6 +161,7 @@ def _run_llm_stage(
     base_url: str | None,
     api_key: str | None,
     provider: str | None,
+    backend: str | None,
     timeout: float,
     sample_size: int | None,
     seed: int,
@@ -188,6 +189,7 @@ def _run_llm_stage(
             timeout=timeout,
             provider=provider,
             model_kwargs=parsed_model_kwargs,
+            backend=backend,
         )
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
@@ -393,6 +395,9 @@ def classify(
     frequency_penalty: float | None = typer.Option(
         None, "--frequency-penalty", help="Frequency penalty to reduce repetition"
     ),
+    backend: str | None = typer.Option(
+        None, envvar="LLM_BACKEND", help="LLM backend ('api' or 'local')"
+    ),
 ):
     """Classify fragments using an LLM. Output is fragments enriched with 'predicted_class'."""
     _run_llm_stage(
@@ -403,6 +408,7 @@ def classify(
         base_url=base_url,
         api_key=api_key,
         provider=provider,
+        backend=backend,
         timeout=timeout,
         sample_size=sample_size,
         seed=seed,
@@ -464,6 +470,9 @@ def cluster(
     frequency_penalty: float | None = typer.Option(
         None, "--frequency-penalty", help="Frequency penalty to reduce repetition"
     ),
+    backend: str | None = typer.Option(
+        None, envvar="LLM_BACKEND", help="LLM backend ('api' or 'local')"
+    ),
 ):
     """Cluster fragments into articles using an LLM."""
     _run_llm_stage(
@@ -474,6 +483,7 @@ def cluster(
         base_url=base_url,
         api_key=api_key,
         provider=provider,
+        backend=backend,
         timeout=timeout,
         sample_size=sample_size,
         seed=seed,
@@ -606,6 +616,9 @@ def suggest(
     model_kwargs: str | None = typer.Option(
         None, "--model-kwargs", help="JSON string for extra model arguments"
     ),
+    backend: str | None = typer.Option(
+        None, envvar="LLM_BACKEND", help="LLM backend ('api' or 'local')"
+    ),
 ):
     """Analyze evaluation logs and suggest improvements using LLM judge."""
     parsed_model_kwargs = None
@@ -625,6 +638,7 @@ def suggest(
             timeout=timeout,
             provider=provider,
             model_kwargs=parsed_model_kwargs,
+            backend=backend,
         )
     except ValueError as e:
         typer.echo(f"Error: {e}", err=True)
