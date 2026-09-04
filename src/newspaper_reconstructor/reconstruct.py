@@ -15,11 +15,12 @@ import xml.etree.ElementTree as ET
 
 from openai import APIError, APITimeoutError
 
-from .llm import LLMClient
+from .llm import CompletionClient, LLMError
 
 LLM_AND_IO_ERRORS = (
     APIError,
     APITimeoutError,
+    LLMError,
     OSError,
     json.JSONDecodeError,
     ValueError,
@@ -60,7 +61,7 @@ def alto_to_json(alto_path: str) -> list[dict]:
 
 def classify_fragments(
     fragments: list[dict],
-    client: LLMClient,
+    client: CompletionClient,
     system_prompt: str,
     user_prompt_template: str,
     max_retries: int = 3,
@@ -103,7 +104,7 @@ def classify_fragments(
 
 def reconstruct_articles(
     fragments: list[dict],
-    client: LLMClient,
+    client: CompletionClient,
     system_prompt: str,
     user_prompt_template: str,
     max_retries: int = 3,

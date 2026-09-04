@@ -1,5 +1,7 @@
 """Unit tests for main.py helpers."""
 
+from main import StageContext, _run_batch
+from src.newspaper_reconstructor.llm import LLMError
 from src.newspaper_reconstructor.prompts import parse_md_prompt as _parse_md_prompt
 
 
@@ -65,3 +67,27 @@ user text
         system, user = _parse_md_prompt(content)
         assert system == "sys text"
         assert user == "user text"
+
+
+class TestRunBatch:
+    def test_llm_error_logged_and_run_continues(self, capsys):
+        def process_fn(fname, lock, ctx):
+            if fname == "a.json":
+                raise LLMError("mps out of memory")
+            return True
+
+        ctx = StageContext(
+            client=None,
+            sys_prompt="s",
+            user_prompt="u",
+            input_folder="in",
+            output_folder="out",
+            save_prompts=False,
+        )
+
+        success = _run_batch(["a.json", "b.json"], process_fn, 1, ctx)
+
+        assert success == 1
+        err = capsys.readouterr().err
+        assert "a.json" in err
+        assert "mps out of memory" in err

@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.newspaper_reconstructor.llm import make_client
+from src.newspaper_reconstructor.llm import LLMError, make_client
 from src.newspaper_reconstructor.reconstruct import (
     alto_to_json,
     reconstruct_articles,
@@ -177,6 +177,23 @@ class TestReconstructArticles:
         assert len(result) == 2
         assert result[0]["fragment_ids"] == ["r_text1"]
         assert result[1]["class"] == "advertisement"
+
+    def test_propagates_llm_error_without_retry(self):
+        client = MagicMock()
+        client.complete.side_effect = LLMError("mps out of memory")
+        fragments = [
+            {"id": "r_text1", "text": "Hello World"},
+            {"id": "r_text2", "text": "Solo"},
+        ]
+        with pytest.raises(LLMError, match="mps out of memory"):
+            reconstruct_articles(
+                fragments,
+                client,
+                TEST_SYSTEM_PROMPT,
+                TEST_USER_PROMPT_TEMPLATE,
+                max_retries=3,
+            )
+        assert client.complete.call_count == 1
 
     def test_parses_json_with_think_block(self):
         client = MagicMock()

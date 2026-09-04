@@ -5,6 +5,8 @@ import os
 import sys
 from pathlib import Path
 
+from .llm import CompletionClient
+
 
 def load_run_data(experiment_id: str, eval_dir: str) -> dict:
     """Load the JSON evaluation log for a specific run ID."""
@@ -165,7 +167,11 @@ Output your response in Markdown format.
 
 
 def generate_suggestions(
-    experiment_id: str, eval_dir: str, client, model: str, focus: str = "clustering"
+    experiment_id: str,
+    eval_dir: str,
+    client: CompletionClient,
+    model: str,
+    focus: str = "clustering",
 ) -> int:
     """Generate and save LLM suggestions for a specific evaluation run."""
     print(f"Loading run data for {experiment_id}...", file=sys.stderr)
