@@ -17,6 +17,12 @@ dev = [
     "pytest>=9.1.1",
     "ruff>=0.16.1",
 ]
+# Opt-in backend for local in-process models: uv sync --group local
+local = [
+    "accelerate>=1.11.0",
+    "torch>=2.9.0",
+    "transformers>=4.57.1",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
