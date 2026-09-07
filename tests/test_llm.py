@@ -8,8 +8,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
-from src.newspaper_reconstructor import llm
-from src.newspaper_reconstructor.llm import (
+from newspaper_reconstructor import llm
+from newspaper_reconstructor.llm import (
     CompletionClient,
     LLMClient,
     LLMError,

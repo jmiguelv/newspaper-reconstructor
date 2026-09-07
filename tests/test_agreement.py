@@ -6,7 +6,7 @@ import pytest
 from typer.testing import CliRunner
 
 from main import app
-from src.newspaper_reconstructor.agreement import (
+from newspaper_reconstructor.agreement import (
     AgreementError,
     Article,
     calculate_agreement,

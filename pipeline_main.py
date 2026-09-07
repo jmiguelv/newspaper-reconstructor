@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.newspaper_reconstructor.module import ArticleReconstructionModule
+from newspaper_reconstructor.module import ArticleReconstructionModule
 
 cli = ArticleReconstructionModule.make_cli()
 

@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import datetime
 
-from src.newspaper_reconstructor.evaluate import _bcubed_f1, clustering_f1
+from newspaper_reconstructor.evaluate import _bcubed_f1, clustering_f1
 
 
 class AgreementError(Exception):

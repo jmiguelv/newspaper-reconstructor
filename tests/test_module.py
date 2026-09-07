@@ -18,7 +18,7 @@ from jawi_pipeline.types import (
 )
 from jawi_pipeline.types.module import BaseLine
 
-from src.newspaper_reconstructor.module import (
+from newspaper_reconstructor.module import (
     ArticleReconstructionConfig,
     ArticleReconstructionModule,
     input_to_fragments,
@@ -175,7 +175,7 @@ class TestProcess:
 
     @staticmethod
     def make_module(client, prompt_file):
-        from src.newspaper_reconstructor.module import (
+        from newspaper_reconstructor.module import (
             ArticleReconstructionConfig,
             ArticleReconstructionModule,
         )
@@ -183,9 +183,7 @@ class TestProcess:
         config = ArticleReconstructionConfig(
             prompt_file=prompt_file, model="test-model"
         )
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             return ArticleReconstructionModule(config=config)
 
     def test_returns_articles_with_sequential_ids(self, tmp_path):
@@ -252,9 +250,7 @@ class TestProcess:
             model="test-model",
             max_retries=1,
         )
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             module = ArticleReconstructionModule(config=config)
         with pytest.raises(RuntimeError, match="p1"):
             module.process(make_input([make_text_region("r_1", ["a"])]))
@@ -269,9 +265,7 @@ class TestProcess:
             model="test-model",
             article_id_prefix="art_",
         )
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             module = ArticleReconstructionModule(config=config)
         out = module.process(make_input([make_text_region("r_1", ["a"])]))
         assert list(out.articles) == ["art_1"]
@@ -337,9 +331,7 @@ class TestBulkProcess:
         client = MagicMock()
         client.complete.side_effect = self.page_complete
         prompt = TestProcess.make_prompt_file(tmp_path)
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             module = ArticleReconstructionModule(
                 config=self.make_config(prompt, max_workers=3)
             )
@@ -367,9 +359,7 @@ class TestBulkProcess:
 
         client.complete.side_effect = complete
         prompt = TestProcess.make_prompt_file(tmp_path)
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             module = ArticleReconstructionModule(
                 config=self.make_config(prompt, max_retries=1)
             )
@@ -389,9 +379,7 @@ class TestBulkProcess:
         client = MagicMock()
         client.complete.return_value = "[]"
         prompt = TestProcess.make_prompt_file(tmp_path)
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             module = ArticleReconstructionModule(config=self.make_config(prompt))
         pages = [
             make_input([make_text_region("r_1", ["a"])], pid="p1"),
@@ -403,9 +391,7 @@ class TestBulkProcess:
     def test_empty_input(self, tmp_path):
         client = MagicMock()
         prompt = TestProcess.make_prompt_file(tmp_path)
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             module = ArticleReconstructionModule(config=self.make_config(prompt))
         assert list(module.bulk_process([])) == []
 
@@ -438,9 +424,7 @@ class TestCli:
             '[{"fragment_ids": ["r_1"], "title": "t", "class": "article"}]'
         )
         app = ArticleReconstructionModule.make_cli()
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             result = self.invoke(
                 app,
                 [
@@ -475,9 +459,7 @@ class TestCli:
         client = MagicMock()
         client.complete.return_value = "[]"
         app = ArticleReconstructionModule.make_cli()
-        with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
-        ):
+        with patch("newspaper_reconstructor.module.make_client", return_value=client):
             result = self.invoke(
                 app,
                 [
@@ -544,7 +526,7 @@ class TestModuleBackendConfig:
             backend="local",
         )
         with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
+            "newspaper_reconstructor.module.make_client", return_value=client
         ) as mock_make:
             module = ArticleReconstructionModule(config=config)
 
@@ -560,7 +542,7 @@ class TestModuleBackendConfig:
             prompt_file=self.make_prompt_file(tmp_path), model="test-model"
         )
         with patch(
-            "src.newspaper_reconstructor.module.make_client", return_value=client
+            "newspaper_reconstructor.module.make_client", return_value=client
         ) as mock_make:
             ArticleReconstructionModule(config=config)
 

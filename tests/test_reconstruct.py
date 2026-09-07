@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.newspaper_reconstructor.llm import LLMError, make_client
-from src.newspaper_reconstructor.reconstruct import (
+from newspaper_reconstructor.llm import LLMError, make_client
+from newspaper_reconstructor.reconstruct import (
     alto_to_json,
     reconstruct_articles,
 )
@@ -324,7 +324,7 @@ class TestReconstructArticles:
             {"id": "r_text1", "text": "Hello World"},
             {"id": "r_text2", "text": "Ad text"},
         ]
-        with patch("src.newspaper_reconstructor.reconstruct.time.sleep"):
+        with patch("newspaper_reconstructor.reconstruct.time.sleep"):
             result = reconstruct_articles(
                 fragments,
                 client,
@@ -341,7 +341,7 @@ class TestReconstructArticles:
         client = MagicMock()
         client.complete.side_effect = APIError(message="500", request=None, body=None)
         fragments = [{"id": "r_text1", "text": "Hello World"}]
-        with patch("src.newspaper_reconstructor.reconstruct.time.sleep"):
+        with patch("newspaper_reconstructor.reconstruct.time.sleep"):
             result = reconstruct_articles(
                 fragments,
                 client,
@@ -362,7 +362,7 @@ class TestReconstructArticles:
             {"id": "r_text1", "text": "Hello World"},
             {"id": "r_text2", "text": "Ad text"},
         ]
-        with patch("src.newspaper_reconstructor.reconstruct.time.sleep"):
+        with patch("newspaper_reconstructor.reconstruct.time.sleep"):
             result = reconstruct_articles(
                 fragments,
                 client,
@@ -376,7 +376,7 @@ class TestReconstructArticles:
 
 # ─── classify_fragments ───────────────────────────────────────────────────────
 
-from src.newspaper_reconstructor.reconstruct import classify_fragments
+from newspaper_reconstructor.reconstruct import classify_fragments
 
 
 class TestClassifyFragments:

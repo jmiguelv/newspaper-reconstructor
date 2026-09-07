@@ -20,9 +20,9 @@ from jawi_pipeline.types import (
     RegionWithOcr,
 )
 
-from src.newspaper_reconstructor.llm import CompletionClient, make_client
-from src.newspaper_reconstructor.prompts import load_prompt
-from src.newspaper_reconstructor.reconstruct import reconstruct_articles
+from newspaper_reconstructor.llm import CompletionClient, make_client
+from newspaper_reconstructor.prompts import load_prompt
+from newspaper_reconstructor.reconstruct import reconstruct_articles
 
 
 def input_to_fragments(data: ArticleReconstructionInput) -> list[dict]:
@@ -140,3 +140,8 @@ class ArticleReconstructionModule(
 
         with ThreadPoolExecutor(max_workers=self.config.max_workers) as executor:
             yield from executor.map(_run, data)
+
+
+def main():
+    cli = ArticleReconstructionModule.make_cli()
+    cli()

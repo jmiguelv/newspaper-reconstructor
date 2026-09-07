@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from src.newspaper_reconstructor.evaluate import (
+from newspaper_reconstructor.evaluate import (
     clustering_f1,
     evaluate_classification_page,
     evaluate_reconstruction_page,

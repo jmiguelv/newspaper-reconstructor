@@ -53,7 +53,7 @@ wheels = [
 [[package]]
 name = "article-reconstruction"
 version = "0.13.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "jawi-pipeline" },
     { name = "openai" },
@@ -75,7 +75,7 @@ local = [
 
 [package.metadata]
 requires-dist = [
-    { name = "jawi-pipeline", directory = "../pipeline" },
+    { name = "jawi-pipeline", directory = "../jawi-pipeline" },
     { name = "openai", specifier = ">=2.53.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "scikit-learn", specifier = ">=1.5.0" },
@@ -322,7 +322,7 @@ wheels = [
 [[package]]
 name = "jawi-pipeline"
 version = "0.3.7"
-source = { directory = "../pipeline" }
+source = { directory = "../jawi-pipeline" }
 dependencies = [
     { name = "lxml" },
     { name = "pillow" },
