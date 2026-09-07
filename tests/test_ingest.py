@@ -1,6 +1,6 @@
 import json
 
-from src.newspaper_reconstructor.ingest import load_article_json
+from newspaper_reconstructor.ingest import load_article_json
 
 
 class TestLoadArticleJson:
