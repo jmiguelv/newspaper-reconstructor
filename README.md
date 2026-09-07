@@ -1,6 +1,6 @@
 # Article Reconstruction from OCR Fragments using LLM Pipelines
 
-Reconstructs newspaper articles from OCR text fragments by prompting an LLM through a pipelined architecture (ETL/Parse → Classify → Cluster → Evaluate). Supports two input formats: pre-extracted JSON articles and legacy ALTO XML. Includes evaluation against ground truth article XML using pairwise clustering F1, B-Cubed F1, Adjusted Rand Index (ARI), class accuracy, and coverage metrics.
+Reconstructs newspaper articles from OCR text fragments by prompting an LLM through a pipelined architecture (ETL/Parse → Classify → Cluster → Evaluate). Supports two input formats: pre-extracted JSON articles and legacy ALTO XML. Includes evaluation against ground truth article XML using pairwise clustering F1, B-Cubed F1, Adjusted Rand Index (ARI), class accuracy, and coverage metrics, plus an inter-annotator agreement checker that compares two annotators' article XML on region membership.
 
 Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
 
@@ -23,10 +23,11 @@ flowchart LR
 
 ```
 newspaper-reconstructor/
-├── main.py                 # Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan)
+├── main.py                 # Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan, agree)
 ├── dashboard.html          # Standalone Alpine.js evaluation dashboard
 ├── generate_network.py     # Export eval logs to nodes/edges CSV for network visualizer
 ├── pipeline.sh             # Single end-to-end evaluation orchestrator
+├── agree.sh                # Inter-annotator agreement orchestrator
 ├── providers.json          # Named provider definitions (base_url, default_headers)
 ├── experiments/            # Batch grid-search evaluation scripts
 ├── scripts/                # Utility scripts (e.g. migrate_experiment_ids.py)
@@ -36,11 +37,13 @@ newspaper-reconstructor/
 │       ├── reconstruct.py  # Data parsing and LLM API mapping
 │       ├── llm.py          # LLM client wrapper (OpenAI-compatible)
 │       ├── evaluate.py     # Ground truth parsing, evaluation metrics
+│       ├── agreement.py    # Inter-annotator region agreement (loader, matcher, metrics, reports)
 │       └── suggest.py      # LLM judge for offline analysis
 ├── tests/                  # Unit tests + end-to-end tests
 ├── prompts/                # Prompt files (e.g. classify.md, v00.md)
 ├── reports/
 │   ├── evaluations/        # Evaluation logs (JSON)
+│   ├── agreement/          # Inter-annotator agreement reports (JSON + Markdown)
 │   ├── networks/           # Exported nodes/edges CSV
 │   └── suggestions/        # Output from the LLM judge
 └── data/
@@ -236,7 +239,29 @@ uv run python main.py suggest \
 | `--model-kwargs` | JSON string of extra model arguments |
 | `--backend` / `LLM_BACKEND` | LLM backend: `api` (default) or `local` (in-process transformers) |
 
-### 6. jawi-pipeline integration
+### 6. Annotation Agreement (inter-annotator)
+
+Compares two annotators' article XML directories purely on region membership — which regions belong to the same article. Topics, classes, and notes are out of scope. Articles are matched one-to-one by Jaccard similarity of their region-ref sets (`--match-threshold 1.0` = identical region sets); clustering metrics (pairwise F1, B³ F1) are computed on the full page partitions, and every disagreement (partial overlap, one-sided articles, empty-region articles) is listed in the report.
+
+```bash
+uv run python main.py agree \
+  --annotator-a data/0_external/ds_article_20260902/article_xml_frial \
+  --annotator-b data/0_external/ds_article_20260902/article_xml_syafiq \
+  --name-a frial --name-b syafiq
+```
+
+Writes a JSON log and a Markdown report to `--output` (default `reports/agreement/`) and prints a console summary. Pages meeting the agreement threshold (B³ F1 ≥ `--agreement-threshold`, default 1.0; article order and uuids never matter) are listed in a dedicated report section; `--copy-agreed PATH` copies both annotators' XML files for those pages into `PATH/<annotator name>/` (originals stay in place, e.g. for adjudication workflows). Exits 1 on mismatched file sets, duplicate region refs within a page, or unparseable XML.
+
+| Option | Description |
+|---|---|
+| `--annotator-a` / `--annotator-b` | Annotator article XML directories (required) |
+| `--name-a` / `--name-b` | Labels for the report (default: directory basenames) |
+| `--match-threshold` | Jaccard cutoff for matching; `1.0` = identical region sets (default) |
+| `--agreement-threshold` | B³ F1 cutoff for a page to count as agreed (default: 1.0) |
+| `--copy-agreed` | Copy agreed pages' XML files into `PATH/<annotator name>/` (originals stay in place) |
+| `--output` | Report directory (default: `reports/agreement`) |
+
+### 7. jawi-pipeline integration
 
 This repo also ships as a plug-in module for the [jawi-pipeline](../pipeline) framework, implementing `Module[ArticleReconstructionInput, ArticleReconstructionOutput]`: page OCR output (`OcrOutput`: page + regions with per-line OCR) in, article grouping (`{articles: dict[ArticleId, list[RegionId]]}`) out.
 
@@ -297,6 +322,18 @@ Text regions are converted to fragments (joined line OCR text + bbox geometry); 
 | `--frequency-penalty` | Reduce repetition |
 | `--timeout` | API timeout in seconds (default: 300) |
 | `--save-prompts` | Save individual prompts sent to the LLM |
+
+## agree.sh
+
+`agree.sh` wraps the `agree` command with the same flag names, pre-validating the input directories:
+
+```bash
+./agree.sh \
+  --annotator-a data/0_external/ds_article_20260902/article_xml_frial \
+  --annotator-b data/0_external/ds_article_20260902/article_xml_syafiq \
+  --name-a frial --name-b syafiq \
+  --output reports/agreement
+```
 
 ## Prompt Files
 
