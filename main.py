@@ -14,6 +14,14 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from src.newspaper_reconstructor.agreement import (
+    AgreementError,
+    calculate_agreement,
+    copy_agreed_pages,
+    format_summary,
+    load_annotations,
+    write_agreement_reports,
+)
 from src.newspaper_reconstructor.evaluate import (
     evaluate_classification_page,
     evaluate_reconstruction_page,
@@ -696,6 +704,96 @@ def plan(
     typer.echo(
         "To estimate precise VRAM requirements for a 16K output budget, visit: https://vramcalculator.com/"
     )
+
+
+@app.command()
+def agree(
+    annotator_a: str = typer.Option(
+        ..., "--annotator-a", help="First annotator's article XML directory"
+    ),
+    annotator_b: str = typer.Option(
+        ..., "--annotator-b", help="Second annotator's article XML directory"
+    ),
+    name_a: str = typer.Option(
+        None, "--name-a", help="Label for the first annotator (default: dir basename)"
+    ),
+    name_b: str = typer.Option(
+        None, "--name-b", help="Label for the second annotator (default: dir basename)"
+    ),
+    match_threshold: float = typer.Option(
+        1.0,
+        "--match-threshold",
+        help="Jaccard cutoff for matching articles; 1.0 = identical region sets",
+    ),
+    output: str = typer.Option(
+        "reports/agreement", help="Directory for agreement reports"
+    ),
+    agreement_threshold: float = typer.Option(
+        1.0,
+        "--agreement-threshold",
+        help="B-cubed F1 cutoff for a page to count as agreed",
+    ),
+    copy_agreed: str = typer.Option(
+        None,
+        "--copy-agreed",
+        help=(
+            "Copy both annotators' XML files for pages meeting the agreement "
+            "threshold into PATH/<annotator name>/ (originals stay in place)"
+        ),
+    ),
+):
+    """Compare two annotators' article XML on region agreement."""
+    for label, path in (("--annotator-a", annotator_a), ("--annotator-b", annotator_b)):
+        if not os.path.isdir(path):
+            typer.echo(f"Error: {label} directory {path} does not exist.", err=True)
+            raise typer.Exit(1)
+
+    for flag, value in (
+        ("--match-threshold", match_threshold),
+        ("--agreement-threshold", agreement_threshold),
+    ):
+        if not 0 < value <= 1:
+            typer.echo(f"Error: {flag} must be in (0, 1]", err=True)
+            raise typer.Exit(1)
+
+    if name_a is None:
+        name_a = os.path.basename(os.path.normpath(annotator_a))
+    if name_b is None:
+        name_b = os.path.basename(os.path.normpath(annotator_b))
+
+    try:
+        ann_a = load_annotations(annotator_a)
+        ann_b = load_annotations(annotator_b)
+        for ann, path in ((ann_a, annotator_a), (ann_b, annotator_b)):
+            if not ann:
+                typer.echo(f"Error: no .xml files in {path}", err=True)
+                raise typer.Exit(1)
+        result = calculate_agreement(
+            ann_a,
+            ann_b,
+            name_a=name_a,
+            name_b=name_b,
+            threshold=match_threshold,
+            agreement_threshold=agreement_threshold,
+        )
+    except AgreementError as e:
+        typer.echo(f"Error: {e}", err=True)
+        raise typer.Exit(1)
+
+    json_path, md_path = write_agreement_reports(result, output)
+
+    if copy_agreed is not None:
+        copied = copy_agreed_pages(result, annotator_a, annotator_b, copy_agreed)
+        if copied:
+            n = len(result["aggregate"]["agreed_pages"])
+            plural = "" if n == 1 else "s"
+            typer.echo(f"Copied {n} agreed page{plural} to {copy_agreed}/")
+        else:
+            typer.echo("No pages met the agreement threshold; nothing to copy.")
+
+    typer.echo(format_summary(result))
+    typer.echo("")
+    typer.echo(f"Reports saved to:\n  {json_path}\n  {md_path}")
 
 
 if __name__ == "__main__":
