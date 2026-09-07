@@ -39,3 +39,5 @@ reports/networks/*
 !reports/networks/.gitkeep
 reports/suggestions/*
 !reports/suggestions/.gitkeep
+reports/agreement/*
+!reports/agreement/.gitkeep
