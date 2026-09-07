@@ -4,6 +4,7 @@ Env vars: LLM_API_KEY, LLM_BASE_URL, LLM_MODEL, LLM_PROVIDER, LLM_BACKEND.
 API key defaults to "none" (local servers ignore it).
 """
 
+import inspect
 import json
 import os
 import threading
@@ -59,10 +60,13 @@ def _load_local_model(model_name: str, device: str):
     model.eval()
     if device == "cuda":
         model.compile()
-    processor = AutoProcessor.from_pretrained(
-        model_name, use_fast=True, trust_remote_code=True
-    )
+    processor = AutoProcessor.from_pretrained(model_name, trust_remote_code=True)
     return model, processor
+
+
+def _filter_model_inputs(model, inputs: dict) -> dict:
+    accepted = set(inspect.signature(model.forward).parameters)
+    return {k: v for k, v in inputs.items() if k in accepted}
 
 
 def _generate_local(model, inputs, gen_kwargs):
@@ -108,6 +112,7 @@ class LocalLLMClient:
                 return_dict=True,
                 return_tensors="pt",
             ).to(self.device)
+            inputs = _filter_model_inputs(self.model, inputs)
             input_len = inputs["input_ids"].shape[-1]
             try:
                 generation = _generate_local(self.model, inputs, self.gen_kwargs)

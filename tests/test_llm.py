@@ -71,7 +71,7 @@ class FakeProcessor:
 
 
 class FakeModel:
-    pass
+    def forward(self, input_ids=None, attention_mask=None, **kwargs): ...
 
 
 @pytest.fixture(autouse=True)
@@ -200,6 +200,24 @@ class TestLocalLLMClient:
         assert tokens == ["token"]
         assert decode_kwargs == {"skip_special_tokens": True}
         assert output == '[{"fragment_ids": ["r1"]}]'
+
+    def test_inputs_rejected_by_model_forward_are_dropped(self, local_stack):
+        client = make_client(backend="local", model="m")
+        local_stack["model"].forward = lambda input_ids, attention_mask=None: None
+        local_stack["processor"].inputs["mm_token_type_ids"] = object()
+        client.complete("s", "u")
+        _, inputs, _ = local_stack["generated"]
+        assert "mm_token_type_ids" not in inputs
+        assert "input_ids" in inputs
+
+    def test_inputs_accepted_by_model_forward_are_kept(self, local_stack):
+        client = make_client(backend="local", model="m")
+        local_stack["model"].forward = lambda input_ids, attention_mask=None: None
+        local_stack["processor"].inputs["attention_mask"] = object()
+        client.complete("s", "u")
+        _, inputs, _ = local_stack["generated"]
+        assert "attention_mask" in inputs
+        assert "input_ids" in inputs
 
     def test_generate_failure_wrapped_in_llm_error(self, local_stack, monkeypatch):
         def failing_generate(model, inputs, gen_kwargs):
