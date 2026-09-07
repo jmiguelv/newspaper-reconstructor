@@ -1,8 +1,8 @@
 """Unit tests for main.py helpers."""
 
 from main import StageContext, _run_batch
-from src.newspaper_reconstructor.llm import LLMError
-from src.newspaper_reconstructor.prompts import parse_md_prompt as _parse_md_prompt
+from newspaper_reconstructor.llm import LLMError
+from newspaper_reconstructor.prompts import parse_md_prompt as _parse_md_prompt
 
 
 class TestParseMdPrompt:

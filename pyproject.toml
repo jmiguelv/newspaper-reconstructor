@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "article-reconstruction"
 version = "0.13.0"
@@ -13,7 +17,10 @@ dependencies = [
 ]
 
 [project.scripts]
-pl-article-reconstruction = "newspaper_reconstructor.pipeline_main:main"
+pl-article-reconstruction = "newspaper_reconstructor.module:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/newspaper_reconstructor"]
 
 [dependency-groups]
 dev = [
@@ -28,7 +35,7 @@ local = [
 ]
 
 [tool.pytest.ini_options]
-pythonpath = ["."]
+pythonpath = ["src"]
 
 [tool.commitizen]
 name = "cz_conventional_commits"
@@ -42,4 +49,4 @@ pre_bump_hooks = ["uv lock", "git add uv.lock"]
 
 [tool.uv.sources]
 # Local sibling checkout for dev; switch to a git/source pin once the framework is released.
-jawi-pipeline = { path = "../pipeline" }
+jawi-pipeline = { path = "../jawi-pipeline" }

@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.newspaper_reconstructor.llm import LLMError, make_client
-from src.newspaper_reconstructor.reconstruct import (
+from newspaper_reconstructor.llm import LLMError, make_client
+from newspaper_reconstructor.reconstruct import (
     alto_to_json,
     reconstruct_articles,
 )
@@ -376,7 +376,7 @@ class TestReconstructArticles:
 
 # ─── classify_fragments ───────────────────────────────────────────────────────
 
-from src.newspaper_reconstructor.reconstruct import classify_fragments
+from newspaper_reconstructor.reconstruct import classify_fragments
 
 
 class TestClassifyFragments:

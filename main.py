@@ -14,22 +14,22 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.newspaper_reconstructor.evaluate import (
+from newspaper_reconstructor.evaluate import (
     evaluate_classification_page,
     evaluate_reconstruction_page,
     load_ground_truth_dir,
     log_evaluation_experiment,
 )
-from src.newspaper_reconstructor.ingest import load_article_json
-from src.newspaper_reconstructor.llm import CompletionClient, make_client
-from src.newspaper_reconstructor.prompts import load_prompt
-from src.newspaper_reconstructor.reconstruct import (
+from newspaper_reconstructor.ingest import load_article_json
+from newspaper_reconstructor.llm import CompletionClient, make_client
+from newspaper_reconstructor.prompts import load_prompt
+from newspaper_reconstructor.reconstruct import (
     LLM_AND_IO_ERRORS,
     alto_to_json,
     classify_fragments,
     reconstruct_articles,
 )
-from src.newspaper_reconstructor.suggest import generate_suggestions
+from newspaper_reconstructor.suggest import generate_suggestions
 
 app = typer.Typer(
     help="Reconstruct articles from newspaper text fragments using LLM pipelines.",

@@ -1,6 +1,6 @@
 import json
 
-from src.newspaper_reconstructor.suggest import (
+from newspaper_reconstructor.suggest import (
     _derive_fragments_dir,
     build_judge_prompt,
     generate_suggestions,
