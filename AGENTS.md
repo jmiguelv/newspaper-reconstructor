@@ -17,7 +17,7 @@ uv run ruff format .    # format
 ## Architecture
 
 ```
-Article JSON → main.py etl (convert {id: text} JSON to fragment lists)
+Article JSON → main.py etl (convert {id: text} or module-format OCR JSON to fragment lists)
 ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
              → main.py classify (enrich JSON with predicted classes via LLM)
              → main.py cluster (reconstruct JSON fragments into articles via LLM)
@@ -87,7 +87,7 @@ reports/
 └── suggestions/          # Output from the LLM judge
 ```
 
-- pipeline.sh auto-detects dataset format: `articles/` → new JSON format, `alto/` → legacy ALTO XML
+- pipeline.sh auto-detects dataset format: `articles/` → new JSON format, `alto/` → legacy ALTO XML, top-level module-format OcrOutput JSON → converted via etl (format auto-detected per file)
 - Fragment IDs in ground truth XML `<Region ref="...">` must match keys in article JSON (or `TextBlock ID` in ALTO XML)
 - `data/0_external/` datasets may be git submodules
 
