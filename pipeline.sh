@@ -17,6 +17,8 @@ TAG=""
 MAX_WORKERS=""
 MAX_TOKENS=""
 FREQUENCY_PENALTY=""
+SLIM=0
+MODULE_FORMAT=0
 
 TIMEOUT="300"
 
@@ -36,6 +38,8 @@ while [[ "$#" -gt 0 ]]; do
         --max-workers) MAX_WORKERS="$2"; shift ;;
         --max-tokens) MAX_TOKENS="$2"; shift ;;
         --frequency-penalty) FREQUENCY_PENALTY="$2"; shift ;;
+        --slim) SLIM=1 ;;
+        --module-format) MODULE_FORMAT=1 ;;
         --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
         --skip-classification) SKIP_CLASSIFICATION=1 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
@@ -64,14 +68,30 @@ EVAL_DIR="reports/evaluations/${DATASET}"
 # Auto-detect dataset format
 if [ -d "data/0_external/${DATASET}/articles" ]; then
     INPUT_DIR="data/0_external/${DATASET}/articles"
-    GROUND_TRUTH_DIR="data/0_external/${DATASET}/regions"
     INPUT_FORMAT="json"
 elif [ -d "data/0_external/${DATASET}/alto" ]; then
     INPUT_DIR="data/0_external/${DATASET}/alto"
-    GROUND_TRUTH_DIR="data/0_external/${DATASET}/article_xml"
     INPUT_FORMAT="alto"
+elif [ -n "$(find "data/0_external/${DATASET}" -maxdepth 1 -name '*.json' ! -name '_*' 2>/dev/null)" ]; then
+    INPUT_DIR="data/0_external/${DATASET}"
+    INPUT_FORMAT="json"
 else
-    echo "Error: Could not detect dataset format for ${DATASET}. Expected 'articles/' or 'alto/' directory."
+    echo "Error: Could not detect dataset format for ${DATASET}. Expected 'articles/', 'alto/', or top-level JSON files."
+    exit 1
+fi
+
+# Auto-detect ground truth (evaluation is skipped if absent)
+GROUND_TRUTH_DIR=""
+if [ -d "data/0_external/${DATASET}/regions" ]; then
+    GROUND_TRUTH_DIR="data/0_external/${DATASET}/regions"
+elif [ -d "data/0_external/${DATASET}/article_xml" ]; then
+    GROUND_TRUTH_DIR="data/0_external/${DATASET}/article_xml"
+else
+    echo "Warning: no ground truth found (regions/ or article_xml/) for ${DATASET}. Evaluation will be skipped."
+fi
+
+if [ "$SLIM" -eq 1 ] && [ "$INPUT_FORMAT" = "alto" ]; then
+    echo "Error: --slim is not supported for ALTO datasets."
     exit 1
 fi
 
@@ -158,6 +178,10 @@ fi
 
 run_evaluate() {
     local input_dir="$1" experiment_id="$2" task="$3"
+    if [ -z "$GROUND_TRUTH_DIR" ]; then
+        echo "Skipping ${task} evaluation (no ground truth)."
+        return 0
+    fi
     local args=(
         -i "$input_dir"
         -g "$GROUND_TRUTH_DIR"
@@ -175,7 +199,11 @@ run_evaluate() {
 if [ ! -d "$FRAGMENTS_DIR" ]; then
     if [ "$INPUT_FORMAT" = "json" ]; then
         echo "Converting article JSON to fragments..."
-        uv run python main.py etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
+        if [ "$SLIM" -eq 1 ]; then
+            uv run python main.py etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR" --slim
+        else
+            uv run python main.py etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
+        fi
     else
         echo "Parsing ALTO XML..."
         uv run python main.py parse -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
@@ -204,12 +232,17 @@ fi
 
 # Step 3: Cluster
 echo "Clustering..."
-uv run python main.py cluster \
-    -i "$cluster_input_dir" \
-    -o "$reconstructions_dir" \
-    -p "$CLUSTER_PROMPT_FILE" \
-    --model "$MODEL" \
+CLUSTER_ARGS=(
+    -i "$cluster_input_dir"
+    -o "$reconstructions_dir"
+    -p "$CLUSTER_PROMPT_FILE"
+    --model "$MODEL"
     "${COMMON_ARGS[@]}"
+)
+if [ "$MODULE_FORMAT" -eq 1 ]; then
+    CLUSTER_ARGS+=(--module-format)
+fi
+uv run python main.py cluster "${CLUSTER_ARGS[@]}"
 
 # Step 4: Evaluate
 echo "Evaluating..."
