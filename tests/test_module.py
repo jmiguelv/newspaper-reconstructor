@@ -22,6 +22,8 @@ from newspaper_reconstructor.module import (
     ArticleReconstructionConfig,
     ArticleReconstructionModule,
     input_to_fragments,
+    items_to_module_output,
+    output_to_items,
 )
 
 
@@ -163,6 +165,87 @@ class TestInputToFragments:
         assert input_to_fragments(make_input(regions)) == []
 
 
+class TestItemsToModuleOutput:
+    def test_wraps_items_in_articles(self):
+        items = [
+            {
+                "fragment_ids": ["r_1", "r_2"],
+                "title": "Tajuk",
+                "title_en": "Title",
+                "class": "article",
+            },
+            {"fragment_ids": ["r_3"], "title": "Iklan", "class": "advertisement"},
+        ]
+        out = items_to_module_output(items)
+        assert set(out.keys()) == {"articles"}
+        assert set(out["articles"].keys()) == {"article_1", "article_2"}
+        a1 = out["articles"]["article_1"]
+        assert a1["region_ids"] == ["r_1", "r_2"]
+        assert a1["title"] == "Tajuk"
+        assert a1["title_en"] == "Title"
+        assert a1["item_class"] == "article"
+
+    def test_missing_optional_fields_become_none(self):
+        out = items_to_module_output([{"fragment_ids": ["r_1"]}])["articles"][
+            "article_1"
+        ]
+        assert out["title"] is None
+        assert out["title_en"] is None
+        assert out["item_class"] is None
+
+    def test_custom_prefix(self):
+        out = items_to_module_output(
+            [{"fragment_ids": ["r_1"]}], article_id_prefix="item_"
+        )
+        assert set(out["articles"].keys()) == {"item_1"}
+
+    def test_empty_items(self):
+        assert items_to_module_output([]) == {"articles": {}}
+
+    def test_roundtrip_with_output_to_items(self):
+        items = [
+            {
+                "fragment_ids": ["r_1", "r_2"],
+                "title": "Tajuk",
+                "title_en": "Title",
+                "class": "article",
+            }
+        ]
+        assert output_to_items(items_to_module_output(items)) == items
+
+
+class TestOutputToItems:
+    def test_maps_module_output_to_cluster_items(self):
+        output = {
+            "articles": {
+                "article_1": {
+                    "region_ids": ["r_1", "r_2"],
+                    "title": "Laporan",
+                    "title_en": "Report",
+                    "item_class": "article",
+                },
+                "article_2": {
+                    "region_ids": ["r_3"],
+                    "title": None,
+                    "title_en": None,
+                    "item_class": "advertisement",
+                },
+            }
+        }
+        assert output_to_items(output) == [
+            {
+                "fragment_ids": ["r_1", "r_2"],
+                "title": "Laporan",
+                "class": "article",
+                "title_en": "Report",
+            },
+            {"fragment_ids": ["r_3"], "title": None, "class": "advertisement"},
+        ]
+
+    def test_empty_articles_yield_empty_list(self):
+        assert output_to_items({"articles": {}}) == []
+
+
 class TestProcess:
     @staticmethod
     def make_prompt_file(tmp_path):
@@ -293,6 +376,7 @@ class TestModuleContract:
         assert config.prompt_file == "prompts/v01.01.02.md"
         assert config.max_retries == 3
         assert config.max_workers == 1
+        assert config.model_kwargs is None
         assert config.article_id_prefix == "article_"
 
     def test_input_rows_placeholder_empty(self, tmp_path):
@@ -535,6 +619,21 @@ class TestModuleBackendConfig:
 
         out = module.process(make_input([make_text_region("r_1", ["a"])]))
         assert out.articles["article_1"].region_ids == ["r_1"]
+
+    def test_model_kwargs_forwarded_to_make_client(self, tmp_path):
+        client = MagicMock()
+        config = ArticleReconstructionConfig(
+            prompt_file=self.make_prompt_file(tmp_path),
+            model="test-model",
+            model_kwargs={"max_tokens": 16384},
+        )
+        with patch(
+            "newspaper_reconstructor.module.make_client", return_value=client
+        ) as mock_make:
+            ArticleReconstructionModule(config=config)
+
+        mock_make.assert_called_once()
+        assert mock_make.call_args.kwargs["model_kwargs"] == {"max_tokens": 16384}
 
     def test_default_backend_is_none(self, tmp_path):
         client = MagicMock()

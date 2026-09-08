@@ -55,6 +55,44 @@ def _region_to_fragment(region: RegionWithOcr) -> dict | None:
     }
 
 
+def output_to_items(output: dict) -> list[dict]:
+    """Convert a module output dict into the cluster item list format."""
+    items = []
+    for article in output.get("articles", {}).values():
+        item = {
+            "fragment_ids": article.get("region_ids", []),
+            "title": article.get("title"),
+            "class": article.get("item_class"),
+        }
+        if article.get("title_en") is not None:
+            item["title_en"] = article["title_en"]
+        items.append(item)
+    return items
+
+
+def items_to_articles(
+    items: list[dict], article_id_prefix: str = "article_"
+) -> ArticleReconstructionOutput:
+    """Convert a cluster item list into an ArticleReconstructionOutput."""
+    articles = {
+        f"{article_id_prefix}{i}": Article(
+            region_ids=item["fragment_ids"],
+            title=item.get("title"),
+            title_en=item.get("title_en"),
+            item_class=item.get("class"),
+        )
+        for i, item in enumerate(items, start=1)
+    }
+    return ArticleReconstructionOutput(articles=articles)
+
+
+def items_to_module_output(
+    items: list[dict], article_id_prefix: str = "article_"
+) -> dict:
+    """Convert a cluster item list into an ArticleReconstructionOutput dict."""
+    return items_to_articles(items, article_id_prefix).model_dump()
+
+
 class ArticleReconstructionConfig(Config):
     """Configuration for the article reconstruction module.
 
@@ -71,6 +109,7 @@ class ArticleReconstructionConfig(Config):
     prompt_file: str = "prompts/v01.01.02.md"
     max_retries: int = 3
     max_workers: int = 1
+    model_kwargs: dict | None = None
     article_id_prefix: str = "article_"
 
 
@@ -90,6 +129,7 @@ class ArticleReconstructionModule(
             timeout=self.config.timeout,
             provider=self.config.provider,
             backend=self.config.backend,
+            model_kwargs=self.config.model_kwargs,
         )
         self.system_prompt, self.user_prompt = load_prompt(self.config.prompt_file)
 
@@ -106,16 +146,7 @@ class ArticleReconstructionModule(
         )
         if items is None:
             raise RuntimeError(f"LLM reconstruction failed for page {data.page.id}")
-        articles = {
-            f"{self.config.article_id_prefix}{i}": Article(
-                region_ids=item["fragment_ids"],
-                title=item.get("title"),
-                title_en=item.get("title_en"),
-                item_class=item.get("class"),
-            )
-            for i, item in enumerate(items, start=1)
-        }
-        return ArticleReconstructionOutput(articles=articles)
+        return items_to_articles(items, self.config.article_id_prefix)
 
     def _input_rows(self) -> Iterable[InputRow]:
         return []
