@@ -74,7 +74,6 @@ for model in "${MODELS[@]}"; do
 
     inputs_dir="data/1_interim/${DATASET}/pipeline_module/${safe_experiment_id}/inputs"
     outputs_dir="data/1_interim/${DATASET}/pipeline_module/${safe_experiment_id}/outputs"
-    reconstructions_dir="data/1_interim/${DATASET}/reconstructions/${safe_experiment_id}"
 
     if [ -n "$(find "$inputs_dir" -maxdepth 1 -name '*.json' 2>/dev/null)" ]; then
         echo "Module inputs for ${safe_experiment_id} already exist. Skipping conversion."
@@ -203,54 +202,19 @@ PY
     fi
 
     echo "Running pipeline module (bulk-process, local backend, ${model})..."
+    FORCE_FLAG=""
     if [ "$FORCE" -eq 1 ]; then
-        uv run --group local python pipeline_main.py bulk-process \
-            --input "$inputs_dir" \
-            --output "$outputs_dir" \
-            --config "{\"model\": \"${model}\", \"backend\": \"local\", \"prompt_file\": \"${cluster_prompt}\", \"max_workers\": 1}" \
-            --force
-    else
-        uv run --group local python pipeline_main.py bulk-process \
-            --input "$inputs_dir" \
-            --output "$outputs_dir" \
-            --config "{\"model\": \"${model}\", \"backend\": \"local\", \"prompt_file\": \"${cluster_prompt}\", \"max_workers\": 1}"
+        FORCE_FLAG="--force"
     fi
-
-    echo "Converting module outputs to cluster format for evaluation..."
-    OUTPUTS_DIR="$outputs_dir" RECONSTRUCTIONS_DIR="$reconstructions_dir" \
-    uv run python - <<'PY'
-import json
-import os
-
-outputs_dir = os.environ["OUTPUTS_DIR"]
-reconstructions_dir = os.environ["RECONSTRUCTIONS_DIR"]
-os.makedirs(reconstructions_dir, exist_ok=True)
-
-count = 0
-for fname in sorted(os.listdir(outputs_dir)):
-    if not fname.endswith(".json") or fname.startswith("."):
-        continue
-    with open(os.path.join(outputs_dir, fname), encoding="utf-8") as f:
-        out = json.load(f)
-    items = []
-    for article in out.get("articles", {}).values():
-        item = {
-            "fragment_ids": article.get("region_ids", []),
-            "title": article.get("title"),
-            "class": article.get("item_class"),
-        }
-        if article.get("title_en") is not None:
-            item["title_en"] = article["title_en"]
-        items.append(item)
-    with open(os.path.join(reconstructions_dir, fname), "w", encoding="utf-8") as f:
-        json.dump(items, f, ensure_ascii=False, indent=2)
-    count += 1
-
-print(f"Converted {count} module outputs to {reconstructions_dir}")
-PY
+    # shellcheck disable=SC2086 # FORCE_FLAG is empty or a single flag
+    uv run --group local python pipeline_main.py bulk-process \
+        --input "$inputs_dir" \
+        --output "$outputs_dir" \
+        --config "{\"model\": \"${model}\", \"backend\": \"local\", \"prompt_file\": \"${cluster_prompt}\", \"max_workers\": 1}" \
+        $FORCE_FLAG
 
     uv run python main.py evaluate \
-        -i "$reconstructions_dir" \
+        -i "$outputs_dir" \
         -g "$GROUND_TRUTH_DIR" \
         --eval-dir "$EVAL_DIR" \
         --experiment-id "$safe_experiment_id" \
