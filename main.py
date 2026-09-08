@@ -28,8 +28,9 @@ from newspaper_reconstructor.evaluate import (
     load_ground_truth_dir,
     log_evaluation_experiment,
 )
-from newspaper_reconstructor.ingest import load_article_json
+from newspaper_reconstructor.ingest import load_fragments_file
 from newspaper_reconstructor.llm import CompletionClient, make_client
+from newspaper_reconstructor.module import items_to_module_output, output_to_items
 from newspaper_reconstructor.prompts import load_prompt
 from newspaper_reconstructor.reconstruct import (
     LLM_AND_IO_ERRORS,
@@ -74,6 +75,7 @@ class StageContext:
     input_folder: str
     output_folder: str
     save_prompts: bool
+    module_format: bool = False
 
 
 def _run_batch(
@@ -182,6 +184,7 @@ def _run_llm_stage(
     frequency_penalty: float | None,
     process_fn: "Callable[[str, threading.Lock, StageContext], bool]",
     action_past: str,
+    module_format: bool = False,
 ) -> None:
     """Shared runner for classify/cluster: client, batching, and metadata."""
     os.makedirs(output_folder, exist_ok=True)
@@ -213,6 +216,7 @@ def _run_llm_stage(
         input_folder=input_folder,
         output_folder=output_folder,
         save_prompts=save_prompts,
+        module_format=module_format,
     )
 
     start_time = time.time()
@@ -303,6 +307,8 @@ def _cluster_process(fname: str, lock: threading.Lock, ctx: StageContext) -> boo
     )
 
     if articles is not None:
+        if ctx.module_format:
+            articles = items_to_module_output(articles)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(articles, f, indent=2, ensure_ascii=False)
         return True
@@ -345,15 +351,18 @@ def etl(
         ..., "--output-folder", "-o", help="Directory to save fragment lists"
     ),
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
+    slim: bool = typer.Option(
+        False, "--slim", help="Keep only 'id' and 'text' per fragment"
+    ),
 ):
-    """Convert article JSON files ({id: text}) into fragment lists."""
+    """Convert article JSON or module-format OCR JSON into fragment lists."""
     os.makedirs(output_folder, exist_ok=True)
     count = 0
     for fname in _iter_input_files(input_folder, page_id, ".json"):
         in_path = os.path.join(input_folder, fname)
         out_path = os.path.join(output_folder, fname)
 
-        fragments = load_article_json(in_path)
+        fragments = load_fragments_file(in_path, slim=slim)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(fragments, f, indent=2, ensure_ascii=False)
         count += 1
@@ -481,6 +490,11 @@ def cluster(
     backend: str | None = typer.Option(
         None, envvar="LLM_BACKEND", help="LLM backend ('api' or 'local')"
     ),
+    module_format: bool = typer.Option(
+        False,
+        "--module-format",
+        help="Write outputs as ArticleReconstructionOutput JSON ({articles: ...})",
+    ),
 ):
     """Cluster fragments into articles using an LLM."""
     _run_llm_stage(
@@ -504,6 +518,7 @@ def cluster(
         frequency_penalty=frequency_penalty,
         process_fn=_cluster_process,
         action_past="Clustered",
+        module_format=module_format,
     )
 
 
@@ -557,6 +572,13 @@ def evaluate(
 
         with open(os.path.join(input_folder, fname), encoding="utf-8") as f:
             predicted_items = json.load(f)
+
+        if (
+            task == "reconstruction"
+            and isinstance(predicted_items, dict)
+            and "articles" in predicted_items
+        ):
+            predicted_items = output_to_items(predicted_items)
 
         if task == "classification":
             page_metrics = evaluate_classification_page(

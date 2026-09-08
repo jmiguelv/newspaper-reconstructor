@@ -158,6 +158,52 @@ class TestE2EEtl:
         assert len(data) == 3
         assert all("id" in f and "text" in f for f in data)
 
+    def test_etl_module_format_directory(self, tmp_path):
+        from conftest import make_ocr_output_dict
+
+        d = tmp_path / "ocr"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps(make_ocr_output_dict()), encoding="utf-8"
+        )
+        out_dir = tmp_path / "fragments"
+
+        result = runner.invoke(
+            app,
+            ["etl", "-i", str(d), "-o", str(out_dir)],
+        )
+        assert result.exit_code == 0
+
+        files = sorted(out_dir.glob("*.json"))
+        assert len(files) == 1
+        data = json.loads(files[0].read_text())
+        assert len(data) == 1
+        fragment = data[0]
+        assert fragment["id"] == "r_1"
+        assert fragment["text"] == "Hello world"
+        assert fragment["type"] == "text"
+        assert {"hpos", "vpos", "width", "height"} <= set(fragment)
+
+    def test_etl_slim(self, tmp_path):
+        from conftest import make_ocr_output_dict
+
+        d = tmp_path / "ocr"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps(make_ocr_output_dict()), encoding="utf-8"
+        )
+        out_dir = tmp_path / "fragments"
+
+        result = runner.invoke(
+            app,
+            ["etl", "-i", str(d), "-o", str(out_dir), "--slim"],
+        )
+        assert result.exit_code == 0
+
+        data = json.loads((out_dir / "page1.json").read_text())
+        assert len(data) == 1
+        assert set(data[0].keys()) == {"id", "text"}
+
     def test_etl_page_filter(self, tmp_path):
         d = tmp_path / "articles"
         d.mkdir()
@@ -212,6 +258,47 @@ class TestE2EEtl:
 
 
 class TestE2ECluster:
+    def test_cluster_module_format(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps(
+                [
+                    {"id": "r_1", "text": "Hello"},
+                    {"id": "r_2", "text": "World"},
+                    {"id": "r_3", "text": "Ad"},
+                ]
+            ),
+            encoding="utf-8",
+        )
+        out_dir = tmp_path / "reconstructions"
+        prompt_file = _make_prompt_file(tmp_path)
+
+        with patch("main.make_client", return_value=_mock_client()):
+            result = runner.invoke(
+                app,
+                [
+                    "cluster",
+                    "-i",
+                    str(d),
+                    "-o",
+                    str(out_dir),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                    "--module-format",
+                ],
+            )
+        assert result.exit_code == 0
+
+        data = json.loads((out_dir / "page1.json").read_text())
+        assert isinstance(data, dict)
+        assert set(data.keys()) == {"articles"}
+        assert set(data["articles"].keys()) == {"article_1", "article_2"}
+        assert data["articles"]["article_1"]["region_ids"] == ["r_1", "r_2"]
+        assert data["articles"]["article_1"]["item_class"] == "article"
+
     def test_cluster_dir(self, tmp_path):
         d = tmp_path / "fragments"
         d.mkdir()
@@ -418,6 +505,58 @@ class TestE2EEvaluate:
             log = json.load(f)
             assert log["pages"][0]["page_id"] == "test_page"
             assert log["aggregate"]["mean_clustering_f1"] == 1.0
+
+    def test_evaluate_accepts_module_output_format(self, tmp_path):
+        outputs_dir = tmp_path / "module_outputs"
+        outputs_dir.mkdir()
+        article_dir = tmp_path / "article_xml"
+        article_dir.mkdir()
+
+        module_output = {
+            "articles": {
+                "article_1": {
+                    "region_ids": ["r_1", "r_2"],
+                    "title": "News article",
+                    "title_en": None,
+                    "item_class": "article",
+                },
+                "article_2": {
+                    "region_ids": ["r_3"],
+                    "title": "Ad",
+                    "title_en": None,
+                    "item_class": "advertisement",
+                },
+            }
+        }
+        (outputs_dir / "test_page.json").write_text(
+            json.dumps(module_output), encoding="utf-8"
+        )
+        (article_dir / "test_page.xml").write_text(ARTICLE_XML, encoding="utf-8")
+
+        eval_dir = str(tmp_path / "evaluations")
+
+        result = runner.invoke(
+            app,
+            [
+                "evaluate",
+                "-i",
+                str(outputs_dir),
+                "-g",
+                str(article_dir),
+                "--eval-dir",
+                eval_dir,
+                "--task",
+                "reconstruction",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+
+        eval_files = [f for f in os.listdir(eval_dir) if f.endswith(".json")]
+        assert len(eval_files) == 1
+        with open(os.path.join(eval_dir, eval_files[0])) as f:
+            log = json.load(f)
+            assert log["aggregate"]["mean_clustering_f1"] == 1.0
+            assert log["pages"][0]["predicted_items"] == json.loads(MOCK_LLM_RESPONSE)
 
 
 # ─── Plan ────────────────────────────────────────────────────────────────────
