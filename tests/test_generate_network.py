@@ -1,11 +1,11 @@
-"""Tests for generate_network.py — CSV export of evaluation data for the network visualizer."""
+"""Tests for scripts/generate_network.py — CSV export of evaluation data for the network visualizer."""
 
 import csv
 import json
 
 import pytest
 
-from generate_network import (
+from scripts.generate_network import (
     build_segment_maps,
     derive_eval_name,
     export_eval_log,
@@ -843,14 +843,14 @@ class TestExportEvalLog:
 
 class TestCli:
     def test_help(self):
-        from generate_network import main
+        from scripts.generate_network import main
 
         with pytest.raises(SystemExit) as exc_info:
             main(["--help"])
         assert exc_info.value.code == 0
 
     def test_missing_eval_log(self, tmp_path):
-        from generate_network import main
+        from scripts.generate_network import main
 
         ret = main(["--eval-log", str(tmp_path / "nonexistent.json")])
         assert ret == 1
@@ -872,7 +872,7 @@ class TestCli:
         log_path.write_text(json.dumps(log, ensure_ascii=False), encoding="utf-8")
 
         monkeypatch.setenv("IMAGE_BASE_URL", "https://env.example.com/imgs")
-        from generate_network import main
+        from scripts.generate_network import main
 
         main(
             [
@@ -910,7 +910,7 @@ class TestCli:
         log_path = tmp_path / "eval.json"
         log_path.write_text(json.dumps(log, ensure_ascii=False), encoding="utf-8")
 
-        from generate_network import main
+        from scripts.generate_network import main
 
         main(
             [
@@ -950,7 +950,7 @@ class TestCli:
         log_path = tmp_path / "eval.json"
         log_path.write_text(json.dumps(log, ensure_ascii=False), encoding="utf-8")
 
-        from generate_network import main
+        from scripts.generate_network import main
 
         main(
             [

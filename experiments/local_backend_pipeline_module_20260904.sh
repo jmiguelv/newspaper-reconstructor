@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # local_backend_pipeline_module_20260904.sh: Runs the jawi-pipeline module
-# (pipeline_main.py bulk-process) over sampled pages from a legacy ALTO dataset
+# (pl-article-reconstruction bulk-process) over sampled pages from a legacy ALTO dataset
 # using the LOCAL transformers backend, then evaluates against ground truth.
 #
 # Requires the opt-in dependency group: uv sync --group local
 # Models are HF hub ids or local paths (MODELS array below).
-# Sampled pages match main.py's sampling (same seed => same pages as the
+# Sampled pages match article-reconstruction.s sampling (same seed => same pages as the
 # sample16 experiments driven by pipeline.sh).
 set -euo pipefail
 
@@ -207,13 +207,13 @@ PY
         FORCE_FLAG="--force"
     fi
     # shellcheck disable=SC2086 # FORCE_FLAG is empty or a single flag
-    uv run --group local python pipeline_main.py bulk-process \
+    uv run --group local pl-article-reconstruction bulk-process \
         --input "$inputs_dir" \
         --output "$outputs_dir" \
         --config "{\"model\": \"${model}\", \"backend\": \"local\", \"prompt_file\": \"${cluster_prompt}\", \"max_workers\": 1}" \
         $FORCE_FLAG
 
-    uv run python main.py evaluate \
+    uv run article-reconstruction evaluate \
         -i "$outputs_dir" \
         -g "$GROUND_TRUTH_DIR" \
         --eval-dir "$EVAL_DIR" \

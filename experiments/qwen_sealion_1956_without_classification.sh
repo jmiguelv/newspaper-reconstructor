@@ -17,8 +17,10 @@ set -euo pipefail
 DATASET=""
 PROVIDER="huggingface"
 TIMEOUT="600"
+FREQUENCY_PENALTY=""
 MAX_WORKERS="64"
 MAX_TOKENS="16384"
+SAVE_RAW=0
 SLIM=0
 
 CLUSTER_PROMPTS=(
@@ -34,16 +36,18 @@ while [[ "$#" -gt 0 ]]; do
         --dataset) DATASET="$2"; shift ;;
         --provider) PROVIDER="$2"; shift ;;
         --timeout) TIMEOUT="$2"; shift ;;
+        --frequency-penalty) FREQUENCY_PENALTY="$2"; shift ;;
         --max-workers) MAX_WORKERS="$2"; shift ;;
         --max-tokens) MAX_TOKENS="$2"; shift ;;
-        --slim) SLIM=1 ;;
+        --save-raw) SAVE_RAW=1 ;;
+        --slim) SLIM=1;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift
 done
 
 if [ -z "$DATASET" ]; then
-    echo "Usage: $0 --dataset <dataset_name> [--provider <provider>] [--timeout <T>] [--max-workers <N>] [--max-tokens <N>] [--slim]"
+    echo "Usage: $0 --dataset <dataset_name> [--provider <provider>] [--timeout <T>] [--max-workers <N>] [--max-tokens <N>] [--slim] [--save-raw]"
     exit 1
 fi
 
@@ -76,11 +80,17 @@ for model in "${MODELS[@]}"; do
         --max-tokens "$MAX_TOKENS"
         --module-format
     )
+    if [ -n "$FREQUENCY_PENALTY" ]; then
+        PIPELINE_ARGS+=(--frequency-penalty "$FREQUENCY_PENALTY")
+    fi
     if [ "$SLIM" -eq 1 ]; then
         PIPELINE_ARGS+=(--slim)
     fi
+    if [ "$SAVE_RAW" -eq 1 ]; then
+        PIPELINE_ARGS+=(--save-raw)
+    fi
 
-    (cd "$ROOT_DIR" && ./pipeline.sh "${PIPELINE_ARGS[@]}")
+    (cd "$ROOT_DIR" && ./scripts/pipeline.sh "${PIPELINE_ARGS[@]}")
   done
 
   echo "==========================================================="

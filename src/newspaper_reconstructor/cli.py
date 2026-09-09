@@ -75,6 +75,7 @@ class StageContext:
     input_folder: str
     output_folder: str
     save_prompts: bool
+    save_raw: bool = False
     module_format: bool = False
 
 
@@ -162,6 +163,10 @@ def _prompt_out_path(output_folder: str, fname: str) -> str:
     )
 
 
+def _raw_out_path(output_folder: str, fname: str) -> str:
+    return os.path.join(output_folder, f"{os.path.splitext(fname)[0]}.raw.json")
+
+
 def _run_llm_stage(
     *,
     input_folder: str,
@@ -177,6 +182,7 @@ def _run_llm_stage(
     seed: int,
     page_id: str | None,
     save_prompts: bool,
+    save_raw: bool,
     tag: str | None,
     model_kwargs: str | None,
     max_workers: int,
@@ -216,6 +222,7 @@ def _run_llm_stage(
         input_folder=input_folder,
         output_folder=output_folder,
         save_prompts=save_prompts,
+        save_raw=save_raw,
         module_format=module_format,
     )
 
@@ -254,6 +261,7 @@ def _classify_process(fname: str, lock: threading.Lock, ctx: StageContext) -> bo
     prompt_out_path = (
         _prompt_out_path(ctx.output_folder, fname) if ctx.save_prompts else None
     )
+    raw_out_path = _raw_out_path(ctx.output_folder, fname) if ctx.save_raw else None
 
     with lock:
         typer.echo(f"Classifying {fname}...")
@@ -264,6 +272,7 @@ def _classify_process(fname: str, lock: threading.Lock, ctx: StageContext) -> bo
         ctx.sys_prompt,
         ctx.user_prompt,
         prompt_out_path=prompt_out_path,
+        raw_out_path=raw_out_path,
     )
 
     if classes:
@@ -294,6 +303,7 @@ def _cluster_process(fname: str, lock: threading.Lock, ctx: StageContext) -> boo
     prompt_out_path = (
         _prompt_out_path(ctx.output_folder, fname) if ctx.save_prompts else None
     )
+    raw_out_path = _raw_out_path(ctx.output_folder, fname) if ctx.save_raw else None
 
     with lock:
         typer.echo(f"Clustering {fname}...")
@@ -304,6 +314,7 @@ def _cluster_process(fname: str, lock: threading.Lock, ctx: StageContext) -> boo
         ctx.sys_prompt,
         ctx.user_prompt,
         prompt_out_path=prompt_out_path,
+        raw_out_path=raw_out_path,
     )
 
     if articles is not None:
@@ -395,6 +406,11 @@ def classify(
     save_prompts: bool = typer.Option(
         False, "--save-prompts", help="Save individual prompts sent to the LLM"
     ),
+    save_raw: bool = typer.Option(
+        False,
+        "--save-raw",
+        help="Save raw LLM responses for pages whose output fails to parse",
+    ),
     tag: str | None = typer.Option(
         None, "--tag", help="Optional tag for this run (e.g., think_high)"
     ),
@@ -431,6 +447,7 @@ def classify(
         seed=seed,
         page_id=page_id,
         save_prompts=save_prompts,
+        save_raw=save_raw,
         tag=tag,
         model_kwargs=model_kwargs,
         max_workers=max_workers,
@@ -469,6 +486,11 @@ def cluster(
     page_id: str | None = typer.Option(None, help="Process a single page ID"),
     save_prompts: bool = typer.Option(
         False, "--save-prompts", help="Save individual prompts sent to the LLM"
+    ),
+    save_raw: bool = typer.Option(
+        False,
+        "--save-raw",
+        help="Save raw LLM responses for pages whose output fails to parse",
     ),
     tag: str | None = typer.Option(
         None, "--tag", help="Optional tag for this run (e.g., think_high)"
@@ -511,6 +533,7 @@ def cluster(
         seed=seed,
         page_id=page_id,
         save_prompts=save_prompts,
+        save_raw=save_raw,
         tag=tag,
         model_kwargs=model_kwargs,
         max_workers=max_workers,

@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from main import app
 from newspaper_reconstructor.agreement import (
     AgreementError,
     Article,
@@ -18,6 +17,7 @@ from newspaper_reconstructor.agreement import (
     validate_page_sets,
     write_agreement_reports,
 )
+from newspaper_reconstructor.cli import app
 
 DATASET = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),

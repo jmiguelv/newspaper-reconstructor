@@ -1,6 +1,6 @@
 """End-to-end tests exercising the full Typer pipeline with a mocked LLM.
 
-Mock is injected at main.make_client so everything below runs through real code.
+Mock is injected at newspaper_reconstructor.cli.make_client so everything below runs through real code.
 """
 
 import json
@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from main import app
+from newspaper_reconstructor.cli import app
 
 runner = CliRunner()
 
@@ -232,7 +232,9 @@ class TestE2EEtl:
         result = runner.invoke(app, ["etl", "-i", str(d), "-o", str(frag_dir)])
         assert result.exit_code == 0
 
-        with patch("main.make_client", return_value=_mock_client()):
+        with patch(
+            "newspaper_reconstructor.cli.make_client", return_value=_mock_client()
+        ):
             result = runner.invoke(
                 app,
                 [
@@ -274,7 +276,9 @@ class TestE2ECluster:
         out_dir = tmp_path / "reconstructions"
         prompt_file = _make_prompt_file(tmp_path)
 
-        with patch("main.make_client", return_value=_mock_client()):
+        with patch(
+            "newspaper_reconstructor.cli.make_client", return_value=_mock_client()
+        ):
             result = runner.invoke(
                 app,
                 [
@@ -308,7 +312,9 @@ class TestE2ECluster:
         out_dir = tmp_path / "reconstructions"
         prompt_file = _make_prompt_file(tmp_path)
 
-        with patch("main.make_client", return_value=_mock_client()):
+        with patch(
+            "newspaper_reconstructor.cli.make_client", return_value=_mock_client()
+        ):
             result = runner.invoke(
                 app,
                 [
@@ -331,6 +337,47 @@ class TestE2ECluster:
             data1 = json.load(f)
             assert len(data1) == 1
 
+    def test_save_raw_dumps_unparseable_response(self, tmp_path):
+        d = tmp_path / "fragments"
+        d.mkdir()
+        (d / "page1.json").write_text(
+            json.dumps([{"id": "r_1", "text": "hello"}]), encoding="utf-8"
+        )
+        out_dir = tmp_path / "reconstructions"
+        prompt_file = _make_prompt_file(tmp_path)
+
+        raw = "thinking " * 20 + "TRUNCATED-TAIL"
+        client = MagicMock()
+
+        def complete(system, user, meta=None):
+            if meta is not None:
+                meta["finish_reason"] = "length"
+            return raw
+
+        client.complete.side_effect = complete
+
+        with patch("newspaper_reconstructor.cli.make_client", return_value=client):
+            result = runner.invoke(
+                app,
+                [
+                    "cluster",
+                    "-i",
+                    str(d),
+                    "-o",
+                    str(out_dir),
+                    "--model",
+                    "test-model",
+                    "-p",
+                    prompt_file,
+                    "--save-raw",
+                ],
+            )
+        assert result.exit_code == 0
+
+        raw_file = out_dir / "page1.raw.json"
+        assert raw_file.read_text(encoding="utf-8") == raw
+        assert "finish_reason=length" in result.output
+
     def test_cluster_parallel(self, tmp_path):
         d = tmp_path / "fragments"
         d.mkdir()
@@ -340,7 +387,9 @@ class TestE2ECluster:
         out_dir = tmp_path / "reconstructions"
         prompt_file = _make_prompt_file(tmp_path)
 
-        with patch("main.make_client", return_value=_mock_client()):
+        with patch(
+            "newspaper_reconstructor.cli.make_client", return_value=_mock_client()
+        ):
             result = runner.invoke(
                 app,
                 [
@@ -379,7 +428,7 @@ class TestE2ECluster:
         mock_client = MagicMock()
         mock_client.complete.return_value = mock_classify_response
 
-        with patch("main.make_client", return_value=mock_client):
+        with patch("newspaper_reconstructor.cli.make_client", return_value=mock_client):
             result = runner.invoke(
                 app,
                 [
@@ -650,7 +699,7 @@ class TestE2ESuggest:
         mock_client = MagicMock()
         mock_client.complete.return_value = "## Suggestions\nUse better prompts."
 
-        with patch("main.make_client", return_value=mock_client):
+        with patch("newspaper_reconstructor.cli.make_client", return_value=mock_client):
             result = runner.invoke(
                 app,
                 ["suggest", "--experiment-id", "exp1", "--model", "test-model"],
@@ -751,7 +800,7 @@ class TestBackendOption:
         d.mkdir()
         prompt_file = _make_prompt_file(tmp_path)
 
-        with patch("main.make_client") as mock_make:
+        with patch("newspaper_reconstructor.cli.make_client") as mock_make:
             result = runner.invoke(
                 app,
                 [
@@ -778,7 +827,7 @@ class TestBackendOption:
         d.mkdir()
         prompt_file = _make_prompt_file(tmp_path)
 
-        with patch("main.make_client") as mock_make:
+        with patch("newspaper_reconstructor.cli.make_client") as mock_make:
             result = runner.invoke(
                 app,
                 [
@@ -801,7 +850,7 @@ class TestBackendOption:
         assert mock_make.call_args.kwargs["backend"] == "local"
 
     def test_suggest_forwards_backend(self):
-        with patch("main.make_client") as mock_make:
+        with patch("newspaper_reconstructor.cli.make_client") as mock_make:
             result = runner.invoke(
                 app,
                 [

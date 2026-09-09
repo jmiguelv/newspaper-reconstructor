@@ -87,7 +87,7 @@ for model in "${MODELS[@]}"; do
         ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 
         # Execute pipeline in the background to parallelize
-        (cd "$ROOT_DIR" && ./pipeline.sh "${PIPELINE_ARGS[@]}") &
+        (cd "$ROOT_DIR" && ./scripts/pipeline.sh "${PIPELINE_ARGS[@]}") &
       done
     done
   done

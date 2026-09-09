@@ -17,17 +17,17 @@ uv run ruff format .    # format
 ## Architecture
 
 ```
-Article JSON → main.py etl (convert {id: text} or module-format OCR JSON to fragment lists)
-ALTO XML     → main.py parse (extract JSON fragments from ALTO XML — legacy)
-             → main.py classify (enrich JSON with predicted classes via LLM)
-             → main.py cluster (reconstruct JSON fragments into articles via LLM)
-             → main.py evaluate (compare against ground truth article XML)
+Article JSON → article-reconstruction etl (convert {id: text} or module-format OCR JSON to fragment lists)
+ALTO XML     → article-reconstruction parse (extract JSON fragments from ALTO XML — legacy)
+             → article-reconstruction classify (enrich JSON with predicted classes via LLM)
+             → article-reconstruction cluster (reconstruct JSON fragments into articles via LLM)
+             → article-reconstruction evaluate (compare against ground truth article XML)
              → dashboard.html (visualize eval logs as HTML)
 
-Annotator XML × 2 → main.py agree (inter-annotator agreement on region membership → reports/agreement/, --copy-agreed copies pages meeting the B³ F1 threshold)
+Annotator XML × 2 → article-reconstruction agree (inter-annotator agreement on region membership → reports/agreement/, --copy-agreed copies pages meeting the B³ F1 threshold)
 
 jawi-pipeline OcrOutput (page + regions with line OCR)
-             → pipeline_main.py process/bulk-process (ArticleReconstructionModule)
+             → pl-article-reconstruction process/bulk-process (ArticleReconstructionModule)
              → ArticleReconstructionOutput ({articles: {article_id: Article(region_ids, title, title_en, item_class)}})
 ```
 
@@ -35,21 +35,24 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 
 | Module                                        | Responsibility                                                    |
 |-----------------------------------------------|-------------------------------------------------------------------|
-| `main.py`                                     | Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan, agree) |
-| `pipeline_main.py`                           | jawi-pipeline `Module` CLI entry (process / bulk-process)         |
-| `pipeline.sh`                                 | Bash script to run a single end-to-end evaluation pipeline        |
-| `agree.sh`                                    | Bash script to compare two annotators' article XML on region agreement |
+| `src/newspaper_reconstructor/cli.py`             | Typer CLI entry point (`article-reconstruction`): etl, parse, classify, cluster, evaluate, suggest, plan, agree |
+| `pl-article-reconstruction`                       | jawi-pipeline `Module` CLI entry (process / bulk-process) |
+| `scripts/pipeline.sh`                             | Bash script to run a single end-to-end evaluation pipeline        |
+| `scripts/agree.sh`                                | Bash script to compare two annotators' article XML on region agreement |
 | `experiments/*.sh`                            | Bash scripts to orchestrate multiple batched grid-search evaluations |
 | `src/newspaper_reconstructor/ingest.py`       | Load pre-extracted JSON articles into fragment lists              |
 | `src/newspaper_reconstructor/prompts.py`     | Shared prompt file loading (.md / .json / plain text)             |
 | `src/newspaper_reconstructor/module.py`      | `ArticleReconstructionModule` — jawi-pipeline stage (regions → fragments → articles) |
 | `src/newspaper_reconstructor/reconstruct.py`  | Data transformation, dict parsing, and mapping to LLM inputs     |
+| `src/newspaper_reconstructor/fragment_stats.py` | Fragment corpus statistics, script mix (Jawi vs ASCII), OCR-garbage detection |
 | `src/newspaper_reconstructor/llm.py`          | LLM clients (OpenAI-compatible API + local transformers backend), `make_client` factory, `LLMError` |
 | `src/newspaper_reconstructor/evaluate.py`     | Ground truth parsing, clustering F1, ARI, B³ F1, class accuracy, coverage |
 | `src/newspaper_reconstructor/agreement.py`    | Inter-annotator region agreement (loader, Jaccard matcher, metrics, JSON/MD reports, agreed-page copy) |
 | `src/newspaper_reconstructor/suggest.py`      | LLM judge for offline analysis and improvement suggestions        |
 | `dashboard.html`                              | Interactive Alpine.js HTML dashboard to visualize JSON eval logs  |
-| `generate_network.py`                         | Exports evaluation JSON to nodes/edges CSV for network visualizer |
+| `scripts/generate_network.py`                     | Exports evaluation JSON to nodes/edges CSV for network visualizer |
+| `scripts/fragment_stats_report.py`              | Stats report for a fragments dir/file set (`--csv`, `--group`, `--ascii-threshold`) |
+| `scripts/dump_prompt.py`                      | Renders the exact prompt (and request payload) for one page, for offline debugging |
 
 ## Code Conventions
 
@@ -94,5 +97,5 @@ reports/
 ## Testing Notes
 
 - Unit tests use `tmp_path` fixtures with synthetic data — no external data needed
-- E2E tests mock `main.make_client` with canned LLM responses — no API key needed
+- E2E tests mock `newspaper_reconstructor.cli.make_client` with canned LLM responses — no API key needed
 - Real data smoke tests (`TestE2ERealData`, `TestE2ERealDataNewFormat`, `TestAgreeRealData`) skip if datasets are absent

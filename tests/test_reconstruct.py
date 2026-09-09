@@ -399,3 +399,106 @@ class TestClassifyFragments:
         fragments = [{"id": "r_1", "text": "a"}]
         result = classify_fragments(fragments, client, "sys", "user")
         assert result == {"r_1": "article"}
+
+
+# ─── error logging ────────────────────────────────────────────────────────────
+
+
+LOGGING_FRAGMENTS = [{"id": "r1", "text": "Hello World"}]
+
+
+class TestErrorLogging:
+    FRAGMENTS = LOGGING_FRAGMENTS
+
+    @staticmethod
+    def _client(raw, finish_reason):
+        client = MagicMock()
+
+        def complete(system, user, meta=None):
+            if meta is not None:
+                meta["finish_reason"] = finish_reason
+            return raw
+
+        client.complete.side_effect = complete
+        return client
+
+    def test_logs_finish_reason_and_response_tail(self, capsys):
+        raw = "reasoning " * 40 + "TRUNCATED-TAIL"
+        result = reconstruct_articles(
+            self.FRAGMENTS,
+            self._client(raw, "length"),
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+        )
+        assert result is None
+        err = capsys.readouterr().err
+        assert "finish_reason=length" in err
+        assert "TRUNCATED-TAIL" in err
+
+    def test_final_message_flags_token_limit(self, capsys):
+        raw = "reasoning " * 40 + "TRUNCATED-TAIL"
+        reconstruct_articles(
+            self.FRAGMENTS,
+            self._client(raw, "length"),
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+        )
+        assert "--max-tokens" in capsys.readouterr().err
+
+    def test_no_token_limit_flag_when_response_completed(self, capsys):
+        reconstruct_articles(
+            self.FRAGMENTS,
+            self._client(INVALID_RESPONSE, "stop"),
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+        )
+        assert "--max-tokens" not in capsys.readouterr().err
+
+    def test_dumps_raw_response_when_path_given(self, tmp_path):
+        raw_out = tmp_path / "raw" / "page.raw.txt"
+        raw = "reasoning " * 40 + "TRUNCATED-TAIL"
+        reconstruct_articles(
+            self.FRAGMENTS,
+            self._client(raw, "length"),
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+            raw_out_path=str(raw_out),
+        )
+        assert raw_out.read_text(encoding="utf-8") == raw
+
+    def test_saves_raw_dump_when_parsing_succeeds(self, tmp_path):
+        raw_out = tmp_path / "raw" / "page.raw.txt"
+
+        client = MagicMock()
+        response_json = json.dumps(
+            [{"fragment_ids": ["r1"], "title": "t", "class": "article"}]
+        )
+        client.complete.side_effect = lambda system, user, meta=None: response_json
+        reconstruct_articles(
+            self.FRAGMENTS,
+            client,
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+            raw_out_path=str(raw_out),
+        )
+        assert raw_out.exists()
+        assert raw_out.read_text(encoding="utf-8") == response_json
+
+    def test_classify_logs_finish_reason_and_tail(self, capsys):
+        raw = "reasoning " * 40 + "TRUNCATED-TAIL"
+        result = classify_fragments(
+            self.FRAGMENTS,
+            self._client(raw, "length"),
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+        )
+        assert result is None
+        err = capsys.readouterr().err
+        assert "finish_reason=length" in err
+        assert "TRUNCATED-TAIL" in err

@@ -1,9 +1,9 @@
 """Export evaluation logs to nodes/edges CSV for the article-network-visualizer.
 
 Usage:
-    uv run python generate_network.py --eval-log reports/evaluations/<file>.json
-    uv run python generate_network.py --eval-log <file>.json --output-dir reports/networks
-    uv run python generate_network.py --eval-log <file>.json --image-base-url https://example.com/images
+    uv run python scripts/generate_network.py --eval-log reports/evaluations/<file>.json
+    uv run python scripts/generate_network.py --eval-log <file>.json --output-dir reports/networks
+    uv run python scripts/generate_network.py --eval-log <file>.json --image-base-url https://example.com/images
 
 Options:
     --eval-log        Path to evaluation log JSON (required)

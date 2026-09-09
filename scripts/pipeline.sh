@@ -11,6 +11,7 @@ PAGE_ID=""
 DATASET=""
 PROVIDER=""
 SAVE_PROMPTS=""
+SAVE_RAW=""
 SKIP_CLASSIFICATION=0
 MODEL_KWARGS=""
 TAG=""
@@ -41,6 +42,7 @@ while [[ "$#" -gt 0 ]]; do
         --slim) SLIM=1 ;;
         --module-format) MODULE_FORMAT=1 ;;
         --save-prompts) SAVE_PROMPTS="--save-prompts" ;;
+        --save-raw) SAVE_RAW="--save-raw" ;;
         --skip-classification) SKIP_CLASSIFICATION=1 ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
@@ -175,6 +177,9 @@ fi
 if [ -n "$SAVE_PROMPTS" ]; then
     COMMON_ARGS+=("$SAVE_PROMPTS")
 fi
+if [ -n "$SAVE_RAW" ]; then
+    COMMON_ARGS+=("$SAVE_RAW")
+fi
 
 run_evaluate() {
     local input_dir="$1" experiment_id="$2" task="$3"
@@ -192,7 +197,7 @@ run_evaluate() {
     if [ -n "$PAGE_ID" ]; then
         args+=(--page-id "$PAGE_ID")
     fi
-    uv run python main.py evaluate "${args[@]}"
+    uv run article-reconstruction evaluate "${args[@]}"
 }
 
 # Step 1: Extract fragments (if not already done)
@@ -200,13 +205,13 @@ if [ ! -d "$FRAGMENTS_DIR" ]; then
     if [ "$INPUT_FORMAT" = "json" ]; then
         echo "Converting article JSON to fragments..."
         if [ "$SLIM" -eq 1 ]; then
-            uv run python main.py etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR" --slim
+            uv run article-reconstruction etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR" --slim
         else
-            uv run python main.py etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
+            uv run article-reconstruction etl -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
         fi
     else
         echo "Parsing ALTO XML..."
-        uv run python main.py parse -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
+        uv run article-reconstruction parse -i "$INPUT_DIR" -o "$FRAGMENTS_DIR"
     fi
 fi
 
@@ -214,7 +219,7 @@ fi
 if [ "$SKIP_CLASSIFICATION" -eq 0 ]; then
     if [ ! -d "$classified_dir" ] || [ "$(find "$classified_dir" -maxdepth 1 -name "*.json" ! -name "_*.json" 2>/dev/null | wc -l | tr -d ' ')" -eq 0 ]; then
         echo "Classifying..."
-        uv run python main.py classify \
+        uv run article-reconstruction classify \
             -i "$FRAGMENTS_DIR" \
             -p "$CLASSIFY_PROMPT_FILE" \
             -o "$classified_dir" \
@@ -242,7 +247,7 @@ CLUSTER_ARGS=(
 if [ "$MODULE_FORMAT" -eq 1 ]; then
     CLUSTER_ARGS+=(--module-format)
 fi
-uv run python main.py cluster "${CLUSTER_ARGS[@]}"
+uv run article-reconstruction cluster "${CLUSTER_ARGS[@]}"
 
 # Step 4: Evaluate
 echo "Evaluating..."

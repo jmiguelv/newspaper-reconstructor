@@ -66,6 +66,7 @@ def classify_fragments(
     user_prompt_template: str,
     max_retries: int = 3,
     prompt_out_path: str | None = None,
+    raw_out_path: str | None = None,
 ) -> dict[str, str] | None:
     """Send fragments to LLM for classification.
 
@@ -80,17 +81,25 @@ def classify_fragments(
         with open(prompt_out_path, "w", encoding="utf-8") as f:
             f.write(f"# System Prompt\n{system_prompt}\n\n# User Prompt\n{user_prompt}")
 
+    truncated = False
     for attempt in range(max_retries):
+        meta: dict = {}
         try:
-            raw = client.complete(system_prompt, user_prompt)
+            raw = client.complete(system_prompt, user_prompt, meta=meta)
         except (APITimeoutError, APIError) as e:
             if _handle_api_error(e, attempt, max_retries):
                 continue
             return None
 
+        if raw_out_path:
+            _save_raw_response(raw, raw_out_path)
+
         parsed = _parse_classification_response(raw)
         if parsed is not None:
             return _validate_classification(parsed, fragments)
+
+        truncated = truncated or meta.get("finish_reason") == "length"
+        _log_unparseable_response(raw, meta, attempt, max_retries)
 
         if attempt < max_retries - 1:
             continue
@@ -99,6 +108,11 @@ def classify_fragments(
         f"  Failed to parse LLM response as JSON dict after {max_retries} attempts",
         file=sys.stderr,
     )
+    if truncated:
+        print(
+            "  Response hit the token limit (finish_reason=length); raise --max-tokens",
+            file=sys.stderr,
+        )
     return None
 
 
@@ -109,6 +123,7 @@ def reconstruct_articles(
     user_prompt_template: str,
     max_retries: int = 3,
     prompt_out_path: str | None = None,
+    raw_out_path: str | None = None,
 ) -> list[dict] | None:
     """Send fragments to LLM and return reconstructed items.
 
@@ -123,17 +138,25 @@ def reconstruct_articles(
         with open(prompt_out_path, "w", encoding="utf-8") as f:
             f.write(f"# System Prompt\n{system_prompt}\n\n# User Prompt\n{user_prompt}")
 
+    truncated = False
     for attempt in range(max_retries):
+        meta: dict = {}
         try:
-            raw = client.complete(system_prompt, user_prompt)
+            raw = client.complete(system_prompt, user_prompt, meta=meta)
         except (APITimeoutError, APIError) as e:
             if _handle_api_error(e, attempt, max_retries):
                 continue
             return None
 
+        if raw_out_path:
+            _save_raw_response(raw, raw_out_path)
+
         parsed = _parse_json_response(raw)
         if parsed is not None:
             return _validate_items(parsed, fragments)
+
+        truncated = truncated or meta.get("finish_reason") == "length"
+        _log_unparseable_response(raw, meta, attempt, max_retries)
 
         if attempt < max_retries - 1:
             continue
@@ -142,7 +165,35 @@ def reconstruct_articles(
         f"  Failed to parse LLM response as JSON array after {max_retries} attempts",
         file=sys.stderr,
     )
+    if truncated:
+        print(
+            "  Response hit the token limit (finish_reason=length); raise --max-tokens",
+            file=sys.stderr,
+        )
     return None
+
+
+def _save_raw_response(raw: str, raw_out_path: str) -> None:
+    """Save the raw response text to disk."""
+    os.makedirs(os.path.dirname(raw_out_path) or ".", exist_ok=True)
+    with open(raw_out_path, "w", encoding="utf-8") as f:
+        f.write(raw)
+
+
+def _log_unparseable_response(
+    raw: str,
+    meta: dict,
+    attempt: int,
+    max_retries: int,
+) -> None:
+    """Log why a response could not be parsed."""
+    finish_reason = meta.get("finish_reason", "unknown")
+    tail = raw[-300:].replace("\n", "\\n")
+    print(
+        f"  Unparseable response (attempt {attempt + 1}/{max_retries}, "
+        f"finish_reason={finish_reason}): ...{tail}",
+        file=sys.stderr,
+    )
 
 
 def _handle_api_error(e: Exception, attempt: int, max_retries: int) -> bool:

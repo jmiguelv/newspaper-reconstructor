@@ -59,7 +59,7 @@ fi
 
 echo "=== Comparing annotations: ${NAME_A:-$(basename "$ANNOTATOR_A")} vs ${NAME_B:-$(basename "$ANNOTATOR_B")} (threshold: $MATCH_THRESHOLD) ==="
 
-uv run python main.py agree "${ARGS[@]}"
+uv run article-reconstruction agree "${ARGS[@]}"
 
 echo "Comparison complete!"
 echo "----------------------------------------"

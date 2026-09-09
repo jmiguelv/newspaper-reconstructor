@@ -280,3 +280,74 @@ class TestLocalLLMClient:
         assert len(intervals) == 3
         for (_, previous_end), (next_start, _) in itertools.pairwise(intervals):
             assert next_start >= previous_end
+
+
+class _FakeMessage:
+    def __init__(self, content):
+        self.content = content
+
+
+class _FakeChoice:
+    def __init__(self, content, finish_reason):
+        self.message = _FakeMessage(content)
+        self.finish_reason = finish_reason
+
+
+class _FakeCompletions:
+    def __init__(self, content, finish_reason):
+        self.response = type(
+            "R", (), {"choices": [_FakeChoice(content, finish_reason)]}
+        )()
+        self.calls = []
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return self.response
+
+
+def _api_client(monkeypatch, content="[]", finish_reason="stop"):
+    """Build an LLMClient whose OpenAI transport returns a canned response."""
+    completions = _FakeCompletions(content, finish_reason)
+    fake_openai = type(
+        "C", (), {"chat": type("H", (), {"completions": completions})()}
+    )()
+    monkeypatch.setattr(llm, "OpenAI", lambda **kwargs: fake_openai)
+    return LLMClient(api_key="k", model="m"), completions
+
+
+class TestFinishReason:
+    def test_meta_records_stop(self, monkeypatch):
+        client, _ = _api_client(monkeypatch, finish_reason="stop")
+        meta: dict = {}
+        client.complete("s", "u", meta=meta)
+        assert meta["finish_reason"] == "stop"
+
+    def test_meta_records_length_on_truncated_response(self, monkeypatch):
+        client, _ = _api_client(monkeypatch, finish_reason="length")
+        meta: dict = {}
+        client.complete("s", "u", meta=meta)
+        assert meta["finish_reason"] == "length"
+
+    def test_meta_is_optional(self, monkeypatch):
+        client, _ = _api_client(monkeypatch, content="hello")
+        assert client.complete("s", "u") == "hello"
+
+    def test_meta_is_per_call_not_shared(self, monkeypatch):
+        client, _ = _api_client(monkeypatch, finish_reason="length")
+        first: dict = {}
+        second: dict = {}
+        client.complete("s", "u", meta=first)
+        client.complete("s", "u", meta=second)
+        assert first == second == {"finish_reason": "length"}
+
+    def test_local_client_reports_length_when_cap_reached(self, local_stack):
+        client = make_client(backend="local", model="m", model_kwargs={"max_tokens": 1})
+        meta: dict = {}
+        client.complete("s", "u", meta=meta)
+        assert meta["finish_reason"] == "length"
+
+    def test_local_client_reports_stop_when_under_cap(self, local_stack):
+        client = make_client(backend="local", model="m")
+        meta: dict = {}
+        client.complete("s", "u", meta=meta)
+        assert meta["finish_reason"] == "stop"

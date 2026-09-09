@@ -20,7 +20,9 @@ PROVIDERS_FILE = Path(__file__).resolve().parent.parent.parent / "providers.json
 class CompletionClient(Protocol):
     """Client contract shared by the API and local backends."""
 
-    def complete(self, system: str, user: str) -> str: ...
+    def complete(self, system: str, user: str, meta: dict | None = None) -> str:
+        """Return the completion, optionally recording 'finish_reason' in meta."""
+        ...
 
 
 class LLMError(RuntimeError):
@@ -99,7 +101,7 @@ class LocalLLMClient:
         except Exception as e:
             raise LLMError(f"Failed to load local model '{model_name}': {e}") from e
 
-    def complete(self, system: str, user: str) -> str:
+    def complete(self, system: str, user: str, meta: dict | None = None) -> str:
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -120,9 +122,12 @@ class LocalLLMClient:
                 raise LLMError(
                     f"Generation failed for local model '{self.model_name}': {e}"
                 ) from e
-            return self.processor.decode(
-                generation[0][input_len:], skip_special_tokens=True
-            )
+            new_tokens = generation[0][input_len:]
+            if meta is not None:
+                cap = self.gen_kwargs.get("max_new_tokens")
+                truncated = cap is not None and len(new_tokens) >= cap
+                meta["finish_reason"] = "length" if truncated else "stop"
+            return self.processor.decode(new_tokens, skip_special_tokens=True)
 
 
 def _load_providers() -> dict:
@@ -167,7 +172,7 @@ class LLMClient:
         self.base_url = base_url
         self.model_kwargs = model_kwargs or {}
 
-    def complete(self, system: str, user: str) -> str:
+    def complete(self, system: str, user: str, meta: dict | None = None) -> str:
         try:
             resp = self.client.chat.completions.create(
                 model=self.model,
@@ -191,7 +196,10 @@ class LLMClient:
                 request=None,
                 body=None,
             )
-        content = resp.choices[0].message.content
+        choice = resp.choices[0]
+        if meta is not None:
+            meta["finish_reason"] = choice.finish_reason
+        content = choice.message.content
         if content is None:
             raise APIError(
                 "API returned null content (possibly due to a content filter).",

@@ -93,10 +93,10 @@ for model in "${MODELS[@]}"; do
 
         if [ "$PARALLEL" -eq 1 ]; then
             # Execute pipeline in the background to parallelize
-            (cd "$ROOT_DIR" && ./pipeline.sh "${PIPELINE_ARGS[@]}") &
+            (cd "$ROOT_DIR" && ./scripts/pipeline.sh "${PIPELINE_ARGS[@]}") &
         else
             # Execute pipeline synchronously
-            (cd "$ROOT_DIR" && ./pipeline.sh "${PIPELINE_ARGS[@]}")
+            (cd "$ROOT_DIR" && ./scripts/pipeline.sh "${PIPELINE_ARGS[@]}")
         fi
       done
     done

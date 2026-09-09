@@ -24,10 +24,7 @@ wheels/
 Thumbs.db
 
 # Generated data
-.smoke/
 tasks/
-generate_payload.py
-payload_dump.json
 data/1_interim/
 data/3_networks/
 reports/evaluations/*
@@ -35,9 +32,12 @@ reports/evaluations/*
 
 # Git submodule content
 data/0_external/
+scripts/smoke/
 reports/networks/*
 !reports/networks/.gitkeep
 reports/suggestions/*
 !reports/suggestions/.gitkeep
 reports/agreement/*
 !reports/agreement/.gitkeep
+reports/debug/*
+!reports/debug/.gitkeep

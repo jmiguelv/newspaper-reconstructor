@@ -8,34 +8,33 @@ Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 
 
 ```mermaid
 flowchart LR
-    ARTJSON["Article JSON\ndata/0_external/&lt;ds&gt;/articles/"] -->|main.py etl| PARSED
-    ALTO["ALTO XML\ndata/0_external/&lt;ds&gt;/alto/"] -->|main.py parse| PARSED["Parsed Fragments\ndata/1_interim/fragments/"]
-    PARSED -->|main.py classify| CLASSIFIED["Classified Fragments\ndata/1_interim/classified/"]
-    CLASSIFIED -->|main.py cluster| RECON["Reconstructed Articles\ndata/1_interim/reconstructions/"]
-    ARTJSON -->|main.py cluster\n--skip-classification| RECON
-    GT["Ground Truth XML\ndata/0_external/&lt;ds&gt;/regions/"] -->|ground truth| EVAL["main.py evaluate\n--task reconstruction"]
+    ARTJSON["Article JSON\ndata/0_external/&lt;ds&gt;/articles/"] -->|article-reconstruction etl| PARSED
+    ALTO["ALTO XML\ndata/0_external/&lt;ds&gt;/alto/"] -->|article-reconstruction parse| PARSED["Parsed Fragments\ndata/1_interim/fragments/"]
+    PARSED -->|article-reconstruction classify| CLASSIFIED["Classified Fragments\ndata/1_interim/classified/"]
+    CLASSIFIED -->|article-reconstruction cluster| RECON["Reconstructed Articles\ndata/1_interim/reconstructions/"]
+    ARTJSON -->|article-reconstruction cluster\n--skip-classification| RECON
+    GT["Ground Truth XML\ndata/0_external/&lt;ds&gt;/regions/"] -->|ground truth| EVAL["article-reconstruction evaluate\n--task reconstruction"]
     RECON -->|predicted items| EVAL
     EVAL -->|clustering F1, ARI\nB³ F1, coverage| LOG["Eval log JSON\nreports/evaluations/"]
-    LOG -->|generate_network| NET["nodes/edges CSV\nreports/networks/"]
+    LOG -->|scripts/generate_network| NET["nodes/edges CSV\nreports/networks/"]
 ```
 
 ## Project Structure
 
 ```
 newspaper-reconstructor/
-├── main.py                 # Typer CLI entry point (etl, parse, classify, cluster, evaluate, suggest, plan, agree)
 ├── dashboard.html          # Standalone Alpine.js evaluation dashboard
-├── generate_network.py     # Export eval logs to nodes/edges CSV for network visualizer
-├── pipeline.sh             # Single end-to-end evaluation orchestrator
-├── agree.sh                # Inter-annotator agreement orchestrator
 ├── providers.json          # Named provider definitions (base_url, default_headers)
 ├── experiments/            # Batch grid-search evaluation scripts
-├── scripts/                # Utility scripts (e.g. migrate_experiment_ids.py)
+├── scripts/                # Runnable utilities + orchestration (pipeline.sh, agree.sh, generate_network.py, dump_prompt.py, fragment_stats_report.py, token_lookup.py, migrate_experiment_ids.py)
 ├── src/
 │   └── newspaper_reconstructor/
+│       ├── cli.py         # Typer CLI entry point (article-reconstruction): etl, parse, classify, cluster, evaluate, suggest, plan, agree
+│       ├── module.py      # jawi-pipeline ArticleReconstructionModule (pl-article-reconstruction)
 │       ├── ingest.py       # Load pre-extracted JSON articles into fragment lists
 │       ├── reconstruct.py  # Data parsing and LLM API mapping
 │       ├── llm.py          # LLM client wrapper (OpenAI-compatible)
+│       ├── fragment_stats.py # Fragment corpus statistics and script (Jawi/ASCII) detection
 │       ├── evaluate.py     # Ground truth parsing, evaluation metrics
 │       ├── agreement.py    # Inter-annotator region agreement (loader, matcher, metrics, reports)
 │       └── suggest.py      # LLM judge for offline analysis
@@ -97,7 +96,7 @@ uv sync --group local
 Select the backend with `--backend local` (or `LLM_BACKEND=local`); `--model` / `LLM_MODEL` is then an HF hub id (e.g. `Qwen/Qwen2.5-0.5B-Instruct`) or a local model path. Provider, base URL, API key, and timeout do not apply to this backend.
 
 ```bash
-uv run --group local python main.py cluster \
+uv run --group local article-reconstruction cluster \
   -i data/1_interim/<dataset>/fragments \
   -p prompts/v01.md \
   -o data/1_interim/<dataset>/reconstructions/local_run \
@@ -118,7 +117,7 @@ The CLI is built with `typer` and uses subcommands to execute discrete pipeline 
 Estimate context length requirements before running experiments. Point this at your raw input fragments to calculate the average number of fragments and characters per page, and estimate the input tokens required (using a ~2.5 Jawi chars/token ratio).
 
 ```bash
-uv run python main.py plan \
+uv run article-reconstruction plan \
   -i data/1_interim/ds-articlereconstruction-20260821/fragments
 ```
 
@@ -127,7 +126,7 @@ uv run python main.py plan \
 Converts pre-extracted `{region_id: ocr_text}` JSON files into fragment lists.
 
 ```bash
-uv run python main.py etl \
+uv run article-reconstruction etl \
   -i data/0_external/ds-articlereconstruction-20260821/articles \
   -o data/1_interim/ds-articlereconstruction-20260821/fragments
 ```
@@ -137,7 +136,7 @@ uv run python main.py etl \
 Converts raw ALTO XML to JSON fragment lists (no LLM required).
 
 ```bash
-uv run python main.py parse \
+uv run article-reconstruction parse \
   -i data/0_external/ds-filteredUM1956alto/alto \
   -o data/1_interim/ds-filteredUM1956alto/fragments
 ```
@@ -147,7 +146,7 @@ uv run python main.py parse \
 Uses an LLM to assign classes (article, advertisement, obituary, miscellaneous) to each fragment.
 
 ```bash
-uv run python main.py classify \
+uv run article-reconstruction classify \
   -i data/1_interim/<dataset>/fragments \
   -p prompts/classify.md \
   -o data/1_interim/<dataset>/classified \
@@ -174,13 +173,14 @@ uv run python main.py classify \
 | `--frequency-penalty` | Reduce repetition |
 | `--timeout` | API timeout in seconds (default: 300) |
 | `--save-prompts` | Save individual prompts sent to the LLM |
+| `--save-raw` | Save raw LLM responses for pages whose output fails to parse (`<output>/raw/`) |
 
 ### 3. Cluster Fragments into Articles
 
 Uses an LLM to group fragments into complete articles. Accepts raw or classified fragments as input.
 
 ```bash
-uv run python main.py cluster \
+uv run article-reconstruction cluster \
   -i data/1_interim/<dataset>/classified \
   -p prompts/v00.md \
   -o data/1_interim/<dataset>/reconstructions/my_run \
@@ -195,14 +195,14 @@ Evaluates predicted results against ground truth XML. `--task` is required.
 
 ```bash
 # Evaluate reconstruction
-uv run python main.py evaluate \
+uv run article-reconstruction evaluate \
   -i data/1_interim/<dataset>/reconstructions/my_run \
   -g data/0_external/<dataset>/regions \
   --task reconstruction \
   --experiment-id "my_run_v00"
 
 # Evaluate classification
-uv run python main.py evaluate \
+uv run article-reconstruction evaluate \
   -i data/1_interim/<dataset>/classified \
   -g data/0_external/<dataset>/regions \
   --task classification \
@@ -223,7 +223,7 @@ uv run python main.py evaluate \
 Analyzes the worst-performing pages of an evaluation run and suggests improvements.
 
 ```bash
-uv run python main.py suggest \
+uv run article-reconstruction suggest \
   --experiment-id "my_run_v00" \
   --focus clustering \
   --provider openrouter
@@ -244,7 +244,7 @@ uv run python main.py suggest \
 Compares two annotators' article XML directories purely on region membership — which regions belong to the same article. Topics, classes, and notes are out of scope. Articles are matched one-to-one by Jaccard similarity of their region-ref sets (`--match-threshold 1.0` = identical region sets); clustering metrics (pairwise F1, B³ F1) are computed on the full page partitions, and every disagreement (partial overlap, one-sided articles, empty-region articles) is listed in the report.
 
 ```bash
-uv run python main.py agree \
+uv run article-reconstruction agree \
   --annotator-a data/0_external/ds_article_20260902/article_xml_frial \
   --annotator-b data/0_external/ds_article_20260902/article_xml_syafiq \
   --name-a frial --name-b syafiq
@@ -267,12 +267,12 @@ This repo also ships as a plug-in module for the [jawi-pipeline](../pipeline) fr
 
 ```bash
 # single page file
-uv run python pipeline_main.py process \
+uv run pl-article-reconstruction process \
   --input page.json --output out.json \
   --config '{"model": "gpt-5", "provider": "openrouter"}'
 
 # directory of pages, chunked with checkpoint/resume
-uv run python pipeline_main.py bulk-process \
+uv run pl-article-reconstruction bulk-process \
   --input pages_dir --output out_dir \
   --config '@config.json'
 ```
@@ -290,12 +290,44 @@ uv run python pipeline_main.py bulk-process \
 
 Text regions are converted to fragments (joined line OCR text + bbox geometry); image and empty-text regions are skipped. A failed page raises in `process` and yields `None` in `bulk-process` (the framework CLI marks that file failed and keeps the checkpoint). Each article maps to an `Article` carrying its `region_ids` plus the LLM's `title` and `item_class` (and `title_en` when the prompt provides it); article IDs are sequential per page (`article_1`, …).
 
+### 8. Fragment statistics and prompt debugging
+
+`scripts/fragment_stats_report.py` profiles a fragments directory (or individual files): corpus
+summary, per-page table, script mix (Jawi vs ASCII), OCR-garbage fragments, and an
+optional group-vs-rest comparison (e.g. failing pages against the rest).
+
+```bash
+uv run python scripts/fragment_stats_report.py data/1_interim/<dataset>/fragments
+uv run python scripts/fragment_stats_report.py <dir> --group failing_pages.txt --csv pages.csv
+uv run python scripts/fragment_stats_report.py page.json --ascii-threshold 0.3
+```
+
+| Flag | Description |
+|---|---|
+| `--ascii-threshold` | `ascii_ratio` at or above which a page is flagged ASCII-dominant (default: 0.5) |
+| `--group` | File of page ids (one per line) to compare against the remaining pages |
+| `--sort-by` | Field for the per-page table (default: `chars`) |
+| `--top` | Rows in the per-page tables (default: 20) |
+| `--csv` | Write per-page rows to CSV |
+
+Pages whose text is mostly ASCII rather than Jawi are listed separately — usually English
+pages or OCR output that failed to recognise the Jawi script.
+
+`scripts/dump_prompt.py` renders the exact prompt for one page (and an OpenAI-compatible
+request body with `--payload`) so a response can be replayed and inspected outside the
+pipeline:
+
+```bash
+uv run python scripts/dump_prompt.py --dataset <dataset> --page-id UM-1956-02-11-6 \
+  --prompt prompts/v01.01.02.md --payload
+```
+
 ## pipeline.sh
 
 `pipeline.sh` orchestrates a full ETL → Classify → Cluster → Evaluate run in one command. It auto-detects dataset format (`articles/` → `etl`, `alto/` → `parse`) and skips steps that have already completed.
 
 ```bash
-./pipeline.sh \
+./scripts/pipeline.sh \
   --dataset ds-articlereconstruction-20260821 \
   --model Qwen/Qwen3-8B \
   --cluster-prompt prompts/v00.md \
@@ -322,13 +354,14 @@ Text regions are converted to fragments (joined line OCR text + bbox geometry); 
 | `--frequency-penalty` | Reduce repetition |
 | `--timeout` | API timeout in seconds (default: 300) |
 | `--save-prompts` | Save individual prompts sent to the LLM |
+| `--save-raw` | Save raw LLM responses for pages whose output fails to parse (`<output>/raw/`) |
 
 ## agree.sh
 
 `agree.sh` wraps the `agree` command with the same flag names, pre-validating the input directories:
 
 ```bash
-./agree.sh \
+./scripts/agree.sh \
   --annotator-a data/0_external/ds_article_20260902/article_xml_frial \
   --annotator-b data/0_external/ds_article_20260902/article_xml_syafiq \
   --name-a frial --name-b syafiq \
@@ -356,7 +389,7 @@ Open `dashboard.html` in your browser and select the project folder (or host it 
 Export an evaluation log to nodes/edges CSV files for the [article-network-visualizer](https://github.com/nus/Jawi-Newspapers/article-network-visualizer):
 
 ```bash
-uv run python generate_network.py --eval-log reports/evaluations/<file>.json
+uv run python scripts/generate_network.py --eval-log reports/evaluations/<file>.json
 ```
 
 **Options:**

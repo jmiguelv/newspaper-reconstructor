@@ -1,6 +1,8 @@
 """Unit tests for main.py helpers."""
 
-from main import StageContext, _run_batch
+import os
+
+from newspaper_reconstructor.cli import StageContext, _raw_out_path, _run_batch
 from newspaper_reconstructor.llm import LLMError
 from newspaper_reconstructor.prompts import parse_md_prompt as _parse_md_prompt
 
@@ -91,3 +93,10 @@ class TestRunBatch:
         err = capsys.readouterr().err
         assert "a.json" in err
         assert "mps out of memory" in err
+
+
+class TestRawOutPath:
+    def test_writes_into_raw_subfolder(self):
+        assert _raw_out_path("out/experiment", "UM-1956-02-11-6.json") == os.path.join(
+            "out/experiment", "UM-1956-02-11-6.raw.json"
+        )
