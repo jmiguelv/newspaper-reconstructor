@@ -29,17 +29,18 @@ newspaper-reconstructor/
 ├── scripts/                # Runnable utilities + orchestration (pipeline.sh, agree.sh, generate_network.py, dump_prompt.py, fragment_stats_report.py, token_lookup.py, migrate_experiment_ids.py)
 ├── src/
 │   └── newspaper_reconstructor/
-│       ├── cli.py         # Typer CLI entry point (article-reconstruction): etl, parse, classify, cluster, evaluate, suggest, plan, agree
-│       ├── module.py      # jawi-pipeline ArticleReconstructionModule (pl-article-reconstruction)
-│       ├── ingest.py       # Load pre-extracted JSON articles into fragment lists
-│       ├── reconstruct.py  # Data parsing and LLM API mapping
-│       ├── llm.py          # LLM client wrapper (OpenAI-compatible)
+│       ├── cli.py            # Typer CLI entry point (article-reconstruction): etl, parse, classify, cluster, evaluate, suggest, plan, agree
+│       ├── module.py         # jawi-pipeline ArticleReconstructionModule (pl-article-reconstruction)
+│       ├── ingest.py         # Load pre-extracted JSON articles into fragment lists
+│       ├── prompts.py        # Shared prompt file loading (.md / .json / plain text)
+│       ├── reconstruct.py    # Data parsing and LLM API mapping
+│       ├── llm.py            # LLM client wrapper (OpenAI-compatible)
 │       ├── fragment_stats.py # Fragment corpus statistics and script (Jawi/ASCII) detection
-│       ├── evaluate.py     # Ground truth parsing, evaluation metrics
-│       ├── agreement.py    # Inter-annotator region agreement (loader, matcher, metrics, reports)
-│       └── suggest.py      # LLM judge for offline analysis
+│       ├── evaluate.py       # Ground truth parsing, evaluation metrics
+│       ├── agreement.py      # Inter-annotator region agreement (loader, matcher, metrics, reports)
+│       └── suggest.py        # LLM judge for offline analysis
 ├── tests/                  # Unit tests + end-to-end tests
-├── prompts/                # Prompt files (e.g. classify.md, v00.md)
+├── prompts/                # Prompt files (e.g. classify_v01.md, v00.md)
 ├── reports/
 │   ├── evaluations/        # Evaluation logs (JSON)
 │   ├── agreement/          # Inter-annotator agreement reports (JSON + Markdown)
@@ -148,7 +149,7 @@ Uses an LLM to assign classes (article, advertisement, obituary, miscellaneous) 
 ```bash
 uv run article-reconstruction classify \
   -i data/1_interim/<dataset>/fragments \
-  -p prompts/classify.md \
+  -p prompts/classify_v01.md \
   -o data/1_interim/<dataset>/classified \
   --provider openrouter
 ```
@@ -322,16 +323,16 @@ uv run python scripts/dump_prompt.py --dataset <dataset> --page-id UM-1956-02-11
   --prompt prompts/v01.01.02.md --payload
 ```
 
-## pipeline.sh
+## scripts/pipeline.sh
 
-`pipeline.sh` orchestrates a full ETL → Classify → Cluster → Evaluate run in one command. It auto-detects dataset format (`articles/` → `etl`, `alto/` → `parse`) and skips steps that have already completed.
+`scripts/pipeline.sh` orchestrates a full ETL → Classify → Cluster → Evaluate run in one command. It auto-detects dataset format (`articles/` → `etl`, `alto/` → `parse`) and skips steps that have already completed.
 
 ```bash
 ./scripts/pipeline.sh \
   --dataset ds-articlereconstruction-20260821 \
   --model Qwen/Qwen3-8B \
   --cluster-prompt prompts/v00.md \
-  --classify-prompt prompts/classify.md \
+  --classify-prompt prompts/classify_v01.md \
   --provider openrouter \
   --sample-size 20
 ```
@@ -356,9 +357,9 @@ uv run python scripts/dump_prompt.py --dataset <dataset> --page-id UM-1956-02-11
 | `--save-prompts` | Save individual prompts sent to the LLM |
 | `--save-raw` | Save raw LLM responses for pages whose output fails to parse (`<output>/raw/`) |
 
-## agree.sh
+## scripts/agree.sh
 
-`agree.sh` wraps the `agree` command with the same flag names, pre-validating the input directories:
+`scripts/agree.sh` wraps the `agree` command with the same flag names, pre-validating the input directories:
 
 ```bash
 ./scripts/agree.sh \

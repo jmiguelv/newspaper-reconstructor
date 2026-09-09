@@ -35,11 +35,11 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 
 | Module                                        | Responsibility                                                    |
 |-----------------------------------------------|-------------------------------------------------------------------|
-| `src/newspaper_reconstructor/cli.py`             | Typer CLI entry point (`article-reconstruction`): etl, parse, classify, cluster, evaluate, suggest, plan, agree |
-| `pl-article-reconstruction`                       | jawi-pipeline `Module` CLI entry (process / bulk-process) |
-| `scripts/pipeline.sh`                             | Bash script to run a single end-to-end evaluation pipeline        |
-| `scripts/agree.sh`                                | Bash script to compare two annotators' article XML on region agreement |
-| `experiments/*.sh`                            | Bash scripts to orchestrate multiple batched grid-search evaluations |
+| `src/newspaper_reconstructor/cli.py`         | Typer CLI entry point (`article-reconstruction`): etl, parse, classify, cluster, evaluate, suggest, plan, agree |
+| `pl-article-reconstruction`                  | jawi-pipeline `Module` CLI entry (process / bulk-process)          |
+| `scripts/pipeline.sh`                        | Bash script to run a single end-to-end evaluation pipeline        |
+| `scripts/agree.sh`                           | Bash script to compare two annotators' article XML on region agreement |
+| `experiments/*.sh`                           | Bash scripts to orchestrate multiple batched grid-search evaluations |
 | `src/newspaper_reconstructor/ingest.py`       | Load pre-extracted JSON articles into fragment lists              |
 | `src/newspaper_reconstructor/prompts.py`     | Shared prompt file loading (.md / .json / plain text)             |
 | `src/newspaper_reconstructor/module.py`      | `ArticleReconstructionModule` — jawi-pipeline stage (regions → fragments → articles) |
@@ -50,9 +50,12 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 | `src/newspaper_reconstructor/agreement.py`    | Inter-annotator region agreement (loader, Jaccard matcher, metrics, JSON/MD reports, agreed-page copy) |
 | `src/newspaper_reconstructor/suggest.py`      | LLM judge for offline analysis and improvement suggestions        |
 | `dashboard.html`                              | Interactive Alpine.js HTML dashboard to visualize JSON eval logs  |
-| `scripts/generate_network.py`                     | Exports evaluation JSON to nodes/edges CSV for network visualizer |
-| `scripts/fragment_stats_report.py`              | Stats report for a fragments dir/file set (`--csv`, `--group`, `--ascii-threshold`) |
+| `scripts/generate_network.py`                 | Exports evaluation JSON to nodes/edges CSV for network visualizer |
+| `scripts/fragment_stats_report.py`            | Stats report for a fragments dir/file set (`--csv`, `--group`, `--ascii-threshold`) |
 | `scripts/dump_prompt.py`                      | Renders the exact prompt (and request payload) for one page, for offline debugging |
+| `scripts/token_lookup.py`                     | Looks up the string form of a tokenizer token id (needs `--group local`) |
+| `scripts/migrate_experiment_ids.py`           | Backfills the dataset name into `experiment_id` of existing eval logs |
+| `scripts/README.md`                           | Index of every script: purpose and invocation                     |
 
 ## Code Conventions
 
