@@ -20,8 +20,19 @@ PROVIDERS_FILE = Path(__file__).resolve().parent.parent.parent / "providers.json
 class CompletionClient(Protocol):
     """Client contract shared by the API and local backends."""
 
-    def complete(self, system: str, user: str, meta: dict | None = None) -> str:
-        """Return the completion, optionally recording 'finish_reason' in meta."""
+    def complete(
+        self,
+        system: str,
+        user: str,
+        meta: dict | None = None,
+        raw_response: dict | None = None,
+    ) -> str:
+        """Return the completion, optionally recording 'finish_reason' in meta.
+
+        raw_response, when provided, receives the serializable full response
+        payload when the backend has one (e.g. usage/token stats). The caller
+        owns the dict, so this is safe under concurrent calls.
+        """
         ...
 
 
@@ -101,7 +112,13 @@ class LocalLLMClient:
         except Exception as e:
             raise LLMError(f"Failed to load local model '{model_name}': {e}") from e
 
-    def complete(self, system: str, user: str, meta: dict | None = None) -> str:
+    def complete(
+        self,
+        system: str,
+        user: str,
+        meta: dict | None = None,
+        raw_response: dict | None = None,
+    ) -> str:
         messages = [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -172,7 +189,13 @@ class LLMClient:
         self.base_url = base_url
         self.model_kwargs = model_kwargs or {}
 
-    def complete(self, system: str, user: str, meta: dict | None = None) -> str:
+    def complete(
+        self,
+        system: str,
+        user: str,
+        meta: dict | None = None,
+        raw_response: dict | None = None,
+    ) -> str:
         try:
             resp = self.client.chat.completions.create(
                 model=self.model,
@@ -199,6 +222,8 @@ class LLMClient:
         choice = resp.choices[0]
         if meta is not None:
             meta["finish_reason"] = choice.finish_reason
+        if raw_response is not None:
+            raw_response.update(_response_payload(resp))
         content = choice.message.content
         if content is None:
             raise APIError(
@@ -207,6 +232,10 @@ class LLMClient:
                 body=None,
             )
         return content
+
+
+def _response_payload(resp) -> dict:
+    return resp.model_dump() if hasattr(resp, "model_dump") else {}
 
 
 def make_client(

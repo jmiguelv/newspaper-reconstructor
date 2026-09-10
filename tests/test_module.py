@@ -401,7 +401,7 @@ class TestBulkProcess:
         )
 
     @staticmethod
-    def page_complete(system, user, meta=None):
+    def page_complete(system, user, meta=None, raw_response=None):
         import re
         import time
 
@@ -436,7 +436,7 @@ class TestBulkProcess:
 
         client = MagicMock()
 
-        def complete(system, user, meta=None):
+        def complete(system, user, meta=None, raw_response=None):
             if '"r_p2"' in user:
                 raise APIError("boom", request=None, body=None)
             return '[{"fragment_ids": ["r_ok"], "title": "t", "class": "article"}]'

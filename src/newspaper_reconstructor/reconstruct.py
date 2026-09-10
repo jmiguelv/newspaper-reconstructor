@@ -84,15 +84,18 @@ def classify_fragments(
     truncated = False
     for attempt in range(max_retries):
         meta: dict = {}
+        response: dict = {}
         try:
-            raw = client.complete(system_prompt, user_prompt, meta=meta)
+            raw = client.complete(
+                system_prompt, user_prompt, meta=meta, raw_response=response
+            )
         except (APITimeoutError, APIError) as e:
             if _handle_api_error(e, attempt, max_retries):
                 continue
             return None
 
         if raw_out_path:
-            _save_raw_response(raw, raw_out_path)
+            _save_raw_response(raw, raw_out_path, response or None)
 
         parsed = _parse_classification_response(raw)
         if parsed is not None:
@@ -141,15 +144,18 @@ def reconstruct_articles(
     truncated = False
     for attempt in range(max_retries):
         meta: dict = {}
+        response: dict = {}
         try:
-            raw = client.complete(system_prompt, user_prompt, meta=meta)
+            raw = client.complete(
+                system_prompt, user_prompt, meta=meta, raw_response=response
+            )
         except (APITimeoutError, APIError) as e:
             if _handle_api_error(e, attempt, max_retries):
                 continue
             return None
 
         if raw_out_path:
-            _save_raw_response(raw, raw_out_path)
+            _save_raw_response(raw, raw_out_path, response or None)
 
         parsed = _parse_json_response(raw)
         if parsed is not None:
@@ -173,11 +179,16 @@ def reconstruct_articles(
     return None
 
 
-def _save_raw_response(raw: str, raw_out_path: str) -> None:
-    """Save the raw response text to disk."""
+def _save_raw_response(
+    raw: str, raw_out_path: str, response: dict | None = None
+) -> None:
+    """Save the full response payload when available, else the raw text."""
     os.makedirs(os.path.dirname(raw_out_path) or ".", exist_ok=True)
     with open(raw_out_path, "w", encoding="utf-8") as f:
-        f.write(raw)
+        if response:
+            json.dump(response, f, indent=2, ensure_ascii=False, default=str)
+        else:
+            f.write(raw)
 
 
 def _log_unparseable_response(

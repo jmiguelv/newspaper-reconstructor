@@ -8,6 +8,7 @@ import pytest
 
 from newspaper_reconstructor.llm import LLMError, make_client
 from newspaper_reconstructor.reconstruct import (
+    _save_raw_response,
     alto_to_json,
     reconstruct_articles,
 )
@@ -414,7 +415,7 @@ class TestErrorLogging:
     def _client(raw, finish_reason):
         client = MagicMock()
 
-        def complete(system, user, meta=None):
+        def complete(system, user, meta=None, raw_response=None):
             if meta is not None:
                 meta["finish_reason"] = finish_reason
             return raw
@@ -477,7 +478,9 @@ class TestErrorLogging:
         response_json = json.dumps(
             [{"fragment_ids": ["r1"], "title": "t", "class": "article"}]
         )
-        client.complete.side_effect = lambda system, user, meta=None: response_json
+        client.complete.side_effect = (
+            lambda system, user, meta=None, raw_response=None: response_json
+        )
         reconstruct_articles(
             self.FRAGMENTS,
             client,
@@ -502,3 +505,46 @@ class TestErrorLogging:
         err = capsys.readouterr().err
         assert "finish_reason=length" in err
         assert "TRUNCATED-TAIL" in err
+
+    def test_saves_full_response_payload_when_client_provides_it(self, tmp_path):
+        raw_out = tmp_path / "raw" / "page.raw.json"
+        payload = {
+            "model": "m",
+            "choices": [{"finish_reason": "length"}],
+            "usage": {"total_tokens": 99},
+        }
+        client = MagicMock()
+
+        def complete(system, user, meta=None, raw_response=None):
+            if meta is not None:
+                meta["finish_reason"] = "length"
+            if raw_response is not None:
+                raw_response.update(payload)
+            return "text"
+
+        client.complete.side_effect = complete
+        reconstruct_articles(
+            self.FRAGMENTS,
+            client,
+            TEST_SYSTEM_PROMPT,
+            TEST_USER_PROMPT_TEMPLATE,
+            max_retries=1,
+            raw_out_path=str(raw_out),
+        )
+        assert json.loads(raw_out.read_text(encoding="utf-8")) == payload
+
+
+class TestSaveRawResponse:
+    def test_writes_raw_text_when_no_payload(self, tmp_path):
+        out = tmp_path / "raw" / "page.raw.txt"
+        _save_raw_response("text", str(out))
+        assert out.read_text(encoding="utf-8") == "text"
+
+    def test_writes_payload_json_when_given(self, tmp_path):
+        out = tmp_path / "raw" / "page.raw.json"
+        payload = {
+            "choices": [{"finish_reason": "length"}],
+            "usage": {"total_tokens": 7},
+        }
+        _save_raw_response("text", str(out), payload)
+        assert json.loads(out.read_text(encoding="utf-8")) == payload

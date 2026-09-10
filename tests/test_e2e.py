@@ -349,7 +349,7 @@ class TestE2ECluster:
         raw = "thinking " * 20 + "TRUNCATED-TAIL"
         client = MagicMock()
 
-        def complete(system, user, meta=None):
+        def complete(system, user, meta=None, raw_response=None):
             if meta is not None:
                 meta["finish_reason"] = "length"
             return raw
