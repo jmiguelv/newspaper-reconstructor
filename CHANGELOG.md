@@ -1,3 +1,26 @@
+## 0.14.0 (2026-09-10)
+
+### Feat
+
+- **main**: support module-format OCR in etl, cluster, and evaluate
+- **ingest**: load module-format OCR JSON and slim fragments
+- **module**: extract cluster↔module output conversion, add model_kwargs
+- **cli**: add agree command and agree.sh wrapper
+- **agreement**: add inter-annotator region agreement module
+
+### Fix
+
+- **llm**: persist full response payload in --save-raw via explicit out-param
+- **llm**: drop processor inputs the local model forward rejects
+- adjust jawi-pipeline local path
+- correct src-layout imports and add build system config
+
+### Refactor
+
+- **cli**: consolidate entry points into src/ and scripts/
+
+## v0.13.0 (2026-09-04)
+
 ## 0.13.0 (2026-09-04)
 
 ### Feat
