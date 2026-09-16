@@ -1035,6 +1035,26 @@
                 color: var(--ink-light);
                 max-width: 80ch;
             }
+            .reconstruction-method-header {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                align-items: baseline;
+                gap: var(--space-2xs) var(--space-m);
+                padding-bottom: var(--space-xs);
+                margin-bottom: var(--space-m);
+                border-bottom: 1px solid var(--rule);
+            }
+            .reconstruction-method-header p {
+                color: var(--ink-light);
+            }
+            .baseline-methods {
+                margin-top: var(--space-xl);
+            }
+            .baseline-table th,
+            .baseline-table tbody tr {
+                cursor: default;
+            }
             .timestamp-cell {
                 white-space: nowrap;
                 font-size: var(--step--2);
@@ -1994,6 +2014,11 @@
                 <section id="reconstruction-section">
                     <h3>Reconstructions</h3>
 
+                    <header class="reconstruction-method-header">
+                        <h4>LLM reconstructions</h4>
+                        <p>Prompted model runs</p>
+                    </header>
+
                     <template x-if="bestF1Run">
                         <div class="best-run-flex">
                             <span
@@ -2940,6 +2965,74 @@
                             </div>
                         </div>
                     </template>
+
+                    <template x-if="baselineReport">
+                        <div class="baseline-methods">
+                            <header class="reconstruction-method-header">
+                                <h4>Baseline methods</h4>
+                                <p>
+                                    <code
+                                        x-text="baselineReport.dataset"
+                                    ></code>
+                                    ·
+                                    <span
+                                        x-text="baselineReport.pages + ' pages'"
+                                    ></span>
+                                    ·
+                                    <a href="reports/baselines/comparison.md"
+                                        >Comparison report</a
+                                    >
+                                </p>
+                            </header>
+                            <div class="table-wrap">
+                                <table class="baseline-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Variant</th>
+                                            <th>F1</th>
+                                            <th>Precision</th>
+                                            <th>Recall</th>
+                                            <th>B³ F1</th>
+                                            <th>ARI</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <template
+                                            x-for="baseline in baselineReport.rows"
+                                            :key="baseline.variant"
+                                        >
+                                            <tr>
+                                                <td
+                                                    class="mono-text"
+                                                    x-text="baseline.variant"
+                                                ></td>
+                                                <td
+                                                    :class="metricClass(baseline.f1)"
+                                                    x-text="fmt(baseline.f1)"
+                                                ></td>
+                                                <td
+                                                    :class="metricClass(baseline.precision)"
+                                                    x-text="fmt(baseline.precision)"
+                                                ></td>
+                                                <td
+                                                    :class="metricClass(baseline.recall)"
+                                                    x-text="fmt(baseline.recall)"
+                                                ></td>
+                                                <td
+                                                    :class="metricClass(baseline.bcubedF1)"
+                                                    x-text="fmt(baseline.bcubedF1)"
+                                                ></td>
+                                                <td
+                                                    :class="metricClass(baseline.ari)"
+                                                    x-text="fmt(baseline.ari)"
+                                                ></td>
+                                            </tr>
+                                        </template>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </template>
                 </section>
             </section>
 
@@ -2960,10 +3053,65 @@
             src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
         ></script>
         <script>
+            function parseBaselineComparison(markdown) {
+                const lines = markdown.split(/\r?\n/);
+                const title = lines.find((line) =>
+                    line.startsWith("# Baseline comparison"),
+                );
+                const tableHeaderIndex = lines.findIndex((line) =>
+                    /^\|\s*Variant\s*\|/.test(line),
+                );
+                if (!title || tableHeaderIndex === -1) {
+                    throw new Error("Invalid baseline comparison report");
+                }
+
+                const metric = (value) => {
+                    if (/^N\/A/i.test(value)) return null;
+                    const parsed = Number.parseFloat(value);
+                    if (!Number.isFinite(parsed)) {
+                        throw new Error(`Invalid baseline metric: ${value}`);
+                    }
+                    return parsed;
+                };
+                const rows = [];
+                for (let i = tableHeaderIndex + 2; i < lines.length; i++) {
+                    if (!lines[i].trim().startsWith("|")) break;
+                    const cells = lines[i]
+                        .split("|")
+                        .slice(1, -1)
+                        .map((cell) => cell.trim());
+                    if (cells.length !== 6) {
+                        throw new Error("Invalid baseline comparison row");
+                    }
+                    rows.push({
+                        variant: cells[0].replaceAll("`", ""),
+                        f1: metric(cells[1]),
+                        precision: metric(cells[2]),
+                        recall: metric(cells[3]),
+                        bcubedF1: metric(cells[4]),
+                        ari: metric(cells[5]),
+                    });
+                }
+                if (rows.length === 0) {
+                    throw new Error("Baseline comparison report has no rows");
+                }
+
+                const datasetParts = title.split(/\s+[—-]\s+/);
+                const pagesMatch = markdown.match(
+                    /macro-averaged over\s+(\d+)\s+pages/i,
+                );
+                return {
+                    dataset: datasetParts.at(-1).trim(),
+                    pages: pagesMatch ? Number(pagesMatch[1]) : null,
+                    rows,
+                };
+            }
+
             function dashboard() {
                 return {
                     experiments: [],
                     prompts: [],
+                    baselineReport: null,
                     isLoading: false,
                     classifSortKey: "aggregate.mean_weighted_f1",
                     classifSortDir: "desc",
@@ -3041,10 +3189,12 @@
                         }
 
                         // Attempt to fetch from local server directory listing
-                        const [evalRes, promptRes] = await Promise.allSettled([
-                            fetch("reports/evaluations/"),
-                            fetch("prompts/"),
-                        ]);
+                        const [evalRes, promptRes, baselineRes] =
+                            await Promise.allSettled([
+                                fetch("reports/evaluations/"),
+                                fetch("prompts/"),
+                                fetch("reports/baselines/comparison.md"),
+                            ]);
 
                         if (
                             evalRes.status === "fulfilled" &&
@@ -3150,12 +3300,22 @@
                             }
                             this.prompts = prompts;
                         }
+
+                        if (
+                            baselineRes.status === "fulfilled" &&
+                            baselineRes.value.ok
+                        ) {
+                            this.baselineReport = parseBaselineComparison(
+                                await baselineRes.value.text(),
+                            );
+                        }
                     },
 
                     async handleFilesSelected(event) {
                         this.isLoading = true;
                         this.experiments = [];
                         this.prompts = [];
+                        this.baselineReport = null;
                         try {
                             const files = Array.from(event.target.files);
 
@@ -3170,6 +3330,13 @@
                                 (f) =>
                                     f.name.endsWith(".md") &&
                                     f.webkitRelativePath.includes("prompts"),
+                            );
+                            const baselineFile = files.find(
+                                (f) =>
+                                    f.name === "comparison.md" &&
+                                    f.webkitRelativePath.includes(
+                                        "reports/baselines",
+                                    ),
                             );
 
                             // Parse JSONs
@@ -3219,6 +3386,13 @@
                             this.prompts = parsedPrompts.sort((a, b) =>
                                 a.name.localeCompare(b.name),
                             );
+
+                            if (baselineFile) {
+                                this.baselineReport =
+                                    parseBaselineComparison(
+                                        await baselineFile.text(),
+                                    );
+                            }
                         } finally {
                             this.isLoading = false;
                         }
@@ -3292,7 +3466,9 @@
 
                     get filteredReconstructionExperiments() {
                         return this.filteredExperiments.filter(
-                            (r) => r.config?.task !== "classification",
+                            (r) =>
+                                r.config?.task !== "classification" &&
+                                r.config?.provider !== "baseline",
                         );
                     },
                     get sortedReconstructionExperiments() {
