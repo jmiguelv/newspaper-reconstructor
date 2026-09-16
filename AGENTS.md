@@ -24,6 +24,8 @@ ALTO XML     → article-reconstruction parse (extract JSON fragments from ALTO 
              → article-reconstruction evaluate (compare against ground truth article XML)
              → dashboard.html (visualize eval logs as HTML)
 
+Module OCR JSON → article-reconstruction baseline (deterministic geometry clustering; images and empty-text regions inform layout but never appear in output)
+
 Annotator XML × 2 → article-reconstruction agree (inter-annotator agreement on region membership → reports/agreement/, --copy-agreed copies pages meeting the B³ F1 threshold)
 
 jawi-pipeline OcrOutput (page + regions with line OCR)
@@ -35,12 +37,13 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 
 | Module                                        | Responsibility                                                    |
 |-----------------------------------------------|-------------------------------------------------------------------|
-| `src/newspaper_reconstructor/cli.py`         | Typer CLI entry point (`article-reconstruction`): etl, parse, classify, cluster, evaluate, suggest, plan, agree |
+| `src/newspaper_reconstructor/cli.py`         | Typer CLI entry point (`article-reconstruction`): etl, parse, classify, cluster, baseline, evaluate, suggest, plan, agree |
 | `pl-article-reconstruction`                  | jawi-pipeline `Module` CLI entry (process / bulk-process)          |
 | `scripts/pipeline.sh`                        | Bash script to run a single end-to-end evaluation pipeline        |
 | `scripts/agree.sh`                           | Bash script to compare two annotators' article XML on region agreement |
 | `experiments/*.sh`                           | Bash scripts to orchestrate multiple batched grid-search evaluations |
-| `src/newspaper_reconstructor/ingest.py`       | Load pre-extracted JSON articles into fragment lists              |
+| `src/newspaper_reconstructor/ingest.py`       | Load article, module OCR, and fragment JSON; preserve full layout for baselines |
+| `src/newspaper_reconstructor/baseline.py`     | Geometry, geometry-NCD, XY-cut, XY-Cut++, and trivial reconstruction baselines |
 | `src/newspaper_reconstructor/prompts.py`     | Shared prompt file loading (.md / .json / plain text)             |
 | `src/newspaper_reconstructor/module.py`      | `ArticleReconstructionModule` — jawi-pipeline stage (regions → fragments → articles) |
 | `src/newspaper_reconstructor/reconstruct.py`  | Data transformation, dict parsing, and mapping to LLM inputs     |
@@ -77,9 +80,10 @@ data/
 │   ├── <dataset_name>/   # New format (e.g. ds-articlereconstruction-20260821)
 │   │   ├── articles/     # Pre-extracted JSON: {region_id: ocr_text}
 │   │   └── regions/      # Ground truth article XML files
-│   └── <dataset_name>/   # Legacy format (e.g. ds-filteredUM1956alto)
+│   └── <dataset_name>/   # Verified format (e.g. ds-filteredUM1956alto)
 │       ├── alto/         # ALTO XML files (OCR text fragments)
-│       └── article_xml/  # Ground truth article XML files
+│       ├── article_xml/  # Ground truth article XML files
+│       └── json/         # Module-format OCR with full region geometry
 └── 1_interim/            # Interim pipeline I/O
     └── <dataset_name>/
         ├── fragments/        # Parsed JSON fragments [{id, text}]

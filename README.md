@@ -1,6 +1,6 @@
 # Article Reconstruction from OCR Fragments using LLM Pipelines
 
-Reconstructs newspaper articles from OCR text fragments by prompting an LLM through a pipelined architecture (ETL/Parse → Classify → Cluster → Evaluate). Supports two input formats: pre-extracted JSON articles and legacy ALTO XML. Includes evaluation against ground truth article XML using pairwise clustering F1, B-Cubed F1, Adjusted Rand Index (ARI), class accuracy, and coverage metrics, plus an inter-annotator agreement checker that compares two annotators' article XML on region membership.
+Reconstructs newspaper articles from OCR text fragments with LLM and deterministic geometry baselines through a pipelined architecture (ETL/Parse → Classify → Cluster/Baseline → Evaluate). Supports pre-extracted JSON articles, module-format OCR, and legacy ALTO XML. Includes evaluation against ground truth article XML using pairwise clustering F1, B-Cubed F1, Adjusted Rand Index (ARI), class accuracy, and coverage metrics, plus an inter-annotator agreement checker that compares two annotators' article XML on region membership.
 
 Developed for Jawi (Arabic script) Malay newspapers from the Utusan Melayu 1956 collection.
 
@@ -13,6 +13,7 @@ flowchart LR
     PARSED -->|article-reconstruction classify| CLASSIFIED["Classified Fragments\ndata/1_interim/classified/"]
     CLASSIFIED -->|article-reconstruction cluster| RECON["Reconstructed Articles\ndata/1_interim/reconstructions/"]
     ARTJSON -->|article-reconstruction cluster\n--skip-classification| RECON
+    MODULEJSON["Module OCR JSON\npage + full region layout"] -->|article-reconstruction baseline| RECON
     GT["Ground Truth XML\ndata/0_external/&lt;ds&gt;/regions/"] -->|ground truth| EVAL["article-reconstruction evaluate\n--task reconstruction"]
     RECON -->|predicted items| EVAL
     EVAL -->|clustering F1, ARI\nB³ F1, coverage| LOG["Eval log JSON\nreports/evaluations/"]
@@ -26,12 +27,13 @@ newspaper-reconstructor/
 ├── dashboard.html          # Standalone Alpine.js evaluation dashboard
 ├── providers.json          # Named provider definitions (base_url, default_headers)
 ├── experiments/            # Batch grid-search evaluation scripts
-├── scripts/                # Runnable utilities + orchestration (pipeline.sh, agree.sh, generate_network.py, dump_prompt.py, fragment_stats_report.py, token_lookup.py, migrate_experiment_ids.py)
+├── scripts/                # Utilities for pipeline orchestration, baseline sweeps, reports, and debugging
 ├── src/
 │   └── newspaper_reconstructor/
-│       ├── cli.py            # Typer CLI entry point (article-reconstruction): etl, parse, classify, cluster, evaluate, suggest, plan, agree
+│       ├── cli.py            # Typer CLI entry point: etl, parse, classify, cluster, baseline, evaluate, suggest, plan, agree
 │       ├── module.py         # jawi-pipeline ArticleReconstructionModule (pl-article-reconstruction)
-│       ├── ingest.py         # Load pre-extracted JSON articles into fragment lists
+│       ├── ingest.py         # Load article, fragment-list, and module OCR JSON
+│       ├── baseline.py       # Geometry, geometry-NCD, XY-cut, XY-Cut++, and trivial baselines
 │       ├── prompts.py        # Shared prompt file loading (.md / .json / plain text)
 │       ├── reconstruct.py    # Data parsing and LLM API mapping
 │       ├── llm.py            # LLM client wrapper (OpenAI-compatible)
@@ -51,9 +53,10 @@ newspaper-reconstructor/
     │   ├── <dataset_name>/   # New format (e.g. ds-articlereconstruction-20260821)
     │   │   ├── articles/     # Pre-extracted JSON: {region_id: ocr_text}
     │   │   └── regions/      # Ground truth article XML files
-    │   └── <dataset_name>/   # Legacy format (e.g. ds-filteredUM1956alto)
+    │   └── <dataset_name>/   # Verified format (e.g. ds-filteredUM1956alto)
     │       ├── alto/         # ALTO XML files (OCR text fragments)
-    │       └── article_xml/  # Ground truth article XML files
+    │       ├── article_xml/  # Ground truth article XML files
+    │       └── json/         # Module-format OCR with full region geometry
     └── 1_interim/            # Interim pipeline I/O
         └── <dataset_name>/
             ├── fragments/        # Parsed JSON fragments [{id, text}]
@@ -189,6 +192,19 @@ uv run article-reconstruction cluster \
 ```
 
 Accepts the same options as `classify` (see table above).
+
+### 3b. Run a Deterministic Baseline
+
+Runs geometry, geometry-NCD, XY-cut, XY-Cut++, or a trivial baseline without an LLM. Input must be raw module-format OCR so images and empty-text regions can inform page segmentation without appearing in predicted articles.
+
+```bash
+uv run article-reconstruction baseline \
+  -i data/0_external/<dataset>/json \
+  -o data/1_interim/<dataset>/reconstructions/baseline-geometry \
+  --variant geometry
+```
+
+Use `scripts/baseline_sweep.py` to compare parameter cells against ground truth.
 
 ### 4. Evaluate
 

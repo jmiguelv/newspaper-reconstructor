@@ -20,6 +20,10 @@ root). Scripts run with `uv run python scripts/<name>.py …`; shell scripts wit
 - `dump_prompt.py` — Render the exact prompt (and, with `--payload`, an
   OpenAI-compatible request body) for one page, for offline debugging.
   `uv run python scripts/dump_prompt.py --dataset <ds> --page-id <id> --prompt prompts/v01.01.02.md --payload`
+- `baseline_sweep.py` — Sweep geometry, geometry-NCD, XY-cut, and XY-Cut++
+  parameters against ground truth and write `reports/baselines/sweep.{csv,md}`.
+  Raw module OCR is required so every page region remains available as layout context.
+  `uv run python scripts/baseline_sweep.py --ocr-dir <dataset>/json --gt-dir <dataset>/article_xml`
 - `fragment_stats_report.py` — CLI wrapper over
   `newspaper_reconstructor.fragment_stats`: corpus stats and script mix for a
   fragments dir/file set (`--csv`, `--group`, `--ascii-threshold`).

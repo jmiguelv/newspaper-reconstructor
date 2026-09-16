@@ -29,6 +29,7 @@ data/1_interim/
 data/3_networks/
 reports/evaluations/*
 !reports/evaluations/.gitkeep
+reports/baselines/
 
 # Git submodule content
 data/0_external/
