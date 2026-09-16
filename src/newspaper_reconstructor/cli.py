@@ -22,13 +22,21 @@ from newspaper_reconstructor.agreement import (
     load_annotations,
     write_agreement_reports,
 )
+from newspaper_reconstructor.baseline import (
+    DEFAULT_GAP_K,
+    DEFAULT_NCD_MIN_CHARS,
+    DEFAULT_NCD_THRESHOLD,
+    DEFAULT_X_OVERLAP,
+    VARIANTS,
+    baseline_items,
+)
 from newspaper_reconstructor.evaluate import (
     evaluate_classification_page,
     evaluate_reconstruction_page,
     load_ground_truth_dir,
     log_evaluation_experiment,
 )
-from newspaper_reconstructor.ingest import load_fragments_file
+from newspaper_reconstructor.ingest import load_baseline_ocr_file, load_fragments_file
 from newspaper_reconstructor.llm import CompletionClient, make_client
 from newspaper_reconstructor.module import items_to_module_output, output_to_items
 from newspaper_reconstructor.prompts import load_prompt
@@ -542,6 +550,92 @@ def cluster(
         process_fn=_cluster_process,
         action_past="Clustered",
         module_format=module_format,
+    )
+
+
+@app.command()
+def baseline(
+    input_folder: str = typer.Option(
+        ...,
+        "--input-folder",
+        "-i",
+        help="Directory of module-format OCR JSON files",
+    ),
+    output_folder: str = typer.Option(
+        ...,
+        "--output-folder",
+        "-o",
+        help="Directory to save predicted items",
+    ),
+    variant: str = typer.Option(
+        "geometry", help=f"Baseline variant: {', '.join(VARIANTS)}"
+    ),
+    gap_k: float = typer.Option(
+        DEFAULT_GAP_K,
+        help="Max vertical gap as a multiple of the page's median fragment height",
+    ),
+    x_overlap_threshold: float = typer.Option(
+        DEFAULT_X_OVERLAP, help="Minimum horizontal overlap fraction"
+    ),
+    ncd_threshold: float = typer.Option(
+        DEFAULT_NCD_THRESHOLD, help="Max NCD for a merge (geometry-ncd)"
+    ),
+    ncd_min_chars: int = typer.Option(
+        DEFAULT_NCD_MIN_CHARS,
+        help="Fragments below this length skip the NCD veto (geometry-ncd)",
+    ),
+    sample_size: int | None = typer.Option(None, help="Randomly sample N pages"),
+    seed: int = typer.Option(42, help="Random seed for sampling"),
+    page_id: str | None = typer.Option(None, help="Process a single page ID"),
+):
+    """Cluster fragments into articles using a deterministic baseline.
+
+    Requires raw module-format OCR so images and empty-text regions can inform
+    page segmentation without appearing in predicted articles.
+    """
+    if variant not in VARIANTS:
+        typer.echo(f"Error: unknown variant {variant!r}", err=True)
+        raise typer.Exit(1)
+    os.makedirs(output_folder, exist_ok=True)
+    files = _list_stage_files(input_folder, page_id, sample_size, seed)
+    start = time.time()
+    for fname in files:
+        try:
+            fragments, layout_regions = load_baseline_ocr_file(
+                os.path.join(input_folder, fname)
+            )
+            items = baseline_items(
+                fragments,
+                variant=variant,
+                layout_regions=layout_regions,
+                gap_k=gap_k,
+                x_overlap_threshold=x_overlap_threshold,
+                ncd_threshold=ncd_threshold,
+                ncd_min_chars=ncd_min_chars,
+            )
+        except (TypeError, ValueError) as e:
+            typer.echo(f"Error: {fname}: {e}", err=True)
+            raise typer.Exit(1)
+        with open(os.path.join(output_folder, fname), "w", encoding="utf-8") as f:
+            json.dump(items, f, indent=2, ensure_ascii=False)
+    execution_time = time.time() - start
+    _save_stage_metadata(
+        output_folder,
+        model=f"baseline-{variant}",
+        prompt_file=variant,
+        sample_size=sample_size,
+        provider="baseline",
+        tag=None,
+        parsed_model_kwargs={
+            "gap_k": gap_k,
+            "x_overlap_threshold": x_overlap_threshold,
+            "ncd_threshold": ncd_threshold,
+            "ncd_min_chars": ncd_min_chars,
+        },
+        execution_time_seconds=execution_time,
+    )
+    typer.echo(
+        f"Clustered {len(files)} files with baseline-{variant} to {output_folder}"
     )
 
 
