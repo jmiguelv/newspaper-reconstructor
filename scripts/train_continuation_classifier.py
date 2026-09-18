@@ -87,6 +87,7 @@ def train_model(args: argparse.Namespace) -> None:
         num_labels=2,
         id2label={0: "NOT_CONTINUATION", 1: "CONTINUATION"},
         label2id={"NOT_CONTINUATION": 0, "CONTINUATION": 1},
+        dtype=torch.float32,
     )
 
     output_dir = Path(args.output_dir)
