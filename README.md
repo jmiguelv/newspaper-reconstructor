@@ -206,6 +206,27 @@ uv run article-reconstruction baseline \
 
 Use `scripts/baseline_sweep.py` to compare parameter cells against ground truth.
 
+### 3c. Train a Continuation Classifier
+
+Build balanced text-pair data and fine-tune a binary BERT classifier to predict
+whether OCR region B immediately continues region A. Whole pages are assigned
+to train, validation, or test so the same OCR text cannot appear across splits.
+Each split contains one page-local negative for every positive continuation.
+
+```bash
+experiments/continuation_classifier.sh prepare --dataset <dataset>
+experiments/continuation_classifier.sh train --dataset <dataset>
+experiments/continuation_classifier.sh val --dataset <dataset>
+experiments/continuation_classifier.sh test --dataset <dataset>
+```
+
+The `prepare` step builds the balanced dataset. The `train` step fine-tunes the
+model using the prepared train and validation files, retaining the checkpoint
+with the best validation F1. The `val` and `test` steps score that saved model
+separately and write `validation-metrics.json` and
+`test-metrics.json`. Use `--dry-run` to inspect commands and artifact paths.
+Article reconstruction from classifier scores is a separate future step.
+
 ### 4. Evaluate
 
 Evaluates predicted results against ground truth XML. `--task` is required.
