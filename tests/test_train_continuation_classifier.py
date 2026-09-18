@@ -6,6 +6,7 @@ import pytest
 from scripts.train_continuation_classifier import (
     PairDataset,
     classification_metrics,
+    epoch_evals,
     load_records,
     positive_probabilities,
     tokenize_records,
@@ -89,6 +90,25 @@ def test_tokenize_records_uses_standard_text_pair_tokenization():
     ]
     assert len(dataset) == 2
     assert dataset[1]["labels"] == 0
+
+
+def test_epoch_evals_extracts_one_entry_per_epoch():
+    log_history = [
+        {"loss": 0.7, "epoch": 1.0, "step": 73},
+        {"eval_f1": 0.5, "eval_loss": 0.6, "eval_accuracy": 0.6, "epoch": 1.0},
+        {"eval_f1": 0.8, "eval_loss": 0.4, "eval_accuracy": 0.8, "epoch": 2.0},
+        {"train_runtime": 60.0, "epoch": 2.0},
+    ]
+
+    assert epoch_evals(log_history) == [
+        {"epoch": 1.0, "eval_loss": 0.6, "eval_f1": 0.5, "eval_accuracy": 0.6},
+        {"epoch": 2.0, "eval_loss": 0.4, "eval_f1": 0.8, "eval_accuracy": 0.8},
+    ]
+
+
+def test_epoch_evals_raises_without_evaluation_entries():
+    with pytest.raises(ValueError, match="no evaluation entries"):
+        epoch_evals([{"loss": 0.7, "epoch": 1.0}])
 
 
 def test_positive_probabilities_uses_stable_softmax():

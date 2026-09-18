@@ -123,6 +123,8 @@ def train_model(args: argparse.Namespace) -> None:
     trainer.save_model(str(output_dir))
     tokenizer.save_pretrained(output_dir)
 
+    evals = epoch_evals(trainer.state.log_history)
+    best = max(evals, key=lambda entry: entry["eval_f1"])
     training = {
         "model": args.model,
         "transformers_version": transformers.__version__,
@@ -136,12 +138,21 @@ def train_model(args: argparse.Namespace) -> None:
             "weight_decay": args.weight_decay,
         },
         "examples": {name: len(split) for name, split in datasets.items()},
+        "best_checkpoint": {
+            "epoch": best["epoch"],
+            "validation_f1": trainer.state.best_metric,
+        },
+        "epoch_history": evals,
         "best_validation_f1": trainer.state.best_metric,
         "train": train_result.metrics,
     }
     (output_dir / "training.json").write_text(
         json.dumps(training, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
+    )
+    print(
+        f"Best checkpoint: epoch {best['epoch']:g} of {args.epochs:g} "
+        f"(validation F1 {trainer.state.best_metric:.4f})"
     )
     print(f"Saved model and training metadata to {output_dir}")
 
@@ -223,6 +234,22 @@ def tokenize_records(records: list[dict], tokenizer, max_length: int) -> PairDat
         for index, record in enumerate(records)
     ]
     return PairDataset(items)
+
+
+def epoch_evals(log_history: list[dict]) -> list[dict]:
+    evals = [
+        {
+            "epoch": entry["epoch"],
+            "eval_loss": entry["eval_loss"],
+            "eval_f1": entry["eval_f1"],
+            "eval_accuracy": entry["eval_accuracy"],
+        }
+        for entry in log_history
+        if "eval_f1" in entry
+    ]
+    if not evals:
+        raise ValueError("log history contains no evaluation entries")
+    return evals
 
 
 def positive_probabilities(logits) -> np.ndarray:
