@@ -15,6 +15,7 @@ Options:
   --dataset NAME   Dataset under data/0_external
   --model NAME     Hugging Face model name or local path
   --seed N         Dataset and training seed
+  --epochs N       Training epochs (train step only, default 3)
   --dry-run        Print commands without running them
   --help           Show this help
 EOF
@@ -39,6 +40,7 @@ esac
 DATASET="ds-articlereconstruction-20260821"
 MODEL="distilbert/distilbert-base-multilingual-cased"
 SEED="42"
+EPOCHS="3"
 DRY_RUN="false"
 
 while [[ $# -gt 0 ]]; do
@@ -51,7 +53,7 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN="true"
             shift
             ;;
-        --dataset|--model|--seed)
+        --dataset|--model|--seed|--epochs)
             if [[ $# -lt 2 ]]; then
                 echo "Missing value for $1" >&2
                 exit 1
@@ -60,6 +62,7 @@ while [[ $# -gt 0 ]]; do
                 --dataset) DATASET=$2 ;;
                 --model) MODEL=$2 ;;
                 --seed) SEED=$2 ;;
+                --epochs) EPOCHS=$2 ;;
             esac
             shift 2
             ;;
@@ -113,7 +116,8 @@ case "$STEP" in
             --data-dir "$DATA_DIR" \
             --output-dir "$MODEL_DIR" \
             --model "$MODEL" \
-            --seed "$SEED"
+            --seed "$SEED" \
+            --epochs "$EPOCHS"
         ;;
     val)
         if [[ $DRY_RUN != "true" && ! -f ${MODEL_DIR}/config.json ]]; then
