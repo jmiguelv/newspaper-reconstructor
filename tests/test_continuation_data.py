@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from newspaper_reconstructor.continuation_data import (
     LabeledPage,
     LabeledRegion,
@@ -8,6 +10,7 @@ from newspaper_reconstructor.continuation_data import (
     build_examples,
     load_pages,
     split_pages,
+    split_region_text,
 )
 
 
@@ -45,6 +48,64 @@ def _write_page(
     (regions_dir / f"{page_id}.xml").write_text(
         f"<Articles>{xml}</Articles>", encoding="utf-8"
     )
+
+
+def test_split_region_text_short_text_is_unchanged():
+    assert split_region_text("short text", 400) == ["short text"]
+    assert split_region_text("", 400) == [""]
+
+
+def test_split_region_text_rejects_small_max_chars():
+    with pytest.raises(ValueError):
+        split_region_text("abc", 1)
+
+
+def test_split_region_text_parts_stay_within_bounds_and_recombine():
+    text = " ".join(f"word{index}" for index in range(500))
+
+    parts = split_region_text(text, 400)
+
+    assert len(parts) > 1
+    assert all(len(part) <= 400 for part in parts)
+    assert all(len(part) >= 200 for part in parts)
+    assert "".join(parts) == text
+
+
+def test_split_region_text_prefers_sentence_ends():
+    text = ("This is a sentence. " * 40).strip()
+
+    parts = split_region_text(text, 400)
+
+    assert len(parts) == 2
+    assert parts[0].endswith(". ")
+    assert parts[1].startswith("This")
+
+
+def test_split_region_text_falls_back_to_whitespace_then_hard_cut():
+    whitespace_text = "aaaa bbbb " * 100
+    parts = split_region_text(whitespace_text, 400)
+    assert all(part.endswith(" ") for part in parts[:-1])
+
+    hard_text = "a" * 900
+    parts = split_region_text(hard_text, 400)
+    assert [len(part) for part in parts] == [400, 250, 250]
+
+
+def test_split_region_text_handles_uneven_sentence_drift():
+    text = ("x" * 210 + ". ") * 3 + "x" * 500
+
+    parts = split_region_text(text, 400)
+
+    assert [len(part) for part in parts] == [212, 212, 212, 250, 250]
+    assert "".join(parts) == text
+
+
+def test_split_region_text_final_part_never_exceeds_max_chars():
+    text = "a" * 401
+
+    parts = split_region_text(text, 400)
+
+    assert [len(part) for part in parts] == [200, 201]
 
 
 def test_build_examples_keeps_all_positives_and_one_negative_per_positive():
@@ -124,6 +185,189 @@ def test_load_pages_excludes_invalid_and_blank_pages(tmp_path):
         ("blank", "region text is empty"),
         ("mismatch", "region IDs differ between JSON and XML"),
     ]
+
+
+def test_build_examples_with_split_adds_intra_and_cross_region_positives():
+    page = LabeledPage(
+        "page-1",
+        regions=(
+            LabeledRegion("a", "x" * 500, "article-1", 1),
+            LabeledRegion("b", "b text", "article-1", 2),
+            LabeledRegion("c", "c text", "article-2", 1),
+        ),
+    )
+
+    examples = build_examples([page], seed=42, max_region_chars=400)
+
+    positives = {
+        (example["a_id"], example["b_id"]) for example in examples if example["label"]
+    }
+    assert positives == {("a#1", "a#2"), ("a#2", "b")}
+    assert len(examples) == 2 * len(positives)
+    texts = {(example["a_id"], example["b_id"]): example for example in examples}
+    assert texts[("a#1", "a#2")]["text_a"] == "x" * 250
+    assert texts[("a#1", "a#2")]["text_b"] == "x" * 250
+
+
+def test_build_examples_with_split_keeps_sequence_gap_pairs_negative():
+    page = LabeledPage(
+        "page-1",
+        regions=(
+            LabeledRegion("a", "x" * 500, "article-1", 1),
+            LabeledRegion("b", "b text", "article-1", 3),
+        ),
+    )
+
+    examples = build_examples([page], seed=42, max_region_chars=400)
+
+    positives = {
+        (example["a_id"], example["b_id"]) for example in examples if example["label"]
+    }
+    assert positives == {("a#1", "a#2")}
+
+
+def test_build_continuation_dataset_records_split_stats(tmp_path):
+    articles_dir = tmp_path / "articles"
+    regions_dir = tmp_path / "regions"
+    for index in range(10):
+        _write_page(
+            articles_dir,
+            regions_dir,
+            f"page-{index:02d}",
+            {"a": "x" * 500, "b": "second", "c": "other"},
+            [[("a", 1), ("b", 2)], [("c", 1)]],
+        )
+
+    manifest = build_continuation_dataset(
+        articles_dir,
+        regions_dir,
+        tmp_path / "split",
+        seed=42,
+        max_region_chars=400,
+    )
+
+    assert manifest["max_region_chars"] == 400
+    assert manifest["counts"]["fragments"] == 40
+    for split in manifest["splits"].values():
+        assert split["positive_intra_region"] == split["pages"]
+        assert (
+            split["positive_cross_region"]
+            == split["positive_examples"] - split["positive_intra_region"]
+        )
+        assert split["text_length_chars"]["text_a"]["max"] <= 400
+
+
+def test_build_examples_cross_region_negatives_drop_same_region_negatives():
+    page = LabeledPage(
+        "page-1",
+        regions=(
+            LabeledRegion("a", "x" * 900, "article-1", 1),
+            LabeledRegion("b", "b text", "article-1", 2),
+            LabeledRegion("c", "c text", "article-2", 1),
+        ),
+    )
+
+    restricted = build_examples(
+        [page], seed=42, max_region_chars=400, cross_region_negatives=True
+    )
+    unrestricted = build_examples(
+        [page], seed=42, max_region_chars=400, cross_region_negatives=False
+    )
+
+    def region_of(fragment_id):
+        return fragment_id.split("#", 1)[0]
+
+    same_region_negatives = [
+        example
+        for example in restricted
+        if not example["label"]
+        and region_of(example["a_id"]) == region_of(example["b_id"])
+    ]
+    assert same_region_negatives == []
+    assert {
+        (example["a_id"], example["b_id"]) for example in restricted if example["label"]
+    } == {("a#1", "a#2"), ("a#2", "a#3"), ("a#3", "b")}
+    assert len(restricted) == 2 * 3
+    assert any(
+        not example["label"]
+        and region_of(example["a_id"]) == region_of(example["b_id"])
+        for example in unrestricted
+    )
+
+
+def test_build_continuation_dataset_records_negative_same_region_count(tmp_path):
+    articles_dir = tmp_path / "articles"
+    regions_dir = tmp_path / "regions"
+    for index in range(10):
+        _write_page(
+            articles_dir,
+            regions_dir,
+            f"page-{index:02d}",
+            {"a": "x" * 500, "b": "second", "c": "other"},
+            [[("a", 1), ("b", 2)], [("c", 1)]],
+        )
+
+    restricted = build_continuation_dataset(
+        articles_dir,
+        regions_dir,
+        tmp_path / "restricted",
+        seed=42,
+        max_region_chars=400,
+        cross_region_negatives=True,
+    )
+    unrestricted = build_continuation_dataset(
+        articles_dir,
+        regions_dir,
+        tmp_path / "unrestricted",
+        seed=42,
+        max_region_chars=400,
+    )
+
+    for split in ("train", "validation", "test"):
+        assert restricted["splits"][split]["negative_same_region"] == 0
+        assert "negative_same_region" in unrestricted["splits"][split]
+
+
+def test_build_examples_with_gibberish_filter_drops_gibberish_regions():
+    gibberish = "Ab1 " * 30
+    page = LabeledPage(
+        "page-1",
+        regions=(
+            LabeledRegion("a", gibberish, "article-1", 1),
+            LabeledRegion("b", "b text", "article-1", 2),
+        ),
+    )
+
+    filtered = build_examples([page], seed=42, filter_gibberish=True)
+    unfiltered = build_examples([page], seed=42, filter_gibberish=False)
+
+    assert filtered == []
+    assert len(unfiltered) == 2
+
+
+def test_build_continuation_dataset_counts_dropped_gibberish(tmp_path):
+    articles_dir = tmp_path / "articles"
+    regions_dir = tmp_path / "regions"
+    for index in range(10):
+        _write_page(
+            articles_dir,
+            regions_dir,
+            f"page-{index:02d}",
+            {"a": "Ab1 " * 30, "b": "second", "c": "other", "d": "fourth"},
+            [[("a", 1), ("b", 2), ("d", 3)], [("c", 1)]],
+        )
+
+    manifest = build_continuation_dataset(
+        articles_dir,
+        regions_dir,
+        tmp_path / "filtered",
+        seed=42,
+        filter_gibberish=True,
+    )
+
+    assert manifest["filter_gibberish"] is True
+    assert manifest["counts"]["gibberish_regions_dropped"] == 10
+    assert manifest["counts"]["fragments"] == 30
 
 
 def test_build_continuation_dataset_writes_balanced_reproducible_splits(tmp_path):

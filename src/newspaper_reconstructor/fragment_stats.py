@@ -60,7 +60,7 @@ def _max_repeat_window(text: str, k: int = REPEAT_WINDOW) -> int:
     ]
 
 
-def _is_gibberish(text: str) -> bool:
+def is_gibberish(text: str) -> bool:
     """True if a fragment looks like mixed-script OCR garbage."""
     chars = [c for c in text if not c.isspace()]
     if len(chars) < GIBBERISH_MIN_CHARS:
@@ -105,7 +105,7 @@ def page_stats(page: str, fragments: list[dict]) -> PageStats:
     words = joined.split()
     ratios = script_ratios(joined)
     lengths = [len(t) for t in texts]
-    gibberish = [t for t in texts if _is_gibberish(t)]
+    gibberish = [t for t in texts if is_gibberish(t)]
 
     return PageStats(
         page=page,

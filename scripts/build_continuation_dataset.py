@@ -11,6 +11,22 @@ def main() -> None:
     parser.add_argument("--regions-dir", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--max-region-chars",
+        type=int,
+        default=None,
+        help="Split regions longer than this many characters into sub-fragments",
+    )
+    parser.add_argument(
+        "--filter-gibberish",
+        action="store_true",
+        help="Drop regions flagged as mixed-script OCR garbage",
+    )
+    parser.add_argument(
+        "--cross-region-negatives",
+        action="store_true",
+        help="Sample negatives only from pairs of different regions",
+    )
     args = parser.parse_args()
 
     manifest = build_continuation_dataset(
@@ -18,6 +34,9 @@ def main() -> None:
         args.regions_dir,
         args.output_dir,
         seed=args.seed,
+        max_region_chars=args.max_region_chars,
+        filter_gibberish=args.filter_gibberish,
+        cross_region_negatives=args.cross_region_negatives,
     )
     for name, split in manifest["splits"].items():
         print(
