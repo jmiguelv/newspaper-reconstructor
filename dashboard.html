@@ -2765,9 +2765,17 @@
                                                                                     x-text="predMatchLevel(page, pair.pred) === 'match' ? '✓' : (predMatchLevel(page, pair.pred) === 'partial' ? '∼' : '✗')"
                                                                                 ></span>
                                                                             </div>
+
                                                                             <h4
                                                                                 x-text="pair.pred.title"
                                                                             ></h4>
+                                                                            <h5 x-show="pair.pred.title_ms"
+                                                                                x-text="pair.pred.title_ms"
+                                                                            ></h5>
+                                                                            <h5 x-show="pair.pred.title_en"
+                                                                                x-text="pair.pred.title_en"
+                                                                            ></h5>
+
                                                                             <div
                                                                                 class="chips"
                                                                             >
