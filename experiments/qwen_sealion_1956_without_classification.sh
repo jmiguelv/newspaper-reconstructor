@@ -24,7 +24,7 @@ SAVE_RAW=0
 SLIM=0
 
 CLUSTER_PROMPTS=(
-  "prompts/v01.01.02.md"
+  "prompts/v01.01.03.md"
 )
 
 MODELS=(
