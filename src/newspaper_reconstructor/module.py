@@ -64,6 +64,8 @@ def output_to_items(output: dict) -> list[dict]:
             "title": article.get("title"),
             "class": article.get("item_class"),
         }
+        if article.get("title_ms") is not None:
+            item["title_ms"] = article["title_ms"]
         if article.get("title_en") is not None:
             item["title_en"] = article["title_en"]
         items.append(item)
@@ -78,6 +80,7 @@ def items_to_articles(
         f"{article_id_prefix}{i}": Article(
             region_ids=item["fragment_ids"],
             title=item.get("title"),
+            title_ms=item.get("title_ms"),
             title_en=item.get("title_en"),
             item_class=item.get("class"),
         )

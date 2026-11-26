@@ -170,7 +170,8 @@ class TestItemsToModuleOutput:
         items = [
             {
                 "fragment_ids": ["r_1", "r_2"],
-                "title": "Tajuk",
+                "title": "تاجوق",
+                "title_ms": "Tajuk",
                 "title_en": "Title",
                 "class": "article",
             },
@@ -181,7 +182,8 @@ class TestItemsToModuleOutput:
         assert set(out["articles"].keys()) == {"article_1", "article_2"}
         a1 = out["articles"]["article_1"]
         assert a1["region_ids"] == ["r_1", "r_2"]
-        assert a1["title"] == "Tajuk"
+        assert a1["title"] == "تاجوق"
+        assert a1["title_ms"] == "Tajuk"
         assert a1["title_en"] == "Title"
         assert a1["item_class"] == "article"
 
@@ -190,6 +192,7 @@ class TestItemsToModuleOutput:
             "article_1"
         ]
         assert out["title"] is None
+        assert out["title_ms"] is None
         assert out["title_en"] is None
         assert out["item_class"] is None
 
@@ -206,7 +209,8 @@ class TestItemsToModuleOutput:
         items = [
             {
                 "fragment_ids": ["r_1", "r_2"],
-                "title": "Tajuk",
+                "title": "تاجوق",
+                "title_ms": "Tajuk",
                 "title_en": "Title",
                 "class": "article",
             }
@@ -220,7 +224,8 @@ class TestOutputToItems:
             "articles": {
                 "article_1": {
                     "region_ids": ["r_1", "r_2"],
-                    "title": "Laporan",
+                    "title": "لاڤورن",
+                    "title_ms": "Laporan",
                     "title_en": "Report",
                     "item_class": "article",
                 },
@@ -235,8 +240,9 @@ class TestOutputToItems:
         assert output_to_items(output) == [
             {
                 "fragment_ids": ["r_1", "r_2"],
-                "title": "Laporan",
+                "title": "لاڤورن",
                 "class": "article",
+                "title_ms": "Laporan",
                 "title_en": "Report",
             },
             {"fragment_ids": ["r_3"], "title": None, "class": "advertisement"},
@@ -312,15 +318,17 @@ class TestProcess:
         out = module.process(make_input([make_text_region("r_1", ["a"])]))
         assert out.articles["article_1"].region_ids == ["r_1"]
 
-    def test_title_en_mapped_when_present(self, tmp_path):
+    def test_translated_titles_mapped_when_present(self, tmp_path):
         client = MagicMock()
         client.complete.return_value = (
-            '[{"fragment_ids": ["r_1"], "title": "Laporan", '
-            '"title_en": "Report", "class": "article"}]'
+            '[{"fragment_ids": ["r_1"], "title": "لاڤورن", '
+            '"title_ms": "Laporan", "title_en": "Report", '
+            '"class": "article"}]'
         )
         module = self.make_module(client, self.make_prompt_file(tmp_path))
         out = module.process(make_input([make_text_region("r_1", ["a"])]))
-        assert out.articles["article_1"].title == "Laporan"
+        assert out.articles["article_1"].title == "لاڤورن"
+        assert out.articles["article_1"].title_ms == "Laporan"
         assert out.articles["article_1"].title_en == "Report"
 
     def test_llm_failure_raises_with_page_id(self, tmp_path):
@@ -525,6 +533,7 @@ class TestCli:
         assert json.loads(output_file.read_text())["articles"]["article_1"] == {
             "region_ids": ["r_1"],
             "title": "t",
+            "title_ms": None,
             "title_en": None,
             "item_class": "article",
         }
