@@ -28,6 +28,13 @@ root). Scripts run with `uv run python scripts/<name>.py …`; shell scripts wit
   `newspaper_reconstructor.fragment_stats`: corpus stats and script mix for a
   fragments dir/file set (`--csv`, `--group`, `--ascii-threshold`).
   `uv run python scripts/fragment_stats_report.py data/1_interim/<ds>/fragments`
+- `build_continuation_dataset.py` — Build balanced, page-disjoint JSONL data for
+  binary continuation classification.
+  `uv run python scripts/build_continuation_dataset.py --articles-dir <dataset>/articles --regions-dir <dataset>/regions --output-dir <output>`
+- `train_continuation_classifier.py` — Fine-tune or evaluate a BERT text-pair
+  classifier. Requires the local transformers dependency group. Normally run
+  through `experiments/continuation_classifier.sh`.
+  `uv run --group local python scripts/train_continuation_classifier.py train --data-dir <data> --output-dir <model>`
 - `token_lookup.py` — Look up the string form of a tokenizer token id. Requires the
   local transformers dependency group: `uv run --group local python scripts/token_lookup.py <model> <token_id>`
 - `migrate_experiment_ids.py` — Backfill dataset name into `experiment_id` fields of

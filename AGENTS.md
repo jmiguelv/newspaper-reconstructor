@@ -31,6 +31,9 @@ Annotator XML × 2 → article-reconstruction agree (inter-annotator agreement o
 jawi-pipeline OcrOutput (page + regions with line OCR)
              → pl-article-reconstruction process/bulk-process (ArticleReconstructionModule)
              → ArticleReconstructionOutput ({articles: {article_id: Article(region_ids, title, title_en, item_class)}})
+
+Article JSON + annotation XML → build_continuation_dataset.py (balanced page-disjoint JSONL)
+                              → train_continuation_classifier.py (binary BERT classifier)
 ```
 
 ### Module roles
@@ -48,6 +51,7 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 | `src/newspaper_reconstructor/module.py`      | `ArticleReconstructionModule` — jawi-pipeline stage (regions → fragments → articles) |
 | `src/newspaper_reconstructor/reconstruct.py`  | Data transformation, dict parsing, and mapping to LLM inputs     |
 | `src/newspaper_reconstructor/fragment_stats.py` | Fragment corpus statistics, script mix (Jawi vs ASCII), OCR-garbage detection |
+| `src/newspaper_reconstructor/continuation_data.py` | Balanced, page-disjoint binary continuation-pair datasets |
 | `src/newspaper_reconstructor/llm.py`          | LLM clients (OpenAI-compatible API + local transformers backend), `make_client` factory, `LLMError` |
 | `src/newspaper_reconstructor/evaluate.py`     | Ground truth parsing, clustering F1, ARI, B³ F1, class accuracy, coverage |
 | `src/newspaper_reconstructor/agreement.py`    | Inter-annotator region agreement (loader, Jaccard matcher, metrics, JSON/MD reports, agreed-page copy) |
@@ -57,6 +61,8 @@ jawi-pipeline OcrOutput (page + regions with line OCR)
 | `scripts/fragment_stats_report.py`            | Stats report for a fragments dir/file set (`--csv`, `--group`, `--ascii-threshold`) |
 | `scripts/dump_prompt.py`                      | Renders the exact prompt (and request payload) for one page, for offline debugging |
 | `scripts/token_lookup.py`                     | Looks up the string form of a tokenizer token id (needs `--group local`) |
+| `scripts/build_continuation_dataset.py`       | Builds balanced train/validation/test continuation JSONL files |
+| `scripts/train_continuation_classifier.py`    | Fine-tunes and evaluates a BERT text-pair classifier (needs `--group local`) |
 | `scripts/migrate_experiment_ids.py`           | Backfills the dataset name into `experiment_id` of existing eval logs |
 | `scripts/README.md`                           | Index of every script: purpose and invocation                     |
 
